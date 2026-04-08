@@ -3,6 +3,22 @@ set -e
 
 echo "🧪 Testing Elgato VirtualCam Desktop Application..."
 
+DEFAULT_VENV_DIR="/opt/ubuntu-elgato-facecam"
+INSTALL_META_FILE="$HOME/.config/elgato-virtualcam/install.env"
+APP_CMD=(python3 virtualcam_app.py)
+
+if [[ -f "$INSTALL_META_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$INSTALL_META_FILE"
+fi
+
+VENV_DIR="${VENV_DIR:-$DEFAULT_VENV_DIR}"
+if [[ -x "$VENV_DIR/bin/elgato-virtualcam" ]]; then
+    APP_CMD=("$VENV_DIR/bin/elgato-virtualcam")
+elif command -v elgato-virtualcam >/dev/null 2>&1; then
+    APP_CMD=("elgato-virtualcam")
+fi
+
 # Function to check command availability
 check_command() {
     if command -v "$1" >/dev/null 2>&1; then
@@ -38,7 +54,7 @@ python3 -c "import PyQt5.QtWidgets; print('✅ PyQt5 is available')" 2>/dev/null
 
 echo ""
 echo "🎥 Camera Detection Test:"
-python3 virtualcam_app.py --test-camera
+"${APP_CMD[@]}" --test-camera
 
 echo ""
 echo "🔧 Virtual Device Module Test:"
@@ -70,7 +86,7 @@ fi
 echo ""
 echo "🚀 Application Startup Test (5 seconds):"
 echo "Starting application in background..."
-python3 virtualcam_app.py &
+"${APP_CMD[@]}" &
 APP_PID=$!
 sleep 5
 
@@ -111,7 +127,7 @@ fi
 echo ""
 echo "📊 Test Summary:"
 echo "If all tests passed, you can run the application with:"
-echo "  python3 virtualcam_app.py"
+echo "  ${APP_CMD[*]}"
 echo ""
 echo "The application will appear as a camera icon in your system tray."
 echo "Left-click to start/stop virtual camera, right-click for menu."

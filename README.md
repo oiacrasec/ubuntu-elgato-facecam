@@ -29,9 +29,16 @@ cd ubuntu-elgato-facecam
 ./install-desktop-app.sh
 ```
 
+Optional custom venv path:
+
+```bash
+./install-desktop-app.sh --venv-path /my/custom/path
+```
+
 The script will:
-- Install system dependencies (`v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`)
-- Set up Python dependencies
+- Install system dependencies (`v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`, `python3-venv`)
+- Create/use a virtual environment (default: `/opt/ubuntu-elgato-facecam`)
+- Install the app into that virtual environment
 - Configure desktop autostart integration
 - Test camera detection
 
@@ -40,10 +47,11 @@ The script will:
 - 🖱️ System tray camera icon for easy control
 - 🚀 Auto-starts on login via desktop integration
 - ⚙️ Professional configuration management
+- 🐍 Stable command shim at `~/.local/bin/elgato-virtualcam`
 
 **After installation:**
 - Refresh your shell: `exec bash`
-- Start the app in background: `python3 virtualcam_app.py &`
+- Start the app in background: `~/.local/bin/elgato-virtualcam &`
 - Look for the camera icon in your system tray
 - The app will auto-start on future logins
 
@@ -55,17 +63,24 @@ To completely remove the desktop application:
 ./uninstall-desktop-app.sh
 ```
 
+If the venv was installed in a custom location and metadata is missing:
+
+```bash
+./uninstall-desktop-app.sh --venv-path /my/custom/path
+```
+
 This will:
 - Stop the running application
 - Remove autostart entry
+- Optionally remove the virtual environment
 - Remove configuration (with confirmation)
 - Remove sudoers permissions
 - Optionally remove from video group
-- Optionally remove Python dependencies
 
 ### Legacy Files (Systemd - Deprecated)
 
 ⚠️ **Not recommended** - The old systemd files remain for reference:
+```bash
 ./install.sh        # Has known permission issues
 ```
 
@@ -93,17 +108,22 @@ After installation, you'll see a **camera icon** in your system tray that provid
 ### 🔧 Command Line Interface
 
 ```bash
+VENV_BIN="/opt/ubuntu-elgato-facecam/bin"
+
 # Run the application in background
-python3 virtualcam_app.py &
+"$VENV_BIN/elgato-virtualcam" &
 
 # Test camera detection
-python3 virtualcam_app.py --test-camera
+"$VENV_BIN/elgato-virtualcam" --test-camera
 
 # Install autostart
-python3 virtualcam_app.py --install-autostart
+"$VENV_BIN/elgato-virtualcam" --install-autostart
 
 # Debug mode (foreground for logs)
-python3 virtualcam_app.py --debug
+"$VENV_BIN/elgato-virtualcam" --debug
+
+# If ~/.local/bin is in PATH, you can also use:
+elgato-virtualcam
 ```
 
 ---
@@ -134,7 +154,7 @@ v4l2-ctl --list-devices
 cheese -d /dev/video10
 
 # Test camera detection only
-python3 virtualcam_app.py --test-camera
+~/.local/bin/elgato-virtualcam --test-camera
 ```
 
 ### ✅ Browser Testing
@@ -155,7 +175,7 @@ Open these in your browser and select **"VirtualCam"**:
 lsusb | grep -i elgato
 
 # Test detection manually
-python3 virtualcam_app.py --test-camera
+~/.local/bin/elgato-virtualcam --test-camera
 
 # Check video devices
 v4l2-ctl --list-devices
@@ -166,7 +186,7 @@ v4l2-ctl --list-devices
 ```bash
 # Remove old module and restart
 sudo modprobe -r v4l2loopback
-python3 virtualcam_app.py  # Will reload module automatically
+~/.local/bin/elgato-virtualcam  # Will reload module automatically
 ```
 
 ### 📱 System Tray Not Visible
@@ -179,7 +199,7 @@ sudo apt install gnome-shell-extension-appindicator
 
 **General:**
 - Verify PyQt5: `python3 -c "import PyQt5; print('OK')"`
-- Run directly: `python3 virtualcam_app.py --debug`
+- Run directly: `~/.local/bin/elgato-virtualcam --debug`
 
 ### 📋 View Application Logs
 
@@ -206,10 +226,13 @@ rm -rf ~/.config/elgato-virtualcam/config.json
 
 ```bash
 # Stop application
-pkill -f virtualcam_app.py
+pkill -f "virtualcam_app.py|elgato-virtualcam"
 
 # Remove autostart
 rm ~/.config/autostart/elgato-virtualcam.desktop
+
+# Remove default venv (or your custom --venv-path)
+sudo rm -rf /opt/ubuntu-elgato-facecam
 
 # Remove configuration
 rm -rf ~/.config/elgato-virtualcam/

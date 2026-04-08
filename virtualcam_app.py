@@ -855,14 +855,21 @@ def install_autostart():
     autostart_dir = Path.home() / '.config/autostart'
     autostart_dir.mkdir(parents=True, exist_ok=True)
 
-    # Prefer entry point if available, fallback to direct script execution
-    entry_point_cmd = shutil.which('elgato-virtualcam')
-    if entry_point_cmd:
-        exec_cmd = entry_point_cmd
+    # Prefer deterministic user/venv entry points, fallback to script execution
+    local_entrypoint = Path.home() / '.local/bin/elgato-virtualcam'
+    venv_entrypoint = Path(sys.executable).resolve().with_name('elgato-virtualcam')
+
+    if local_entrypoint.exists() and os.access(local_entrypoint, os.X_OK):
+        exec_cmd = str(local_entrypoint)
+    elif venv_entrypoint.exists() and os.access(venv_entrypoint, os.X_OK):
+        exec_cmd = str(venv_entrypoint)
     else:
-        # Fallback to direct script execution
-        python_exec = shutil.which('python3') or sys.executable
-        exec_cmd = f"{python_exec} {os.path.abspath(__file__)}"
+        entry_point_cmd = shutil.which('elgato-virtualcam')
+        if entry_point_cmd:
+            exec_cmd = entry_point_cmd
+        else:
+            python_exec = sys.executable or shutil.which('python3') or 'python3'
+            exec_cmd = f"{python_exec} {os.path.abspath(__file__)}"
 
     desktop_entry = f"""[Desktop Entry]
 Type=Application
@@ -926,7 +933,7 @@ def main():
         if camera.start_streaming():
             print("✅ VirtualCam started successfully!")
             print("📱 Virtual camera available at /dev/video10")
-            print("🛑 Use 'python3 virtualcam_app.py --stop' to stop streaming")
+            print("🛑 Use 'elgato-virtualcam --stop' to stop streaming")
             return 0
         else:
             print("❌ Failed to start VirtualCam")
