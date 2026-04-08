@@ -36,7 +36,7 @@ Optional custom venv path:
 ```
 
 The script will:
-- Install system dependencies (`v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`, `python3-venv`)
+- Install system dependencies (`v4l-utils`, `v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`, `python3-venv`)
 - Create/use a virtual environment (default: `/opt/ubuntu-elgato-facecam`)
 - Install the app into that virtual environment
 - Configure desktop autostart integration
@@ -249,7 +249,7 @@ sudo modprobe -r v4l2loopback
 ```
 
 **System packages remain** (safe to keep):
-- `v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`
+- `v4l-utils`, `v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`
 
 ---
 

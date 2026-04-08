@@ -92,7 +92,7 @@ fi
 # Install system dependencies
 echo "📦 Installing system dependencies..."
 sudo apt update
-sudo apt install -y v4l2loopback-dkms ffmpeg python3 python3-pip python3-venv python3-pyqt5
+sudo apt install -y v4l-utils v4l2loopback-dkms ffmpeg python3 python3-pip python3-venv python3-pyqt5
 
 # Prepare venv directory
 if [[ -e "$VENV_DIR" && ! -d "$VENV_DIR" ]]; then
