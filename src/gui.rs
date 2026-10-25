@@ -9,6 +9,105 @@ use anyhow::Result;
 use eframe::egui::{self, Color32, RichText, Stroke, Vec2};
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
+use crate::resources::Kind as FileTarget;
+
+type FileSelection = (FileTarget, Option<PathBuf>);
+
+struct Thumbnail {
+    path: PathBuf,
+    receiver: std::sync::mpsc::Receiver<Result<Vec<u8>, String>>,
+    texture: Option<egui::TextureHandle>,
+    error: Option<String>,
+}
+
+fn resource_selector(ui: &mut egui::Ui, state: &Snapshot, kind: FileTarget, selected: &mut String) {
+    let label = state
+        .resources
+        .iter()
+        .find(|r| r.path.to_str() == Some(selected.as_str()))
+        .map(|r| r.name.as_str())
+        .unwrap_or(if selected.is_empty() {
+            if kind == FileTarget::Lut {
+                "Original"
+            } else {
+                "Escolha um fundo"
+            }
+        } else {
+            "Recurso selecionado"
+        });
+    egui::ComboBox::from_id_salt(("resource", kind as u8))
+        .width(ui.available_width())
+        .truncate()
+        .selected_text(label)
+        .show_ui(ui, |ui| {
+            if kind == FileTarget::Lut {
+                ui.selectable_value(selected, String::new(), "Original");
+            }
+            for resource in state.resources.iter().filter(|r| r.kind == kind) {
+                if let Some(path) = resource.path.to_str() {
+                    ui.selectable_value(selected, path.to_owned(), &resource.name);
+                }
+            }
+        })
+        .response
+        .on_hover_text(label);
+}
+
+fn effect_row(ui: &mut egui::Ui, label: &str, content: impl FnOnce(&mut egui::Ui)) {
+    ui.horizontal(|ui| {
+        ui.allocate_ui_with_layout(
+            Vec2::new(104.0, 24.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.set_min_width(104.0);
+                ui.label(RichText::new(label).size(12.0).color(MUTED));
+            },
+        );
+        content(ui);
+    });
+}
+
+fn effect_slider<N: egui::emath::Numeric>(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: &mut N,
+    range: std::ops::RangeInclusive<N>,
+    step: f64,
+) {
+    effect_row(ui, label, |ui| {
+        ui.spacing_mut().slider_width = 99.0;
+        ui.add(
+            egui::Slider::new(value, range.clone())
+                .step_by(step)
+                .show_value(false),
+        );
+        ui.add(
+            egui::DragValue::new(value)
+                .range(range)
+                .speed(step)
+                .max_decimals(if step < 1.0 { 2 } else { 0 }),
+        );
+    });
+}
+
+fn effect_card(ui: &mut egui::Ui, title: &str, open: bool, content: impl FnOnce(&mut egui::Ui)) {
+    egui::Frame::new()
+        .fill(PANEL)
+        .corner_radius(3)
+        .inner_margin(10)
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            egui::CollapsingHeader::new(RichText::new(title).size(13.0).strong())
+                .id_salt(("effects", title))
+                .default_open(open)
+                .show(ui, |ui| {
+                    ui.add_space(5.0);
+                    content(ui);
+                });
+        });
+    ui.add_space(3.0);
+}
+
 // Camera Hub layout: compact control column on the left, preview on the right.
 const CANVAS: Color32 = Color32::from_rgb(18, 18, 18);
 const PANEL: Color32 = Color32::from_rgb(39, 39, 39);
@@ -54,6 +153,10 @@ struct App {
     settings: bool,
     hidden: bool,
     show_revision: u64,
+    file_dialog: Option<std::sync::mpsc::Receiver<FileSelection>>,
+    file_dialog_error: Option<String>,
+    import_revision: u64,
+    thumbnail: Option<Thumbnail>,
     #[cfg(feature = "tray")]
     tray: Option<ksni::blocking::Handle<crate::tray::Tray>>,
     #[cfg(feature = "tray")]
@@ -121,6 +224,10 @@ impl App {
             settings: false,
             hidden,
             show_revision: 0,
+            file_dialog: None,
+            file_dialog_error: None,
+            import_revision: 0,
+            thumbnail: None,
             #[cfg(feature = "tray")]
             tray,
             #[cfg(feature = "tray")]
@@ -320,49 +427,230 @@ impl App {
 
     fn effects_panel(&mut self, ui: &mut egui::Ui, state: &Snapshot) {
         if state.config.effects != self.applied_effects {
+            let mut detected = self.applied_effects.clone();
+            detected.ai_model = state.config.effects.ai_model.clone();
+            detected.ai_runtime = state.config.effects.ai_runtime.clone();
+            if detected == state.config.effects {
+                self.config.effects.ai_model = detected.ai_model;
+                self.config.effects.ai_runtime = detected.ai_runtime;
+            } else {
+                self.config.effects = state.config.effects.clone();
+            }
             self.applied_effects = state.config.effects.clone();
-            self.config.effects = self.applied_effects.clone();
         }
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+        let mut choose_file = None;
+        let mut refresh_ai = false;
+        let dialog_available = self.file_dialog.is_none() && !state.importing;
+        let controls_height = (ui.available_height() - 82.0).max(80.0);
+        egui::ScrollArea::vertical().max_height(controls_height).auto_shrink([false, false]).show(ui, |ui| {
             egui::Frame::new().fill(PANEL).corner_radius(3).inner_margin(10).show(ui, |ui| {
-                let effects = &mut self.config.effects;
-                ui.strong("Color & LUT");
-                ui.checkbox(&mut effects.mirror, "Espelhar também a saída virtual");
-                ui.add(egui::Slider::new(&mut effects.brightness, -1.0..=1.0).text("Brightness"));
-                ui.add(egui::Slider::new(&mut effects.contrast, 0.0..=2.0).text("Contrast"));
-                ui.add(egui::Slider::new(&mut effects.saturation, 0.0..=3.0).text("Saturation"));
-                ui.add(egui::Slider::new(&mut effects.denoise, 0.0..=10.0).text("Denoise"));
-                ui.label("LUT 3D (.cube) — caminho completo");
-                ui.text_edit_singleline(&mut effects.lut);
+                ui.horizontal(|ui| {
+                    ui.strong("Look");
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add_enabled(dialog_available, egui::Button::new("Adicionar LUT…")).clicked() {
+                            choose_file = Some(FileTarget::Lut);
+                        }
+                    });
+                });
                 ui.separator();
                 ui.horizontal(|ui| {
-                    ui.strong("AI Background");
-                    if ui.small_button("Detectar arquivos").on_hover_text("Preencher caminhos vazios com arquivos de IA disponíveis neste computador").clicked() {
-                        crate::ai_paths::autofill(effects);
-                    }
+                    ui.allocate_ui_with_layout(Vec2::new(48.0, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.label(RichText::new("LUT 3D").color(MUTED));
+                    });
+                    resource_selector(ui, state, FileTarget::Lut, &mut self.config.effects.lut);
+                });
+            });
+            ui.add_space(5.0);
+            let effects = &mut self.config.effects;
+            effect_card(ui, "Picture", true, |ui| {
+                effect_slider(ui, "Brightness", &mut effects.brightness, -1.0..=1.0, 0.01);
+                effect_slider(ui, "Contrast", &mut effects.contrast, 0.0..=2.0, 0.01);
+                effect_slider(ui, "Saturation", &mut effects.saturation, 0.0..=3.0, 0.01);
+            });
+            effect_card(ui, "Processing", true, |ui| {
+                effect_slider(ui, "Denoise", &mut effects.denoise, 0.0..=10.0, 0.1);
+                effect_row(ui, "Espelhar vídeo", |ui| {
+                    ui.checkbox(&mut effects.mirror, "").on_hover_text("Espelha o preview e a saída virtual.");
+                });
+            });
+            effect_card(ui, "AI Background", true, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_enabled(state.ai_compiled, egui::Checkbox::new(&mut effects.background_blur, "Ativar fundo com IA"));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.small_button("Atualizar").on_hover_text("Detectar recursos e instalações de IA disponíveis neste computador").clicked() {
+                            refresh_ai = true;
+                        }
+                    });
                 });
                 ui.add_enabled_ui(state.ai_compiled, |ui| {
-                    ui.checkbox(&mut effects.background_blur, "Desfocar fundo com IA");
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(&mut effects.ai_provider, crate::effects::AiProvider::Cuda, "NVIDIA CUDA");
-                        ui.selectable_value(&mut effects.ai_provider, crate::effects::AiProvider::Cpu, "CPU");
+                    effect_row(ui, "Fundo", |ui| {
+                        egui::ComboBox::from_id_salt("background-mode").width(ui.available_width()).truncate().selected_text(effects.background_mode.label()).show_ui(ui, |ui| {
+                            use crate::effects::BackgroundMode::*;
+                            for mode in [Blur, Solid, Studio, Office, Landscape, Image, Video] {
+                                ui.selectable_value(&mut effects.background_mode, mode, mode.label());
+                            }
+                        });
                     });
-                    ui.add(egui::Slider::new(&mut effects.blur_radius, 1..=32).text("Blur"));
-                    ui.label("Modelo de segmentação (.onnx)");
-                    ui.text_edit_singleline(&mut effects.ai_model);
-                    ui.label("Runtime (libonnxruntime.so)");
-                    ui.text_edit_singleline(&mut effects.ai_runtime);
+                    match effects.background_mode {
+                        crate::effects::BackgroundMode::Blur => effect_slider(ui, "Blur", &mut effects.blur_radius, 1..=32, 1.0),
+                        crate::effects::BackgroundMode::Solid => effect_row(ui, "Cor de fundo", |ui| { ui.color_edit_button_srgb(&mut effects.background_color); }),
+                        crate::effects::BackgroundMode::Image => {
+                            effect_row(ui, "Imagem", |ui| { resource_selector(ui, state, FileTarget::Image, &mut effects.background_image); });
+                            if ui.add_enabled(dialog_available, egui::Button::new("Adicionar imagem…")).clicked() {
+                                choose_file = Some(FileTarget::Image);
+                            }
+                            if !effects.background_image.is_empty() { Self::resource_thumbnail(ui, std::path::Path::new(&effects.background_image), &mut self.thumbnail); }
+                        }
+                        crate::effects::BackgroundMode::Video => {
+                            effect_row(ui, "Vídeo", |ui| { resource_selector(ui, state, FileTarget::Video, &mut effects.background_video); });
+                            if ui.add_enabled(dialog_available, egui::Button::new("Adicionar vídeo…")).clicked() {
+                                choose_file = Some(FileTarget::Video);
+                            }
+                            if !effects.background_video.is_empty() { Self::resource_thumbnail(ui, std::path::Path::new(&effects.background_video), &mut self.thumbnail); }
+                            ui.label(RichText::new("Reproduz em loop, sem áudio. Preenche o quadro com recorte central.").size(10.0).color(MUTED));
+                        }
+                        _ => { ui.label(RichText::new("Cenário ilustrado local, sem download.").size(10.0).color(MUTED)); }
+                    }
+                    effect_slider(ui, "FPS da IA", &mut effects.ai_fps, 1..=60, 1.0);
+                    effect_row(ui, "Processamento", |ui| { ui.label(match effects.ai_provider {
+                        crate::effects::AiProvider::Cuda => "NVIDIA CUDA",
+                        crate::effects::AiProvider::Cpu => "CPU (ONNX)",
+                    }); });
+                    ui.label(RichText::new(if effects.ai_model.is_empty() || effects.ai_runtime.is_empty() { "IA indisponível · instalação não detectada" } else { "Modelo e runtime detectados" }).size(10.0).color(MUTED));
+                    ui.label(RichText::new("Preview: 640×360, até 15 fps.\nSaída virtual: resolução da câmera.").size(10.0).color(MUTED)).on_hover_text("FPS da IA limita a taxa da saída virtual. Somente preview é reduzido antes da inferência.");
                 });
-                if !state.ai_compiled { ui.label("Compile com --features ai para habilitar IA."); }
-                ui.label(RichText::new("CUDA exige ONNX Runtime GPU, CUDA e cuDNN. O modelo e o runtime são carregados somente ao ativar IA.").size(10.0).color(MUTED));
-                ui.separator();
-                if ui.button("Restaurar efeitos padrão").clicked() { self.config.effects = Default::default(); }
-                if ui.add(egui::Button::new("Aplicar e salvar").fill(ACCENT)).clicked() {
-                    self.dispatch(Request::SetEffects { effects: self.config.effects.clone() });
-                }
-                ui.label(RichText::new("Aplicar reinicia brevemente a captura. Os efeitos são enviados à câmera virtual; a grade do preview é apenas local.").size(10.0).color(MUTED));
+                if !state.ai_compiled { ui.label(RichText::new("Esta compilação não inclui IA.").size(10.0).color(MUTED)); }
             });
+            effect_card(ui, "Opções avançadas", false, |ui| {
+                ui.add_enabled_ui(state.ai_compiled, |ui| {
+                    effect_row(ui, "Provider", |ui| {
+                        egui::ComboBox::from_id_salt("ai-provider").width(ui.available_width()).selected_text(match effects.ai_provider {
+                            crate::effects::AiProvider::Cuda => "NVIDIA CUDA",
+                            crate::effects::AiProvider::Cpu => "CPU (alternativa)",
+                        }).show_ui(ui, |ui| {
+                            ui.selectable_value(&mut effects.ai_provider, crate::effects::AiProvider::Cuda, "NVIDIA CUDA");
+                            ui.selectable_value(&mut effects.ai_provider, crate::effects::AiProvider::Cpu, "CPU (alternativa)");
+                        });
+                    });
+                    ui.label(RichText::new("Implementação ONNX Runtime. CPU é uma alternativa própria; não é o backend NVIDIA VFX/AR do Camera Hub Windows.").size(10.0).color(MUTED));
+                    ui.label(RichText::new("CUDA exige ONNX Runtime GPU, CUDA e cuDNN. O modelo e o runtime são carregados somente ao ativar IA.").size(10.0).color(MUTED));
+                });
+            });
+            if state.importing { ui.horizontal(|ui| { ui.spinner(); ui.label("Adicionando à biblioteca…"); }); }
+            if let Some(error) = &self.file_dialog_error { ui.colored_label(Color32::LIGHT_RED, error); }
         });
+        ui.add_space(4.0);
+        if ui.button("Restaurar efeitos padrão").clicked() {
+            self.config.effects = Default::default();
+        }
+        if ui.add_sized([ui.available_width(), 28.0], egui::Button::new("Aplicar e salvar").fill(ACCENT))
+            .on_hover_text("Aplica ao preview e à câmera virtual, reiniciando brevemente a captura, e salva a configuração.").clicked() {
+            self.dispatch(Request::SetEffects { effects: self.config.effects.clone() });
+        }
+        if let Some(target) = choose_file {
+            self.open_file_dialog(target, ui.ctx().clone());
+        }
+        if refresh_ai {
+            self.dispatch(Request::Refresh);
+        }
+    }
+
+    fn open_file_dialog(&mut self, target: FileTarget, context: egui::Context) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.file_dialog_error = None;
+        match std::thread::Builder::new()
+            .name("file-dialog".into())
+            .spawn(move || {
+                let dialog = match target {
+                    FileTarget::Lut => rfd::FileDialog::new()
+                        .set_title("Adicionar LUT")
+                        .add_filter("LUT 3D", &["cube"]),
+                    FileTarget::Image => rfd::FileDialog::new()
+                        .set_title("Adicionar imagem de fundo")
+                        .add_filter("Imagens", &["png", "jpg", "jpeg", "webp", "bmp"]),
+                    FileTarget::Video => rfd::FileDialog::new()
+                        .set_title("Adicionar vídeo de fundo")
+                        .add_filter("Vídeos", &["mp4", "mov", "webm", "mkv"]),
+                };
+                let _ = tx.send((target, dialog.pick_file()));
+                context.request_repaint();
+            }) {
+            Ok(_) => self.file_dialog = Some(rx),
+            Err(error) => {
+                self.file_dialog_error = Some(format!("Não foi possível abrir o seletor: {error}"))
+            }
+        }
+    }
+
+    fn poll_file_dialog(&mut self) {
+        let Some(receiver) = &self.file_dialog else {
+            return;
+        };
+        match receiver.try_recv() {
+            Ok((target, path)) => {
+                self.file_dialog = None;
+                if let Some(path) = path {
+                    self.dispatch(Request::ImportResource { kind: target, path });
+                }
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                self.file_dialog = None;
+                self.file_dialog_error =
+                    Some("O seletor de arquivos encerrou; tente novamente".into());
+            }
+        }
+    }
+
+    fn resource_thumbnail(
+        ui: &mut egui::Ui,
+        path: &std::path::Path,
+        state: &mut Option<Thumbnail>,
+    ) {
+        if state.as_ref().is_none_or(|t| t.path != path) {
+            let path = path.to_owned();
+            let task_path = path.clone();
+            let context = ui.ctx().clone();
+            let (tx, receiver) = std::sync::mpsc::channel();
+            if std::thread::Builder::new()
+                .name("resource-thumbnail".into())
+                .spawn(move || {
+                    let _ = tx.send(
+                        crate::resources::thumbnail(&task_path).map_err(|e| format!("{e:#}")),
+                    );
+                    context.request_repaint();
+                })
+                .is_ok()
+            {
+                *state = Some(Thumbnail {
+                    path,
+                    receiver,
+                    texture: None,
+                    error: None,
+                });
+            }
+        }
+        if let Some(thumbnail) = state {
+            if let Ok(result) = thumbnail.receiver.try_recv() {
+                match result {
+                    Ok(rgb) => {
+                        thumbnail.texture = Some(ui.ctx().load_texture(
+                            "resource-thumbnail",
+                            egui::ColorImage::from_rgb([128, 72], &rgb),
+                            Default::default(),
+                        ))
+                    }
+                    Err(error) => thumbnail.error = Some(error),
+                }
+            }
+            if let Some(texture) = &thumbnail.texture {
+                ui.image(texture);
+            } else if let Some(error) = &thumbnail.error {
+                ui.label(RichText::new(error).size(10.0).color(MUTED));
+            } else {
+                ui.spinner();
+            }
+        }
     }
 
     fn preview(&mut self, ui: &mut egui::Ui, state: &Snapshot) {
@@ -457,7 +745,7 @@ impl App {
             .show(ui, |ui| {
                 ui.set_min_width((available.x - 18.0).max(0.0));
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Preview Format").size(12.0));
+                    ui.label(RichText::new("Input Format").size(12.0));
                     ui.label(
                         RichText::new(
                             state
@@ -519,7 +807,33 @@ impl App {
 
 impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        self.poll_file_dialog();
         let state = self.state();
+        if !state
+            .virtual_cameras
+            .iter()
+            .any(|c| c.path == self.config.virtual_device)
+        {
+            self.config.virtual_device = state.config.virtual_device.clone();
+        }
+        if state.import_revision != self.import_revision {
+            self.import_revision = state.import_revision;
+            if let Some(resource) = &state.imported
+                && let Some(path) = resource.path.to_str()
+            {
+                match resource.kind {
+                    FileTarget::Lut => self.config.effects.lut = path.into(),
+                    FileTarget::Image => {
+                        self.config.effects.background_image = path.into();
+                        self.config.effects.background_mode = crate::effects::BackgroundMode::Image;
+                    }
+                    FileTarget::Video => {
+                        self.config.effects.background_video = path.into();
+                        self.config.effects.background_mode = crate::effects::BackgroundMode::Video;
+                    }
+                }
+            }
+        }
         self.config.saved_controls = state.config.saved_controls.clone();
         if state.quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -531,6 +845,10 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
         if ctx.input(|i| i.viewport().close_requested()) && !state.quit {
+            if state.installation_running || state.importing {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.settings = true;
+            }
             #[cfg(feature = "tray")]
             if self.tray.is_some() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -623,30 +941,174 @@ impl eframe::App for App {
         let mut open = self.settings;
         egui::Window::new("Configurações")
             .open(&mut open)
+            .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
+            .default_width(560.0)
             .resizable(false)
             .show(&ctx, |ui| {
+                ui.separator();
+                ui.strong("Câmera virtual");
                 ui.add_enabled_ui(!state.streaming && !state.preview, |ui| {
-                    ui.label("Dispositivo da câmera virtual");
-                    ui.text_edit_singleline(&mut self.config.virtual_device);
-                    ui.checkbox(&mut self.config.ui.start_minimized, "Iniciar na bandeja");
-                    if ui.button("Salvar").clicked() {
-                        self.dispatch(Request::Configure {
-                            config: Box::new(self.config.clone()),
-                            save: true,
+                    let selected = state
+                        .virtual_cameras
+                        .iter()
+                        .find(|c| c.path == self.config.virtual_device)
+                        .map_or("Nenhuma câmera virtual detectada", |c| c.name.as_str());
+                    ui.horizontal(|ui| {
+                        let selector_width =
+                            (ui.available_width() - 152.0 - ui.spacing().item_spacing.x).max(120.0);
+                        egui::ComboBox::from_id_salt("virtual-camera")
+                            .width(selector_width)
+                            .selected_text(selected)
+                            .show_ui(ui, |ui| {
+                                for camera in &state.virtual_cameras {
+                                    ui.selectable_value(
+                                        &mut self.config.virtual_device,
+                                        camera.path.clone(),
+                                        &camera.name,
+                                    );
+                                }
+                            });
+                        if ui
+                            .add_sized([152.0, 28.0], egui::Button::new("Atualizar dispositivos"))
+                            .clicked()
+                        {
+                            self.dispatch(Request::Refresh);
+                        }
+                    });
+                    ui.label(
+                        RichText::new("Pare a captura para alterar o formato ou o dispositivo.")
+                            .size(11.0)
+                            .color(MUTED),
+                    );
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut self.config.ui.start_minimized, "Iniciar na bandeja");
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("Salvar").clicked() {
+                                let mut config = self.config.clone();
+                                config.effects = state.config.effects.clone();
+                                self.dispatch(Request::Configure {
+                                    config: Box::new(config),
+                                    save: true,
+                                });
+                            }
                         });
-                    }
+                    });
                 });
-                ui.label("Pare a captura para alterar o formato ou o dispositivo.");
                 if ui.button("Iniciar ao entrar no desktop").clicked()
                     && let Err(e) = crate::desktop::install_autostart()
                 {
                     eprintln!("{e}");
                 }
                 ui.separator();
-                if ui.button("Encerrar aplicativo").clicked() {
-                    self.dispatch(Request::Quit);
+                ui.strong("Dependências do Ubuntu");
+                ui.label("Revise os comandos APT antes de confirmar.");
+                ui.horizontal(|ui| {
+                    let width =
+                        ((ui.available_width() - ui.spacing().item_spacing.x) / 2.0).max(0.0);
+                    for dependency in [
+                        crate::dependencies::Dependency::VideoTools,
+                        crate::dependencies::Dependency::SdkManager,
+                    ] {
+                        let status = state
+                            .dependencies
+                            .iter()
+                            .find(|s| s.dependency == dependency);
+                        let installed = status.is_some_and(|s| s.installed());
+                        let label = format!(
+                            "{} {}…",
+                            if installed { "Desinstalar" } else { "Instalar" },
+                            dependency.name()
+                        );
+                        let response = ui.add_enabled(
+                            !state.installation_running
+                                && status.is_some()
+                                && state.dependency_error.is_none(),
+                            egui::Button::new(label).min_size(Vec2::new(width, 32.0)),
+                        );
+                        if let Some(status) = status {
+                            response.clone().on_hover_text(
+                                status
+                                    .packages
+                                    .iter()
+                                    .map(|p| {
+                                        format!(
+                                            "{}: {}",
+                                            p.name,
+                                            p.version.as_deref().unwrap_or("não instalado")
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("\n"),
+                            );
+                        }
+                        if response.clicked() {
+                            self.dispatch(if installed {
+                                Request::PrepareUninstall { dependency }
+                            } else {
+                                Request::PrepareInstall { dependency }
+                            });
+                        }
+                    }
+                });
+                if let Some(error) = &state.dependency_error {
+                    ui.colored_label(Color32::LIGHT_RED, error);
                 }
+                if state.installation_running {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label("Operação APT em andamento; aguarde concluir.");
+                    });
+                }
+                if let Some(log) = &state.installation_log {
+                    ui.label(format!("Log: {}", log.display()));
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Encerrar aplicativo").clicked() {
+                            self.dispatch(Request::Quit);
+                        }
+                    });
+                });
             });
         self.settings = open;
+        if let Some(plan) = &state.installation_plan {
+            let mut confirm = false;
+            let mut cancel = false;
+            let response = egui::Modal::new(egui::Id::new("confirm-apt-install")).show(&ctx, |ui| {
+                ui.set_width(560.0);
+                ui.heading(&plan.title);
+                ui.label(&plan.explanation);
+                ui.add_space(8.0);
+                egui::ScrollArea::vertical().max_height(230.0).show(ui, |ui| {
+                    for command in &plan.commands {
+                        ui.add(egui::Label::new(RichText::new(crate::dependencies::display_command(command)).monospace()).wrap());
+                        ui.add_space(5.0);
+                    }
+                    if let Some(hash) = &plan.sha256 {
+                        ui.label("SHA-256 da chave de assinatura NVIDIA:");
+                        ui.monospace(hash);
+                    }
+                    if let Some(repository) = &plan.repository {
+                        ui.label("Repositório que será cadastrado:");
+                        ui.add(egui::Label::new(RichText::new(repository).monospace()).wrap());
+                    }
+                    if !plan.removals.is_empty() {
+                        ui.label(format!("Pacotes que serão removidos: {}", plan.removals.join(", ")));
+                    }
+                });
+                ui.label("O Ubuntu pedirá autenticação administrativa. O aplicativo não recebe sua senha.");
+                ui.horizontal(|ui| {
+                    cancel = ui.button("Cancelar").clicked();
+                    let label = if plan.action == crate::dependencies::Action::Remove { "Confirmar desinstalação" } else { "Confirmar instalação" };
+                    confirm = ui.add(egui::Button::new(label).fill(ACCENT)).clicked();
+                });
+            });
+            if confirm {
+                self.dispatch(Request::ConfirmInstall { id: plan.id });
+            } else if cancel || response.should_close() {
+                self.dispatch(Request::CancelInstall);
+            }
+        }
     }
 }

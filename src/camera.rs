@@ -118,6 +118,27 @@ pub fn discover() -> Result<Vec<Camera>> {
     Ok(cameras)
 }
 
+pub fn discover_virtual() -> Vec<Camera> {
+    let mut cameras: Vec<_> = fs::read_dir("/sys/class/video4linux")
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = format!("/dev/{}", entry.file_name().to_string_lossy());
+            if crate::stream::verify_virtual_device(&path).is_err() {
+                return None;
+            }
+            let name = fs::read_to_string(entry.path().join("name"))
+                .ok()?
+                .trim()
+                .to_owned();
+            Some(Camera { name, path })
+        })
+        .collect();
+    cameras.sort_by(|a, b| a.path.cmp(&b.path));
+    cameras
+}
+
 pub fn parse_modes(text: &str) -> Vec<Mode> {
     let mut modes = Vec::new();
     let mut format = "";

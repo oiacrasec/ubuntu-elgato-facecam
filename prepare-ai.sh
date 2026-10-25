@@ -75,5 +75,5 @@ jq --arg provider "$provider" --arg model "$ai_dir/selfie.onnx" --arg runtime "$
 mv -- "$registry_tmp" "$registry"
 printf '\nArquivos de IA preparados em %s\n' "$ai_dir"
 printf 'Abra a aplicação:\n./target/release/elgato-virtualcam\n'
-printf 'Na aba Effects, os arquivos serão detectados. Ative o desfoque e aplique.\n'
+printf 'Na aba Effects, os arquivos serão detectados. Ative o fundo com IA, escolha o efeito e aplique.\n'
 printf 'Ou aplique pela CLI:\n./target/release/elgato-virtualcam --set-effects %q\n' "$ai_dir/effects-$provider.json"

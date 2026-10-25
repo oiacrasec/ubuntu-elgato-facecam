@@ -47,12 +47,12 @@ pub fn check(effects: &Effects) -> Result<()> {
 }
 
 #[cfg(not(feature = "ai"))]
-pub fn worker(_effects: &Effects, _size: Option<&str>) -> Result<()> {
+pub fn worker(_effects: &Effects, _size: Option<&str>, _rate: Option<f64>) -> Result<()> {
     bail!("Esta compilação não inclui IA; recompile com --features ai")
 }
 
 #[cfg(feature = "ai")]
-pub fn worker(effects: &Effects, size: Option<&str>) -> Result<()> {
+pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Result<()> {
     use crate::effects::AiProvider;
     use anyhow::Context;
     use ort::{
@@ -100,7 +100,12 @@ pub fn worker(effects: &Effects, size: Option<&str>) -> Result<()> {
     let (shape, mask) = outputs[0].try_extract_tensor::<f32>()?;
     validate_mask(shape, mask)?;
     drop(outputs);
+    let fps = rate.unwrap_or(f64::from(effects.ai_fps));
+    if !fps.is_finite() || fps <= 0.0 || fps > 60.0 {
+        bail!("FPS de processamento da IA inválido");
+    }
     let Some(size) = size else {
+        crate::background::Background::open(effects, 256, 256, fps)?.frame()?;
         return Ok(());
     };
     let (w, h) = size.split_once('x').context("Resolução IA inválida")?;
@@ -111,6 +116,8 @@ pub fn worker(effects: &Effects, size: Option<&str>) -> Result<()> {
     let mut input = std::io::stdin().lock();
     let mut output = std::io::stdout().lock();
     let mut frame = vec![0; w * h * 3];
+    let mut background = crate::background::Background::open(effects, w, h, fps)?;
+    let mut compositor = Compositor::new(w, h);
     loop {
         // A partial frame is an error; a clean EOF ends the owned worker.
         if input.read(&mut frame[..1])? == 0 {
@@ -130,8 +137,13 @@ pub fn worker(effects: &Effects, size: Option<&str>) -> Result<()> {
         let outputs = session.run(ort::inputs![value])?;
         let (shape, mask) = outputs[0].try_extract_tensor::<f32>()?;
         validate_mask(shape, mask)?;
-        let blurred = blur(&small, 256, 256, effects.blur_radius as usize);
-        composite(&mut frame, w, h, mask, &blurred);
+        let background = background.frame()?;
+        let blurred = if background.is_none() {
+            Some(blur(&small, 256, 256, effects.blur_radius as usize))
+        } else {
+            None
+        };
+        compositor.apply(&mut frame, mask, blurred.as_deref(), background);
         output.write_all(&frame)?;
     }
     Ok(())
@@ -238,6 +250,86 @@ fn blur_pass(
 }
 
 #[cfg(feature = "ai")]
+struct Compositor {
+    width: usize,
+    x: Vec<(usize, usize, f32)>,
+    y: Vec<(usize, usize, f32)>,
+    horizontal: Vec<[f32; 4]>,
+}
+
+#[cfg(feature = "ai")]
+impl Compositor {
+    fn new(width: usize, height: usize) -> Self {
+        let axis = |length| {
+            (0..length)
+                .map(|i| {
+                    let (a, _, t, _) = sample(i, 0, 256, 1, length, 1);
+                    (a, (a + 1).min(255), t)
+                })
+                .collect()
+        };
+        Self {
+            width,
+            x: axis(width),
+            y: axis(height),
+            horizontal: vec![[0.0; 4]; width * 256],
+        }
+    }
+
+    fn apply(
+        &mut self,
+        frame: &mut [u8],
+        mask: &[f32],
+        blurred: Option<&[u8]>,
+        background: Option<&[u8]>,
+    ) {
+        // Resample each 256px source row once. Adjacent output rows reuse these
+        // values, avoiding divisions and four source reads per output channel.
+        for (sy, row) in self.horizontal.chunks_exact_mut(self.width).enumerate() {
+            for (pixel, &(a, b, t)) in row.iter_mut().zip(&self.x) {
+                let left = sy * 256 + a;
+                let right = sy * 256 + b;
+                pixel[0] = mask[left] + (mask[right] - mask[left]) * t;
+                if let Some(rgb) = blurred {
+                    for c in 0..3 {
+                        let l = rgb[left * 3 + c] as f32;
+                        pixel[c + 1] = l + (rgb[right * 3 + c] as f32 - l) * t;
+                    }
+                }
+            }
+        }
+        for (y, row) in frame.chunks_exact_mut(self.width * 3).enumerate() {
+            let (a, b, t) = self.y[y];
+            let top = &self.horizontal[a * self.width..(a + 1) * self.width];
+            let bottom = &self.horizontal[b * self.width..(b + 1) * self.width];
+            let static_row =
+                background.map(|rgb| &rgb[y * self.width * 3..(y + 1) * self.width * 3]);
+            for (x, ((rgb, l), r)) in row
+                .as_chunks_mut::<3>()
+                .0
+                .iter_mut()
+                .zip(top)
+                .zip(bottom)
+                .enumerate()
+            {
+                let alpha = (l[0] * (1.0 - t) + r[0] * t).clamp(0.0, 1.0);
+                for c in 0..3 {
+                    let bg = if let Some(background) = static_row {
+                        background[x * 3 + c] as f32
+                    } else {
+                        l[c + 1] * (1.0 - t) + r[c + 1] * t
+                    };
+                    // All terms are nonnegative. Add-half then truncate avoids
+                    // a scalar roundf call on the generic x86-64 target. The
+                    // scalar-reference test allows at most one u8 level.
+                    rgb[c] = (rgb[c] as f32 * alpha + bg * (1.0 - alpha) + 0.5) as u8;
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "ai"))]
 fn composite(frame: &mut [u8], w: usize, h: usize, mask: &[f32], background: &[u8]) {
     for y in 0..h {
         for x in 0..w {
@@ -265,13 +357,30 @@ mod tests {
         let bg = vec![60; 256 * 256 * 3];
         for alpha in [0.0, 0.5, 1.0] {
             let mut frame = original.clone();
-            composite(&mut frame, 2, 1, &vec![alpha; 256 * 256], &bg);
+            Compositor::new(2, 1).apply(&mut frame, &vec![alpha; 256 * 256], Some(&bg), None);
             for (actual, source) in frame.iter().zip(&original) {
                 assert_eq!(
                     *actual,
                     (*source as f32 * alpha + 60.0 * (1.0 - alpha)).round() as u8
                 );
             }
+        }
+    }
+    #[test]
+    fn cached_composition_matches_scalar_reference_and_static_privacy_background() {
+        let mask: Vec<_> = (0..256 * 256).map(|i| (i % 101) as f32 / 100.0).collect();
+        let bg: Vec<_> = (0..256 * 256 * 3).map(|i| (i * 17 % 256) as u8).collect();
+        for (w, h) in [(1, 1), (3, 2), (17, 11), (128, 73)] {
+            let source: Vec<_> = (0..w * h * 3).map(|i| (i * 11 % 256) as u8).collect();
+            let mut expected = source.clone();
+            composite(&mut expected, w, h, &mask, &bg);
+            let mut actual = source;
+            let mut renderer = Compositor::new(w, h);
+            renderer.apply(&mut actual, &mask, Some(&bg), None);
+            assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1));
+            let privacy = vec![42; w * h * 3];
+            renderer.apply(&mut actual, &vec![0.0; 256 * 256], None, Some(&privacy));
+            assert_eq!(actual, privacy);
         }
     }
     #[test]

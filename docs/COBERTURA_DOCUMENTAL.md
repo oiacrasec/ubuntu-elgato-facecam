@@ -67,14 +67,14 @@ os hashes completos e é a fonte dos registros abaixo.
 | D032 | Segurança de publicação | [DISTRIBUICAO.md](DISTRIBUICAO.md) | Hashes, promoção de build, segredos e garantias ainda não implementadas. | `e4ae5d921717` |
 | D033 | Estratégia de testes | [TESTES.md](TESTES.md) | Checks relevantes, isolamento de hardware e contratos de processo. | `3329606e531e` |
 | D034 | Importação de documentos proprietários | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Fora do escopo atual; leitura, preview e escrita são contratos distintos. | `368eacebe8a2` |
-| D035 | Visão de formatos | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Matriz de vídeo, configuração, LUT e ONNX realmente disponíveis. | `c48faddfa215` |
+| D035 | Visão de formatos | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Matriz de vídeo, biblioteca de recursos, importação validada, LUT e ONNX realmente disponíveis; uso em [Efeitos](EFEITOS.md). | `c48faddfa215` |
 | D036 | Formato nativo, limites e recuperação | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | JSON atual e critérios para manifesto, presets, blobs e recuperação futuros. | `07439af9ba81` |
 | D037 | Documentos grandes em camadas | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Parser, conversão, preservação opaca e aceitação por consumidor separados. | `737f47bdbaaf` |
 | D038 | Formatos raster e metadados | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Profundidade, orientação, alpha, animação, metadata e limites de decode. | `d7292d37dddc` |
 | D039 | SVG e inserção de vetores | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Recursos externos, texto e limites para uma integração futura. | `3ac4894dc5bb` |
 | D040 | Build e ferramentas | [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md) | Comandos Cargo reais, pré-requisitos e compilação mínima. | `d424d8098857` |
 | D041 | Contribuição e confiança | [CONTRIBUICAO.md](CONTRIBUICAO.md) | Regras Rust, erro, camadas e documentação na mesma alteração. | `30b667f95866` |
-| D042 | Instalação e confiança nos arquivos | [USO.md](USO.md) | Primeira execução e dependências do usuário, sem instalador de outro sistema. | `5e332a2a69d6` |
+| D042 | Instalação e confiança nos arquivos | [USO.md](USO.md) | Primeira execução, estado dpkg e instalação/remoção APT com confirmação, sem instalador de outro sistema. | `5e332a2a69d6` |
 | D043 | Créditos | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Nomes voluntários e distinção entre autoria, modelo e estatística gerada. | `4eb5df4d2b3e` |
 | D044 | Licenças de projeto e recursos | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Preservar notices dos componentes realmente distribuídos. | `e7bd6ca6bba1` |
 | D045 | Planejamento do produto | [ROADMAP.md](ROADMAP.md) | Prioridades próprias e gates de hardware, consumidores e distribuição. | `d7e2d0501291` |
@@ -155,7 +155,7 @@ os hashes completos e é a fonte dos registros abaixo.
 | D120 | Custo de rasterização de texto | [ALGORITMOS_DE_EFEITOS.md](ALGORITMOS_DE_EFEITOS.md) | Passagens independentes, prefix sums e carry entre linhas antes de paralelizar. | `f51953a2c62f` |
 | D121 | Tilt-shift e campo de sigma | [ALGORITMOS_DE_EFEITOS.md](ALGORITMOS_DE_EFEITOS.md) | Níveis gaussianos, bordas de acumulação, cancelamento e contrato numérico. | `978cced47f0f` |
 | D122 | Sistema de design | [UI_E_INTERACAO.md](UI_E_INTERACAO.md) | Tokens, componentes, truncamento, DPI, temas e validação na organização Camera Hub. | `5d0635748470` |
-| D123 | Diálogos e foco | [UI_E_INTERACAO.md](UI_E_INTERACAO.md) | Abrir/aplicar/cancelar, filhos, preview, teclado e parâmetros estáveis. | `969347e5e2e5` |
+| D123 | Diálogos e foco | [UI_E_INTERACAO.md](UI_E_INTERACAO.md) | Cards de Camera/Effects, abrir/aplicar/cancelar, centralização, dependências, filhos, preview, teclado e parâmetros estáveis. | `969347e5e2e5` |
 | D124 | Gestos, handles e navegação | [UI_E_INTERACAO.md](UI_E_INTERACAO.md) | Coordenadas e disponibilidade; ferramentas de documento fora do escopo atual. | `37faf632a7b0` |
 | D125 | Unsharp mask e FFT | [ALGORITMOS_DE_EFEITOS.md](ALGORITMOS_DE_EFEITOS.md) | Convolução separável, tolerância, threshold e scratch antes de escolher otimização. | `565140561850` |
 | D126 | Regras de documentação de usuário | [PADROES_DE_DOCUMENTACAO.md](PADROES_DE_DOCUMENTACAO.md) | Resposta primeiro, passos, labels exatos, metadados e revisão de afirmações. | `da2394fff872` |

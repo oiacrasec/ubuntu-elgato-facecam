@@ -57,19 +57,81 @@ capacidade limitada pelo sistema: não existe uma fila crescente de frames em
 Rust. O worker mantém uma sessão ONNX e é encerrado junto com a captura.
 A inferência CUDA não falha silenciosamente para CPU.
 
+Antes do worker, somente preview é reduzido a 640×360 e até 15 fps. Com saída
+virtual, a resolução original é mantida e a taxa é limitada por `ai_fps`
+(padrão 30, até 60). O input rawvideo do segundo FFmpeg usa os FPS processados
+e probing mínimo, pois dimensão e formato já são conhecidos.
+
 A segmentação usa RGB float32 NCHW 1×3×256×256, reescala para [0,1] e retorna
 alpha de pessoa. A composição preserva o primeiro plano e usa um fundo
 reduzido e desfocado. O modelo é externo e tem contrato verificado no aquecimento.
+Cor sólida, cenários ilustrados e imagem própria também podem substituir o fundo.
+A imagem é decodificada com limites e preparada uma vez por worker. A composição
+reutiliza geometria e um buffer de interpolação horizontal; não recalcula
+coordenadas e quatro leituras por canal para cada pixel de saída.
 O worker isola carregamento e possíveis falhas nativas da janela/controlador.
 
+Em modo de vídeo de fundo, o worker possui um decoder FFmpeg adicional em loop.
+Ele recebe dimensão e FPS efetivos por argumentos tipados, aceita arquivos locais
+e gera RGB por pipe limitado. Um pequeno modo interno do mesmo binário configura
+a morte por encerramento do pai antes de executar FFmpeg, com APIs seguras de
+`nix`. O encerramento normal mata e recolhe o decoder; morte abrupta do worker
+também encerra o processo. O controlador mantém a posse da captura e do worker.
+
 O preview é RGB 640×360 a 15 fps e mantém somente o último frame completo.
-A saída virtual preserva a resolução e a taxa negociadas. Fechar a janela com
+A saída virtual preserva a resolução; sem IA, também preserva a taxa negociada.
+Com IA, vale o limite de FPS explícito. Fechar a janela com
 bandeja disponível desliga o preview e mantém a saída virtual.
 
 Aplicar efeitos verifica parâmetros, arquivos e inferência, interrompe brevemente
 a captura, retoma as saídas anteriores e salva o JSON. Falhas síncronas restauram
 a configuração anterior e tentam retomar a captura. Erros posteriores de FFmpeg
 aparecem no estado; spawn bem-sucedido não comprova entrega de vídeo.
+
+## Biblioteca de recursos
+
+`resources` descobre Looks, imagens e vídeos nos diretórios conhecidos. O catálogo
+e o progresso de importação pertencem ao snapshot. A GUI apresenta nomes e abre
+o diálogo nativo; a escolha envia `ImportResource` ao controlador. Uma thread
+valida e copia o arquivo para a biblioteca ao lado da configuração, publicando
+o resultado somente após concluir. A importação não aplica efeitos nem salva JSON:
+o rascunho visual seleciona o resultado, e `SetEffects` confirma o uso.
+Só uma importação roda por vez; Quit é recusado até terminar. Miniaturas são
+derivadas visuais, lidas em segundo plano pela GUI, sem alterar a biblioteca.
+LUTs próprias são materializadas pelo controlador quando selecionadas. O build
+headless mantém catálogo, importação e validação sem depender de egui ou ONNX.
+
+## Instalação de dependências
+
+`dependencies` prepara um plano APT sem modificar o sistema. `PrepareInstall`, `PrepareUninstall`,
+`ConfirmInstall` e `CancelInstall` passam pelo mesmo controlador em GUI/CLI.
+Somente um ID de plano atual pode ser confirmado, uma vez. A instalação roda
+fora da thread do controlador, com comandos fixados pelo núcleo e autenticação
+por `pkexec`; a senha não atravessa IPC. Não há um comando de shell arbitrário.
+O estado publica plano, execução, resultado e log. Durante uma transação APT,
+Quit é recusado e fechar a janela não encerra a aplicação.
+
+O snapshot publica `dependencies` com presença e versão por pacote, obtidas pelo
+`dpkg-query`, sem confundir arquivos residuais com pacote instalado. A consulta
+ocorre na abertura, na atualização e a cada cinco segundos, mesmo durante captura.
+Ao concluir a operação, o worker verifica o resultado no dpkg e o controlador
+atualiza o snapshot; o botão decorre do estado real, sem flag salva na GUI.
+`dependency_error` distingue falha de consulta de ausência de pacote.
+
+A remoção simula o APT e limita o plano aos pacotes solicitados. Uma remoção de
+outros pacotes é recusada; não há autoremove ou purge. A simulação é repetida no
+worker antes da autenticação. Remover ferramentas de vídeo exige captura parada;
+o controlador recusa iniciar preview/saída enquanto essa remoção estiver ativa.
+As [semânticas de simulação e remove](https://manpages.debian.org/trixie/apt/apt-get.8.en.html)
+e os [estados do dpkg](https://manpages.debian.org/trixie/dpkg/dpkg-query.1.en.html)
+seguem as ferramentas de sistema. Uma alteração externa entre simulação e execução
+continua sujeita ao controle de transações do APT; não há trava distribuída do app.
+
+O SDK Manager usa o candidato dos repositórios existentes. Sem candidato, Ubuntu
+24.04 x86-64 pode cadastrar uma fonte oficial NVIDIA em formato deb822, com chave
+OpenPGP embutida em `Signed-By` e SHA-256 fixado. O cadastro ocorre após confirmação;
+nenhum instalador `.deb` local é usado. Isso prepara uma dependência de sistema,
+sem implementar um backend Maxine ou mudar o provider ONNX/CUDA.
 
 ## Contratos da câmera e persistência
 

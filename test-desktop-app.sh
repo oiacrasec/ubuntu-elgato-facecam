@@ -5,7 +5,7 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --locked
 if command -v ffmpeg >/dev/null; then
-    cargo test --locked ffmpeg_effects_render -- --ignored
+    cargo test --locked ffmpeg_ -- --ignored
 fi
 cargo clippy --no-default-features --all-targets -- -D warnings
 cargo test --locked --no-default-features

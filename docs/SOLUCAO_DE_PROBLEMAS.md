@@ -7,13 +7,14 @@ Preserve arquivos e ajustes até identificar a etapa que falhou.
 
 1. Execute `./prepare-ai.sh --cuda` ou `./prepare-ai.sh --cpu` se ainda não preparou os arquivos.
 2. Encerre a instância antiga e abra `./target/release/elgato-virtualcam`.
-3. Abra **Effects** e confira os campos detectados, ou clique em **Detectar arquivos**.
+3. Abra **Effects**, confira o estado de detecção e clique em **Atualizar** após preparar os arquivos.
 4. Se escolheu um diretório personalizado, confira o registro escrito pelo preparador
    ou as variáveis `FACECAM_AI_MODEL` e `FACECAM_AI_RUNTIME`.
 
 A busca usa locais conhecidos, sem varrer o disco inteiro. Campos explicitamente
-preenchidos, inclusive caminhos antigos, permanecem preservados. Apague somente
-o campo que deseja redetectar, ou ajuste o caminho. [Efeitos](EFEITOS.md) explica a ordem.
+preenchidos, inclusive caminhos antigos, permanecem preservados no JSON. Com o app
+fechado, remova do JSON somente o campo que deseja redetectar. A GUI não pede
+caminhos. [Efeitos](EFEITOS.md) explica a ordem.
 
 ## IA encontrada, mas recusada ao aplicar
 

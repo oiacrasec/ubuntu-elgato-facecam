@@ -52,6 +52,12 @@ sem preview não produz RGB para a GUI. O modelo ONNX permanece carregado no
 worker durante a captura; não é criado para cada frame. Desfoque usa duas passagens
 de janela deslizante em imagem reduzida.
 
+Somente preview com IA reduz resolução e FPS antes do worker. A saída virtual
+mantém a resolução e aplica `ai_fps`, padrão 30. Coordenadas e buffer horizontal
+da composição são reutilizados, e fundos estáticos são preparados uma vez.
+Aplicar efeitos verifica a inferência antes de parar a captura; o worker real
+aquece sua sessão, sem um terceiro processo de verificação no supervisor.
+
 Caches futuros devem guardar invariantes: geometria, pesos de interpolação, LUT,
 recursos compilados ou transformações de cor. Um frame de câmera muda continuamente;
 não reutilize uma composição anterior só porque os sliders não mudaram. Chaves de

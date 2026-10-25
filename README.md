@@ -3,7 +3,7 @@
 Controlador nativo em Rust para Elgato Facecam, com layout do Camera Hub:
 controles à esquerda, preview à direita e abas Camera e Effects. Destino:
 Ubuntu 24.04+. Preview e câmera virtual compartilham LUT, ajustes de cor,
-espelhamento, redução de ruído e desfoque de fundo por IA opcional.
+espelhamento, redução de ruído e desfoque ou substituição de fundo por IA opcional.
 
 ## Executar
 
@@ -20,6 +20,11 @@ Use Rust 1.95 ou posterior ([instalação](https://rustup.rs/)). Clique em
 com o dispositivo. A GUI usa egui/OpenGL, e a bandeja usa D-Bus; não é necessário
 runtime Python, Qt, GTK ou navegador. No GNOME, a bandeja pode exigir a extensão
 AppIndicator. Sem bandeja, a janela permanece acessível.
+
+Em **Configurações**, o aplicativo prepara a instalação de FFmpeg/V4L2 ou NVIDIA
+SDK Manager por APT, mostra os comandos e pede confirmação antes de autenticar
+pelo Ubuntu. O SDK Manager usa repositório, sem instalador `.deb` local.
+Veja o [fluxo de instalação assistida](docs/USO.md#instalar-dependências-com-confirmação).
 
 Para usar a saída em OBS, navegador ou videoconferência, prepare um nó livre:
 
@@ -38,17 +43,23 @@ Na aba **Effects**, ajuste cor, redução de ruído e LUT `.cube`, ou configure
 os efeitos às duas saídas. A grade e o botão de espelho abaixo do preview são
 ferramentas locais de visualização.
 
-A IA segmenta a pessoa e desfoca o fundo. O provider **NVIDIA CUDA** usa ONNX
+A IA segmenta a pessoa e desfoca ou substitui o fundo por cor, cenário ilustrado
+ou imagem PNG/JPEG/WebP própria. O provider **NVIDIA CUDA** usa ONNX
 Runtime GPU; **CPU** é uma escolha explícita. Modelo, runtime e dependências
 CUDA/cuDNN são externos e carregados somente ao ativar IA. Nenhum arquivo é
 baixado ao abrir a aplicação. Consulte [EFEITOS.md](docs/EFEITOS.md) para
 preparação, JSON, comandos e limites. Essa implementação não usa o SDK
 proprietário da NVIDIA nem exige conta NGC.
 
+Somente preview processa 640×360 a até 15 fps. Com IA na saída virtual, a
+resolução escolhida é mantida e **FPS da IA** limita a taxa a 30 por padrão.
+
 Modelo e runtime disponíveis são detectados na abertura normal, incluindo os
 arquivos preparados em `target/ai-runtime`. Instalações personalizadas são
-registradas pelo preparador. Caminhos manuais têm prioridade; **Detectar arquivos**
-na aba Effects permite preencher campos vazios sem reiniciar a janela.
+registradas pelo preparador. **Atualizar** na aba Effects repete a descoberta
+sem reiniciar a janela. A GUI apresenta disponibilidade e nomes de recursos,
+sem campos de caminho. Looks e fundos próprios entram pelo diálogo **Adicionar…**
+e permanecem na biblioteca para as próximas execuções.
 
 ## CLI e instalação
 

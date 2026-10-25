@@ -103,6 +103,223 @@ fora desses tamanhos.
 
 ![Modelo e runtime preenchidos na abertura normal](screenshots/facecam-ai-discovery.png)
 
+## Validação funcional do commit `6a21d11`
+
+Em 25/10/2026, o executável release desse commit foi aberto na sessão X11 real.
+Os testes usaram diretórios XDG de configuração e execução separados dos dados
+do usuário. Os controles V4L2 foram lidos antes das alterações e restaurados
+depois. Frames da câmera permaneceram em memória; capturas da janela foram
+feitas com o preview pausado.
+
+| Fluxo exercitado | Resultado observado |
+| --- | --- |
+| Abertura e segunda execução | Janela disponível, câmera detectada e segunda execução apresenta a mesma instância |
+| Descoberta de IA | Modelo e runtime preenchidos; limpar os campos e usar **Detectar arquivos** também funciona |
+| Preview pela interface | **Iniciar preview** entrega frames e **View** pausa a captura |
+| Formatos | Os 14 modos anunciados produziram frames, incluindo YUYV e MJPEG; o FPS consultado no driver coincide com o solicitado |
+| Controles físicos | Brilho negativo/zero/positivo, contraste, saturação, sharpness, pan, tilt, zoom, anti-flicker, FPS dinâmico e privacy aceitos com leitura de retorno |
+| Automático e manual | Exposição, ganho e balanço de branco exercitados; temperatura manual inativa é recusada no modo automático |
+| Entrada inválida | Brilho fora do intervalo, pan fora do passo e opção ausente de menu recusados |
+| Backlight | Firmware recusa a escrita com ERANGE; a recusa permanece no estado e o controle é excluído de **SAVE** |
+| Presets | **SAVE** e **R**, acionados na janela, salvam e restauram o brilho lido do hardware |
+| Efeitos pela interface | Espelho, brilho negativo e denoise aplicados, persistidos e usados pelo preview; restauração dos padrões conferida |
+| LUT | Caminho digitado na janela, LUT `.cube` aplicada e textura com pixels de vídeo confirmada sem salvar frames |
+| IA NVIDIA | Desfoque ativado pela janela, três filhos de vídeo presentes e worker visível no `nvidia-smi` com 222 MiB |
+| Execução contínua de IA | MJPEG 1280×720 a 30 fps configurados, 205 frames adicionais de preview em 15 segundos e nenhum erro; parada encerra os três filhos |
+| Troca para CPU | Provider alterado na janela com preview ativo; nova captura processada entrega frames |
+| Falha de IA ou efeito | LUT ausente, brilho inválido, modelo ausente e runtime CPU com provider CUDA recusados, mantendo configuração e preview anteriores |
+| Worker nativo | CPU e CUDA processam um frame completo e recusam entrada truncada nos testes optativos |
+| Bandeja | Fechar a janela oculta a UI e encerra o preview; ativação D-Bus da bandeja reapresenta a janela |
+| Interrupção de captura | Encerrar somente o FFmpeg pertencente ao teste produz erro visível e encerra os filhos de vídeo |
+| Configurações e reabertura | **Salvar**, início minimizado e autostart exercitados em diretório isolado; JSON preservado após reabrir |
+| Instalação | Instalar e remover com prefixo contendo espaço funciona, incluindo lançador e autostart isolados |
+| Saída virtual ausente | Botão exibe a instrução de v4l2loopback e preserva o preview que já estava ativo |
+
+Os checks automáticos passaram novamente: formatação, Clippy, 32 testes no build
+padrão, 29 no mínimo, renderização sintética FFmpeg e sintaxe dos scripts.
+Os logs desta sessão ficam em `target/functional-review/` e
+`target/functional-checks.log`, ignorados pelo Git.
+
+A passagem por cada modo foi curta e confirma abertura e entrega de frames;
+consultar FPS no driver não mede a taxa sustentada de entrega. Grid e Mirror
+local foram acionados sem alterar o efeito de espelho persistido, mas não houve
+comparação visual automatizada dessas sobreposições. Nenhum destes resultados
+constitui uma garantia para outros dispositivos ou condições de iluminação.
+
+## Revisão de desempenho e fundos de IA
+
+Em 25/10/2026, após o relato de lentidão em 1080p60, o binário anterior foi
+comparado ao release com composição reutilizável, redução antes do worker no
+preview e taxa de processamento explícita. Ambos usaram o mesmo modelo, runtime
+CUDA, driver e RTX 4070 SUPER. Não houve alteração de driver ou instalação global.
+
+No benchmark sintético do worker completo, cada execução recebeu 80 frames RGB
+1920×1080 e os primeiros cinco ficaram fora da janela de taxa estável. Foram
+feitas três execuções de cada binário, alternando a ordem. A mediana passou de
+**14,37 para 47,83 fps**, aproximadamente 3,3 vezes. Esse teste inclui inferência,
+composição e pipes, sem decodificação de câmera, GUI ou consumidor virtual.
+A composição nova é comparada ao caminho escalar anterior em teste de pixels,
+com tolerância máxima de um nível u8 por canal; os extremos de alpha mantêm
+primeiro plano e substituição opaca.
+
+Em uma amostra separada da câmera física MJPEG 1920×1080 a 60 fps, somente preview:
+
+| Observação | Anterior | Revisão |
+| --- | --- | --- |
+| RGB recebido pelo worker | 1920×1080 | 640×360 |
+| Frames adicionais de preview em aproximadamente 5,1 s | 18 | 77 |
+| CPU do controlador e três filhos, com 100% = um núcleo | 113,2% | 46,8% |
+| Início do pedido até pelo menos cinco frames | 2.793 ms | 992 ms |
+| Filhos de vídeo após Stop | 0 | 0 |
+
+A implementação anterior mantinha timestamps rawvideo da entrada a 60 fps
+mesmo quando o worker processava mais devagar; o filtro de preview descartava
+frames dessa sequência. A nova entrada do segundo FFmpeg declara a taxa
+efetivamente escolhida para processamento. O preview já chega ao worker em
+640×360 e até 15 fps; com saída virtual, `ai_fps` limita a taxa e mantém a resolução.
+As amostras são curtas e não medem latência ponta a ponta ou taxa entregue ao OBS.
+
+Foram exercitados na captura real desfoque, cor sólida, estúdio, escritório,
+paisagem e PNG próprio. Seleção de estúdio e cor, aplicação e edição do caminho
+da imagem foram acionadas na janela. Um PNG corrompido foi recusado no aquecimento,
+preservando a configuração e o preview anteriores. Cenários são ilustrações
+próprias geradas por código, não fotos ou recursos de terceiros. Testes também
+verificam JPEG, WebP, transparência opaca e rejeição de dimensões excessivas.
+
+Os arquivos de medição ficam em `target/functional-review/ai-comparison.json`,
+`live-before.json` e `live-after.json`, ignorados pelo Git. Os checks aprovados
+somam 36 testes no build padrão e 30 no mínimo, além da renderização FFmpeg,
+Clippy, formatação e sintaxe dos scripts. A comparação não certifica o SDK
+Maxine: esta revisão continua usando ONNX Runtime/CUDA.
+
+![Seletor de fundos com o preview pausado](screenshots/facecam-backgrounds.png)
+
+## Fundos animados e instalação APT — 25/10/2026
+
+O alvo de aceitação passou a ser Camera Hub Windows 2.3.0.7295, incluindo layout
+e recursos de IA na RTX 4070 SUPER, conforme funcionamento relatado pelo usuário
+no Windows. Não houve execução do aplicativo Windows no Ubuntu nem comparação
+pareada de qualidade ou desempenho com essa plataforma.
+
+Os checks padrão passaram: 40 testes no build completo e 33 no headless,
+formatação, Clippy e sintaxe dos scripts. Duas renderizações optativas FFmpeg
+passaram, incluindo fundo animado com loop, adaptação de taxa, caminho com
+caracteres especiais e recusa de mídia inválida. Testes nativos em CPU e CUDA
+confirmaram composição e encerramento do decoder em duas situações: EOF normal
+e morte forçada do worker. Um leitor externo manteve o pipe aberto no segundo
+caso, permitindo verificar o sinal de morte do pai sem depender de broken pipe.
+
+Na Facecam, um preview CUDA com fundo MP4 próprio, entrada MJPEG 1280×720 a
+30 fps e processamento de preview a 640×360/15 fps produziu 32 frames em 2.740 ms,
+incluindo início da captura. Foram observados três filhos de vídeo do controlador
+e um decoder de fundo pertencente ao worker. Após Stop, nenhum desses processos
+continuou em execução. A amostra confirma entrega, não uma medição sustentada de
+FPS ou latência ponta a ponta. Nenhum controle da câmera foi escrito nesta etapa.
+
+Na janela X11, foram exercitados o seletor nativo do portal KDE, a seleção de um
+MP4 com espaço no nome, aplicação e salvamento pelo controlador. O painel mantém
+controles à esquerda e preview à direita; a revisão não certifica igualdade de
+todos os pixels e estados com o Windows. CPU é apresentada nas opções avançadas
+como alternativa ONNX, sem ser confundida com um fallback dos SDKs NVIDIA.
+
+O fluxo APT foi aberto pela UI e cancelado na revisão do plano. O cancelamento
+não iniciou comandos, não criou log de instalação e não cadastrou repositório.
+Os testes de IPC também verificaram confirmação ausente, plano substituído,
+ID cancelado e configuração preservada. Um teste optativo do APT verificou a
+assinatura NVIDIA e encontrou `sdkmanager 26.1.0-14392` usando configuração,
+listas, cache e logs temporários; fontes do sistema permaneceram intactas.
+A chave pública tem o hash registrado em [Dependências](DEPENDENCIAS_E_LICENCAS.md).
+
+A autenticação administrativa real e uma instalação de pacotes não foram
+executadas nesta revisão. Os resultados ficam em `target/windows-parity-review/`
+e o log dos checks em `target/functional-review/windows-parity-checks.log`,
+ignorados pelo Git. A integração Maxine VFX/AR Linux continua pendente de seus
+runtimes/modelos e validação própria; SDK Manager não fornece essa paridade.
+
+## Biblioteca automática de recursos — 25/10/2026
+
+![Biblioteca por nome e miniatura de vídeo, com câmera pausada](screenshots/facecam-resource-library.png)
+
+A GUI passou a mostrar Looks e fundos pelo nome, com miniatura do fundo, sem
+campos de caminho para LUT, imagem, vídeo, modelo/runtime ou dispositivo virtual.
+Os três Looks próprios foram gerados e validados; não contêm recursos extraídos
+do Camera Hub. Na janela X11, **Adicionar LUT…** abriu o portal KDE, importou uma
+LUT sintética, selecionou seu nome e só persistiu o efeito após **Aplicar e salvar**.
+O Look **Quente** também foi materializado e aplicado pela UI. Salvar configurações
+preservou Quente confirmado e Frio em rascunho, sem aplicação implícita. O rodapé continuou
+acessível com rolagem, opções avançadas abertas e janela de 1000×680 pixels. A saída virtual foi apresentada
+como não detectada, coerente com a ausência do módulo neste teste.
+
+Passaram 43 testes comuns no build completo e 36 no headless, além de três testes
+optativos FFmpeg, formatação, Clippy e sintaxe dos scripts. A biblioteca foi
+exercitada com PNG, JPEG, WebP, BMP, MP4, MOV, WebM e MKV sintéticos, caminhos com
+espaço e caracteres especiais, origem removida, nomes repetidos, reinício e
+conteúdo inválido. LUTs incluíram valores negativos, zero, positivos e não finitos.
+Importar não aplicou efeitos nem escreveu configuração; falhas não publicaram
+arquivos parciais. Logs: `target/windows-parity-review/library-checks-final.log`.
+
+Um preview real com CUDA, Look Quente e fundo animado produziu 32 frames em
+2.754 ms, incluindo partida, com entrada 1280×720/30 fps e preview 640×360/15 fps.
+Stop recolheu os três filhos de vídeo e o decoder do worker, sem controles
+V4L2 escritos. É confirmação de funcionamento local, sem benchmark sustentado
+ou comparação de qualidade com Windows. Resultado: `live-library-result.json`
+no mesmo diretório ignorado. A integração dos SDKs Maxine continua pendente.
+
+## Estado das dependências e Configurações — 25/10/2026
+
+O teste APT executado pelo usuário terminou sem erro. O log
+`~/.config/elgato-virtualcam/install-1792952383366.log` informa que FFmpeg
+`7:6.1.1-3ubuntu5` e v4l-utils `1.26.1-4build3` já eram as versões mais recentes,
+com zero pacotes novos instalados. A consulta independente ao dpkg confirmou
+ambos instalados. O SDK Manager estava ausente.
+
+O app passou a derivar as ações desse estado, incluindo pacotes que já existiam
+antes de sua execução. Na janela X11 de 1240×790 pixels, Configurações ficou
+centralizada nos dois eixos, inclusive após reduzir a janela para 1000×680,
+com largura de 560 pontos lógicos e dois botões
+iguais na mesma linha. FFmpeg/V4L2 exibiu **Desinstalar…**, e SDK Manager exibiu
+**Instalar…**. A abertura de **Desinstalar…** simulou somente os dois pacotes
+solicitados e mostrou a confirmação própria. Cancelar descartou o plano sem
+iniciar processo administrativo ou criar log de remoção. Não houve remoção real.
+
+A revisão visual seguinte acrescentou separador e título ao bloco **Câmera virtual**,
+alinhou seletor e **Atualizar dispositivos** na mesma linha e posicionou **Salvar**
+e **Encerrar aplicativo** à direita, mantendo o rodapé compacto. O layout foi
+inspecionado em 1240×790 e 1000×680 pixels. Na captura atual, SDK Manager
+`26.1.0-14392` também já estava instalado, confirmado pelo dpkg, e ambos os botões
+exibiram **Desinstalar…**. Isso não comprova instalação dos runtimes Maxine VFX/AR.
+
+![Configurações centralizada e ações das dependências na mesma linha](screenshots/facecam-settings.png)
+
+Passaram 47 testes comuns no build completo, 40 no headless e três verificações
+FFmpeg, além de Clippy, formatação e sintaxe dos scripts. As regressões incluem
+estado dpkg parcial/incompleto, rejeição de remoções adicionais, conferência do
+estado final e atualização automática a partir de um banco dpkg temporário,
+sem alterar pacotes do sistema. Evidências ficam em `target/apt-state-review/`
+e `target/apt-state-checks.log`, ignorados pelo Git.
+
+## Cards da aba Effects — 25/10/2026
+
+**Effects** passou a usar cards no mesmo padrão de **Camera**: Look, Picture,
+Processing e AI Background, com provider em Opções avançadas inicialmente
+recolhido. Foram conferidos espaçamento, alinhamento de rótulos/sliders/valores,
+recolhimento, rolagem e acesso ao rodapé de aplicação na janela X11, em
+1240×790 e 1000×680 pixels. Recolher Picture em Effects não recolheu Picture
+na aba Camera; os estados foram conferidos ao alternar entre as abas.
+
+Um Brightness de -0,25 foi editado pelo campo numérico. O snapshot confirmado
+permaneceu em zero até Aplicar e salvar; depois, estado e JSON refletiram -0,25.
+Um vídeo sintético com nome longo entrou na biblioteca, apareceu abreviado no
+seletor de largura estável e teve miniatura exibida. Restaurar efeitos padrão e
+aplicar retornou Brightness a zero e o modo de fundo a desfoque. Nenhuma captura foi iniciada
+nem controle V4L2 escrito. Evidências ficam em `target/effects-ui-review/`.
+
+O build release foi atualizado e `./test-desktop-app.sh` passou com 47 testes no
+build completo, 40 no headless, três verificações FFmpeg, formatação, Clippy e
+sintaxe dos scripts. A alteração de layout mantém os mesmos comandos do controlador.
+
+![Cards de Effects com preview pausado](screenshots/facecam-effects.png)
+
 ## Limites da validação
 
 Não foi carregado um módulo de kernel para este teste. A saída yuv420p e sua
@@ -111,8 +328,9 @@ consumo ponta a ponta por OBS, navegador ou videoconferência. Wayland está
 habilitado na compilação, mas não foi exercitado em sessão real nesta etapa.
 A CI Ubuntu 24.04 foi atualizada; sua execução remota não foi observada aqui.
 
-A IA implementada desfoca o fundo. Não há troca por imagem, correção de olhar,
-relighting, Prompter, atualização de firmware ou gravação interna na câmera.
+A IA implementada desfoca ou substitui o fundo por cor, cenário ilustrado ou
+imagem ou vídeo próprio. Não há correção de olhar, relighting, Prompter, atualização de
+firmware ou gravação interna na câmera.
 A qualidade visual da segmentação não foi avaliada em uma bateria de pessoas,
 iluminações e movimentos. Os testes confirmam execução, composição e ciclo de
 vida; não garantem recorte perfeito em qualquer cena.

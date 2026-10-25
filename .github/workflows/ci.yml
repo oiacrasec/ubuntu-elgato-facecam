@@ -24,7 +24,7 @@ jobs:
       - name: Test
         run: cargo test --locked
       - name: Render effects
-        run: cargo test --locked ffmpeg_effects_render -- --ignored
+        run: cargo test --locked ffmpeg_ -- --ignored
       - name: Headless lint and tests
         run: |
           cargo clippy --locked --no-default-features --all-targets -- -D warnings

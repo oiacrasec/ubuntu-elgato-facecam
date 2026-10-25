@@ -1,7 +1,7 @@
 # Algoritmos de efeitos e processamento
 
 O fluxo implementado oferece cor, espelho, LUT, denoise convencional e desfoque
-de fundo por segmentação. Os demais tópicos desta página são contratos de estudo
+ou substituição de fundo por segmentação. Os demais tópicos desta página são contratos de estudo
 para extensões; não acrescentam efeitos ao binário atual.
 
 ## Pipeline existente
@@ -11,6 +11,14 @@ NCHW e normaliza por 255. A saída é alpha de pessoa. O fundo reduzido é desfo
 por duas passagens de média com janela deslizante. A composição calcula
 `pessoa × alpha + fundo × (1 − alpha)` e interpola máscara e fundo para o tamanho
 de saída. Testes exercitam alpha 0, 0,5 e 1, máscara inválida e frame truncado.
+
+Na revisão de desempenho, coordenadas de interpolação são preparadas por worker.
+A passagem horizontal interpola uma vez cada linha do mapa reduzido para a
+largura de saída; a vertical reutiliza esse buffer. A conversão não negativa
+para u8 usa adição de 0,5 e truncamento; a comparação com o caminho escalar
+anterior tolera até um nível por canal. Alpha zero substitui integralmente o
+fundo, e alpha um mantém o pixel original. Fundos estáticos são preparados
+uma vez na resolução de saída e não passam pelo blur em cada frame.
 
 O raio atual é medido na imagem reduzida. Ele não representa automaticamente o
 mesmo número de pixels no vídeo completo. RGB, máscara e fundo compartilham a

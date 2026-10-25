@@ -9,6 +9,34 @@ pub enum AiProvider {
     Cuda,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundMode {
+    #[default]
+    Blur,
+    Solid,
+    Studio,
+    Office,
+    Landscape,
+    Image,
+    Video,
+}
+
+impl BackgroundMode {
+    #[cfg(feature = "gui")]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Blur => "Desfoque",
+            Self::Solid => "Cor sólida",
+            Self::Studio => "Estúdio",
+            Self::Office => "Escritório",
+            Self::Landscape => "Paisagem",
+            Self::Image => "Minha imagem",
+            Self::Video => "Meu vídeo",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -19,6 +47,11 @@ pub struct Effects {
     pub denoise: f64,
     pub lut: String,
     pub background_blur: bool,
+    pub background_mode: BackgroundMode,
+    pub background_color: [u8; 3],
+    pub background_image: String,
+    pub background_video: String,
+    pub ai_fps: u32,
     pub blur_radius: u32,
     pub ai_provider: AiProvider,
     pub ai_model: String,
@@ -35,6 +68,11 @@ impl Default for Effects {
             denoise: 0.0,
             lut: String::new(),
             background_blur: false,
+            background_mode: BackgroundMode::Blur,
+            background_color: [32, 38, 48],
+            background_image: String::new(),
+            background_video: String::new(),
+            ai_fps: 30,
             blur_radius: 12,
             ai_provider: AiProvider::Cuda,
             ai_model: String::new(),
@@ -58,8 +96,13 @@ impl Effects {
         if !(1..=32).contains(&self.blur_radius) {
             bail!("Raio do desfoque deve estar entre 1 e 32");
         }
+        if !(1..=60).contains(&self.ai_fps) {
+            bail!("FPS da IA deve estar entre 1 e 60");
+        }
         if self.background_blur && (self.ai_model.is_empty() || self.ai_runtime.is_empty()) {
-            bail!("Informe o modelo ONNX e a biblioteca libonnxruntime.so para usar IA");
+            bail!(
+                "IA indisponível: instale o modelo e o runtime conforme o guia de IA; depois atualize os dispositivos para detectar a instalação"
+            );
         }
         Ok(())
     }
@@ -68,6 +111,23 @@ impl Effects {
         self.validate()?;
         if !self.lut.is_empty() && !std::path::Path::new(&self.lut).is_file() {
             bail!("LUT não encontrada: {}", self.lut);
+        }
+        if !self.lut.is_empty() {
+            crate::resources::validate_lut(std::path::Path::new(&self.lut))?;
+        }
+        if self.background_blur && self.background_mode == BackgroundMode::Image {
+            let info = std::fs::metadata(&self.background_image)
+                .map_err(|e| anyhow::anyhow!("Imagem de fundo indisponível: {e}"))?;
+            if !info.is_file() || info.len() > 32 * 1024 * 1024 {
+                bail!("Imagem de fundo deve ser um arquivo de até 32 MiB");
+            }
+        }
+        if self.background_blur && self.background_mode == BackgroundMode::Video {
+            let info = std::fs::metadata(&self.background_video)
+                .map_err(|e| anyhow::anyhow!("Vídeo de fundo indisponível: {e}"))?;
+            if !info.is_file() || info.len() == 0 || info.len() > 4 * 1024 * 1024 * 1024 {
+                bail!("Vídeo de fundo deve ser um arquivo local de até 4 GiB");
+            }
         }
         Ok(())
     }
@@ -180,6 +240,28 @@ mod tests {
         }
         assert!(serde_json::from_str::<Effects>(r#"{"blur_radius":-1}"#).is_err());
         assert!(serde_json::from_str::<Effects>(r#"{"unknown":1}"#).is_err());
+        for (fps, valid) in [
+            (-1, false),
+            (0, false),
+            (1, true),
+            (30, true),
+            (60, true),
+            (61, false),
+        ] {
+            let effect = serde_json::from_value::<Effects>(serde_json::json!({"ai_fps": fps}));
+            assert_eq!(effect.is_ok_and(|e| e.validate().is_ok()), valid);
+        }
+        let old: Effects = serde_json::from_str(r#"{"background_blur":false}"#).unwrap();
+        assert_eq!(old.background_mode, BackgroundMode::Blur);
+        assert_eq!(old.ai_fps, 30);
+        for invalid in [
+            "{\"background_color\":[-1,0,0]}",
+            "{\"background_color\":[0,0,256]}",
+            "{\"background_color\":[0,0]}",
+            "{\"background_mode\":\"unknown\"}",
+        ] {
+            assert!(serde_json::from_str::<Effects>(invalid).is_err());
+        }
     }
 
     #[test]

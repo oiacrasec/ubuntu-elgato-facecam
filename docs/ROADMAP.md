@@ -1,7 +1,7 @@
 # Roadmap, paridade e prontidão
 
-O alvo é uma experiência de controle de Facecam para Ubuntu 24.04+, com a
-organização do Camera Hub. Esta página distingue código existente, evidência
+O alvo é paridade funcional e visual com Camera Hub Windows 2.3.0.7295 em Rust
+para Ubuntu 24.04+. Esta página distingue código existente, evidência
 local, lacunas e condições de aceitação.
 
 ## Matriz atual
@@ -13,18 +13,29 @@ local, lacunas e condições de aceitação.
 | Preview | Implementado | Frame completo, tamanho limitado e último frame |
 | Saída virtual | Implementado; aceitação parcial | Sink sintético verificado; falta consumidor OBS/navegador local |
 | Efeitos comuns | Implementado | Cor, LUT, mirror e denoise com teste de pixels |
-| IA de fundo | Implementado, validação local | ONNX CPU/CUDA; falta bateria de qualidade em cenas diversas |
+| IA de fundo | Implementado, paridade parcial | ONNX CPU/CUDA; backend Maxine VFX/AR e bateria de qualidade ainda pendentes |
+| Substituição de fundo | Implementado | Cor sólida, três cenários ilustrados e PNG/JPEG/WebP/BMP próprio |
+| Fundo animado | Implementado, validação local | MP4/MOV/WebM/MKV próprio em loop; FPS sincronizado e decoder vinculado ao worker |
+| Biblioteca de Looks e fundos | Implementado nesta revisão | Nomes, miniatura de fundo, três LUTs próprias, importação validada e descoberta sem campos de caminho |
+| Instalação de dependências por APT | Implementado, aceitação parcial | Revisão, confirmação, autenticação Ubuntu e logs; instalação administrativa real não exercitada |
 | Descoberta de arquivos de IA | Implementado nesta revisão | Diretórios conhecidos, registro do preparador e testes sem `--config` |
-| Interface | Implementado, validação X11 | Card Device alinhado; Wayland e acessibilidade precisam de validação real |
+| Interface | Implementado, paridade parcial | Layout Camera Hub e validação X11; comparação completa com Windows, Wayland e acessibilidade pendentes |
 | CLI/IPC e instância única | Implementado | Contratos em testes de processo |
 | Instalação no usuário | Implementado | Scripts e prefixos; falta matriz de upgrade entre releases publicadas |
 | Idiomas | Parcial | Português e rótulos em inglês; sem catálogos ou seletor |
 | Segurança e distribuição verificável | Parcial | Controles locais presentes; lacunas em Segurança e Distribuição |
-| Prompter, HDR e firmware proprietário | Fora do escopo atual | Necessitam investigação e contratos próprios |
-| Troca de fundo, relighting, eye contact | Proposto | Sem implementação ou estimativa validada |
+| Prompter, HDR e firmware proprietário | Proposto para paridade completa | [Investigação Windows/macOS](REFERENCIA_WINDOWS.md); contratos por modelo ainda pendentes |
+| Relighting, eye contact | Proposto | Sem implementação ou estimativa validada |
 | Plugins, batch, MCP e web | Proposto | Não são recursos da entrega Linux atual |
 
 ## O que conta como paridade
+
+O usuário confirmou que a versão Windows funciona com todos os recursos de IA
+na sua RTX 4070 SUPER. Esse relato define a referência de aceitação; não é uma
+medição Linux nem um benchmark de taxa/resolução. A ausência dessa placa em uma
+lista do SDK Linux não invalida o funcionamento Windows informado.
+As lacunas documentadas são trabalho necessário para atingir o alvo completo,
+incluindo SDK VFX/AR, correção de olhar, enquadramento, controles e layout.
 
 Separe presença de controle, comportamento correto, fidelidade visual, operação
 contínua, aceitação do consumidor, confiabilidade e distribuição. Uma tela similar
@@ -37,6 +48,9 @@ e especificações; recursos proprietários não são copiados. Comportamento ob
 no macOS não comprova comportamento no Windows ou suporte Linux.
 
 ## Próximas entregas e gates
+
+A [matriz Windows/macOS](REFERENCIA_WINDOWS.md) detalha as lacunas por recurso,
+incluindo fundos animados, VFX, AR, Prompter e controles específicos de câmera.
 
 1. Exercitar saída virtual de ponta a ponta em consumidores selecionados, registrando
    resolução, taxa, cor, retomada e parada.

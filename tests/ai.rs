@@ -8,6 +8,119 @@ mod inference {
     const BIN: &str = env!("CARGO_BIN_EXE_elgato-virtualcam");
 
     #[test]
+    #[ignore = "requires FFmpeg, FACECAM_AI_MODEL and FACECAM_AI_RUNTIME; uses synthetic media, no camera"]
+    fn ai_video_background_reaps_decoder_and_kills_it_when_owner_dies() {
+        use std::{
+            io::Read,
+            time::{Duration, Instant},
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let video = dir.path().join("background.mp4");
+        let generated = Command::new("ffmpeg")
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=32x24:rate=2:duration=1",
+                "-c:v",
+                "mpeg4",
+                "-threads",
+                "1",
+                "-y",
+            ])
+            .arg(&video)
+            .output()
+            .unwrap();
+        assert!(generated.status.success());
+        let effects = serde_json::json!({
+            "background_blur":true, "background_mode":"video", "background_video":video,
+            "ai_model":std::env::var("FACECAM_AI_MODEL").expect("set FACECAM_AI_MODEL"),
+            "ai_runtime":std::env::var("FACECAM_AI_RUNTIME").expect("set FACECAM_AI_RUNTIME"),
+            "ai_provider":std::env::var("FACECAM_AI_PROVIDER").unwrap_or_else(|_| "cpu".into()),
+        });
+        for forced in [false, true] {
+            let mut worker = Command::new(BIN)
+                .args([
+                    "--ai-worker",
+                    &effects.to_string(),
+                    "--ai-size",
+                    "64x64",
+                    "--ai-rate",
+                    "15",
+                ])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .unwrap();
+            let mut input = worker.stdin.take().unwrap();
+            let mut output = worker.stdout.take().unwrap();
+            let original = vec![20; 64 * 64 * 3];
+            input.write_all(&original).unwrap();
+            let mut frame = vec![0; original.len()];
+            output.read_exact(&mut frame).unwrap();
+            assert_ne!(frame, original, "video composition was bypassed");
+            let children = std::fs::read_to_string(format!(
+                "/proc/{}/task/{}/children",
+                worker.id(),
+                worker.id()
+            ))
+            .unwrap();
+            let children: Vec<u32> = children
+                .split_whitespace()
+                .map(|p| p.parse().unwrap())
+                .collect();
+            assert_eq!(children.len(), 1, "one video decoder per worker");
+            let decoder = children[0];
+            if forced {
+                // Keep a read end open outside the owner: a broken pipe cannot
+                // explain the decoder's exit in this branch.
+                let pipe = std::fs::read_link(format!("/proc/{decoder}/fd/1")).unwrap();
+                let fd = std::fs::read_dir(format!("/proc/{}/fd", worker.id()))
+                    .unwrap()
+                    .flatten()
+                    .find(|entry| {
+                        std::fs::read_link(entry.path()).is_ok_and(|target| target == pipe)
+                    })
+                    .unwrap();
+                let held_reader = std::fs::File::open(fd.path()).unwrap();
+                worker.kill().unwrap();
+                worker.wait().unwrap();
+                let deadline = Instant::now() + Duration::from_secs(3);
+                loop {
+                    let status = std::fs::read_to_string(format!("/proc/{decoder}/status"));
+                    if status.ok().is_none_or(|status| {
+                        status
+                            .lines()
+                            .any(|line| line.starts_with("State:") && line.contains('Z'))
+                    }) {
+                        break;
+                    }
+                    assert!(
+                        Instant::now() < deadline,
+                        "orphan decoder still running: {decoder}"
+                    );
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                drop(held_reader);
+            } else {
+                drop(input);
+                let mut rest = Vec::new();
+                output.read_to_end(&mut rest).unwrap();
+                assert!(rest.is_empty());
+                assert!(worker.wait().unwrap().success());
+                assert!(
+                    !std::path::Path::new(&format!("/proc/{decoder}")).exists(),
+                    "decoder was not reaped"
+                );
+            }
+        }
+    }
+
+    #[test]
     #[ignore = "requires Facecam, FFmpeg, FACECAM_AI_RUNTIME and FACECAM_AI_MODEL"]
     fn hardware_ai_preview_stops_all_owned_workers() {
         use std::{

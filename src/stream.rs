@@ -156,9 +156,8 @@ impl Stream {
         log: &Path,
     ) -> Result<Self> {
         config.effects.preflight()?;
-        if config.effects.background_blur {
-            crate::ai::check(&config.effects)?;
-        }
+        // SetEffects validates inference before stopping an active capture. The
+        // real worker also warms up; do not launch a third native session here.
         if virtual_output {
             verify_virtual_device(&config.virtual_device)?;
         }
@@ -169,8 +168,13 @@ impl Stream {
         let mut upstream = Children::default();
         let mut args = ffmpeg_args(device, mode, config, virtual_output, preview);
         let stdin = if config.effects.background_blur {
+            // A preview-only session needs 640x360 at 15fps, not full-resolution
+            // RGB and inference for every 1080p60/120 camera frame.
+            let (ai_width, ai_height, ai_fps) =
+                ai_processing_mode(mode, &config.effects, virtual_output);
             let end = args.iter().position(|a| a == "-i").unwrap() + 2;
             let mut capture = args[..end].to_vec();
+            capture.extend(["-vf".into(), format!("fps={ai_fps},scale={ai_width}:{ai_height}:force_original_aspect_ratio=decrease,pad={ai_width}:{ai_height}:(ow-iw)/2:(oh-ih)/2")]);
             capture.extend(
                 [
                     "-an", "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
@@ -189,7 +193,8 @@ impl Stream {
                 .context("Pipe de captura indisponível")?;
             upstream.0.push(decoder);
             let mut worker = crate::ai::command(&config.effects)?
-                .args(["--ai-size", &format!("{}x{}", mode.width, mode.height)])
+                .args(["--ai-size", &format!("{ai_width}x{ai_height}")])
+                .args(["--ai-rate", &ai_fps.to_string()])
                 .stdin(Stdio::from(source))
                 .stdout(Stdio::piped())
                 .stderr(err.try_clone()?)
@@ -198,13 +203,25 @@ impl Stream {
             upstream.0.push(worker);
             let raw_mode = Mode {
                 format: "rgb24".into(),
-                ..mode.clone()
+                width: ai_width,
+                height: ai_height,
+                fps: ai_fps,
             };
             args = ffmpeg_args("pipe:0", &raw_mode, config, virtual_output, preview);
             let format = args.iter().position(|a| a == "-f").unwrap();
             args[format + 1] = "rawvideo".into();
             let input_format = args.iter().position(|a| a == "-input_format").unwrap();
             args[input_format] = "-pixel_format".into();
+            let input = args.iter().position(|a| a == "-i").unwrap();
+            args.splice(
+                input..input,
+                [
+                    "-probesize".into(),
+                    "32".into(),
+                    "-analyzeduration".into(),
+                    "0".into(),
+                ],
+            );
             Stdio::from(processed)
         } else {
             Stdio::null()
@@ -281,6 +298,22 @@ impl Stream {
     }
 }
 
+fn ai_processing_mode(
+    mode: &Mode,
+    effects: &crate::effects::Effects,
+    virtual_output: bool,
+) -> (u32, u32, f64) {
+    if virtual_output {
+        (mode.width, mode.height, mode.fps.min(effects.ai_fps as f64))
+    } else {
+        (
+            PREVIEW_WIDTH as u32,
+            PREVIEW_HEIGHT as u32,
+            mode.fps.min(effects.ai_fps.min(15) as f64),
+        )
+    }
+}
+
 impl Drop for Stream {
     fn drop(&mut self) {
         let _ = self.stop();
@@ -290,6 +323,29 @@ impl Drop for Stream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ai_preview_does_not_process_full_camera_resolution_and_virtual_fps_is_explicit() {
+        let mode = Mode {
+            format: "mjpeg".into(),
+            width: 1920,
+            height: 1080,
+            fps: 60.0,
+        };
+        let effects = crate::effects::Effects::default();
+        assert_eq!(ai_processing_mode(&mode, &effects, false), (640, 360, 15.0));
+        assert_eq!(
+            ai_processing_mode(&mode, &effects, true),
+            (1920, 1080, 30.0)
+        );
+        let effects = crate::effects::Effects {
+            ai_fps: 60,
+            ..effects
+        };
+        assert_eq!(
+            ai_processing_mode(&mode, &effects, true),
+            (1920, 1080, 60.0)
+        );
+    }
     #[test]
     fn headless_stream_does_not_decode_preview_frames() {
         let mode = Mode {

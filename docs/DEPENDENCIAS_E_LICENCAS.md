@@ -5,17 +5,24 @@ fontes e ferramentas externas têm licenças e condições próprias.
 
 ## Inventário de dependências
 
+Os Looks Quente, Frio e Contraste suave são código e transformações próprios,
+sob MIT. Recursos importados pelo usuário mantêm sua licença de origem; o app
+não inclui LUTs, fundos, ícones ou shaders extraídos do Camera Hub.
+
 | Componente | Uso atual |
 | --- | --- |
 | Rust/Cargo e `Cargo.lock` | Compilação e versões resolvidas |
 | egui/eframe e Glow | Janela nativa, OpenGL e acessibilidade compilada |
+| `rfd` 0.17.2 | Seletor nativo de arquivos pelo XDG Desktop Portal; MIT; [fonte e API](https://docs.rs/rfd/0.17.2/rfd/) |
 | ksni | Bandeja StatusNotifierItem por D-Bus, opcional |
 | FFmpeg | Captura, conversão, filtros e saída de vídeo |
 | v4l-utils / `v4l2-ctl` | Consulta e escrita de controles e formatos |
 | v4l2loopback | Nó virtual preparado no sistema pelo usuário |
 | `ort` | Bindings Rust opcionais para ONNX Runtime carregado dinamicamente |
+| `image` | Decodificação opcional de PNG/JPEG/WebP/BMP e preparo de fundo; MIT ou Apache-2.0 |
 | ONNX Runtime e modelo | Inferência opcional, fora do binário do aplicativo |
 | CUDA e cuDNN | Provider NVIDIA, com dependências externas opcionais |
+| APT, pkexec, curl e sha256sum | Instalação assistida opcional, com confirmação e autenticação do Ubuntu |
 
 Leia `Cargo.toml` para as features e `Cargo.lock` para o grafo resolvido. O produto
 não inclui um runtime Python; os pacotes nativos distribuídos em contêineres wheel
@@ -45,6 +52,19 @@ O modelo de segmentação possui origem e licença descritas em [Efeitos](EFEITO
 O preparador mantém o texto da licença do modelo, os arquivos de licença do
 runtime extraído e os notices dos pacotes CUDA. Mudança de modelo exige conferir
 licença, revisão, hash, contrato de entrada e resultado; não apenas trocar a URL.
+
+O seletor usa o portal do desktop, sem vincular o aplicativo às bibliotecas GTK.
+No Ubuntu, requer um backend de portal de seleção de arquivos; `rfd` pode usar
+Zenity como alternativa. O campo de caminho continua disponível. A dependência
+usa integração nativa dentro de sua implementação; o código do aplicativo
+permanece sem `unsafe`, e a compilação headless não inclui o seletor.
+
+A chave pública de assinatura NVIDIA usada no cadastro APT vem de
+[3bf863cc.pub](https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub),
+com SHA-256 `7eb71103e32e813ea3e1c06bdb01b143f36feb8d83ecac2b0c11c9273f9e6822`
+conferido em 25/10/2026. É baixada após confirmação; não inclui runtime, modelo
+ou recurso visual proprietário do Camera Hub. A origem e o digest precisam ser
+revistos se a NVIDIA substituir a chave.
 
 ## Atribuição e proveniência
 

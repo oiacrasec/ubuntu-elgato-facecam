@@ -45,6 +45,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Decisões de implementação](DECISOES.md)
 - [Validação local](VALIDACAO_LOCAL.md)
 - [Investigação de V4L2 e do pacote macOS](PORT_UBUNTU_24_04.md)
+- [Comparação Windows/macOS e matriz de migração completa](REFERENCIA_WINDOWS.md)
 - [Inventário de cobertura documental](COBERTURA_DOCUMENTAL.md)
 
 A cobertura classifica individualmente os textos, licenças e dados documentais

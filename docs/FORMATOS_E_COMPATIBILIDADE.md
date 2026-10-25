@@ -1,7 +1,7 @@
 # Formatos, importação e fidelidade
 
 Os formatos atuais são os modos V4L2 da câmera, os frames de vídeo da pipeline,
-a configuração JSON, LUTs 3D e o modelo ONNX. Formatos de documentos gráficos
+a configuração JSON, LUTs 3D, fundos PNG/JPEG/WebP/BMP, vídeos e o modelo ONNX. Formatos de documentos gráficos
 não são importadores implementados no Facecam Hub.
 
 ## Contratos atuais
@@ -11,10 +11,12 @@ não são importadores implementados no Facecam Hub.
 | Câmera física | Modos discretos realmente enumerados; não presumir resolução por nome do produto |
 | Captura | MJPEG ou formato raw suportado pelo dispositivo e pelo FFmpeg |
 | Preview | RGB24 640×360, até 15 fps, somente último frame completo |
-| Saída virtual | yuv420p, resolução e taxa do modo negociado |
+| Saída virtual | yuv420p, resolução negociada; com IA, taxa limitada por `ai_fps` |
 | Inferência | RGB float32 NCHW 1×3×256×256; máscara de pessoa 256×256 em [0,1] |
 | Configuração | JSON com defaults, campos extras na raiz e controles assinados |
-| LUT | Caminho de LUT 3D interpretada pelo filtro `lut3d` do FFmpeg |
+| LUT | `.cube` UTF-8 até 16 MiB, grade 2–65 com N³ cores finitas; filtro `lut3d` do FFmpeg |
+| Fundo próprio | PNG/JPEG/WebP/BMP convertido para RGB8 opaco, recorte central para preencher a saída |
+| Fundo animado | MP4/MOV/WebM/MKV local até 4 GiB, em loop sem áudio; decoder FFmpeg |
 
 Dimensões, canais, orientação, stride, faixa e espaço de cor precisam ser
 explicitados em qualquer novo caminho público. O vídeo atual é RGB/YUV de 8 bits;
@@ -36,12 +38,21 @@ com licença e hash quando redistribuídos. Snapshots, deduplicação por conte�
 compressão e recuperação após crash ainda não formam um formato de sessão.
 Não crie uma extensão nativa proprietária apenas para reproduzir outra arquitetura.
 
-## Imagens raster e fundos futuros
+## Imagens raster e fundos
 
-Troca de fundo por imagem ainda não está implementada. Ao acrescentá-la, definir
-uma matriz explícita de leitura e escrita para JPEG, PNG, TIFF, WebP, GIF, BMP,
-Netpbm, EXR, AVIF/HEIF e outros formatos selecionados. Não herdar suporte de um
-codec transitivo sem validar o caminho da aplicação.
+A troca de fundo lê PNG, JPEG, WebP e BMP com orientação EXIF aplicada quando disponível, até
+32 MiB e 8192×8192, respeitando o limite de decodificação de 128 MiB. Transparência
+é composta sobre `background_color`; o resultado é RGB8 opaco. Metadados não são
+exportados, e não há gestão ICC de imagem. Apenas uma imagem é usada; WebP animado
+não é reproduzido como vídeo. A aplicação não oferece exportação desses formatos.
+
+Uma extensão futura precisa definir matriz própria para TIFF, GIF, Netpbm,
+EXR, AVIF/HEIF e outros formatos. Não herdar suporte de um codec transitivo sem
+validar o caminho da aplicação.
+
+A biblioteca apresenta nomes em vez de caminhos. A importação copia os arquivos
+sem converter nem remover metadados; o processamento e a miniatura decodificam
+somente o conteúdo visual. [Efeitos](EFEITOS.md) define descoberta e persistência.
 
 A matriz deve informar profundidade, alpha, ICC, EXIF, XMP, resolução, orientação,
 animação e multipágina. “Lê e escreve” não equivale a round-trip de metadados.

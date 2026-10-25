@@ -35,6 +35,20 @@ pub enum Request {
     SetEffects {
         effects: crate::effects::Effects,
     },
+    PrepareInstall {
+        dependency: crate::dependencies::Dependency,
+    },
+    PrepareUninstall {
+        dependency: crate::dependencies::Dependency,
+    },
+    ConfirmInstall {
+        id: u64,
+    },
+    CancelInstall,
+    ImportResource {
+        kind: crate::resources::Kind,
+        path: PathBuf,
+    },
     Save,
     Restore,
     Show,
@@ -45,6 +59,7 @@ pub enum Request {
 pub struct Snapshot {
     pub config: Config,
     pub cameras: Vec<Camera>,
+    pub virtual_cameras: Vec<Camera>,
     pub camera: Option<Camera>,
     pub modes: Vec<Mode>,
     pub mode: Option<Mode>,
@@ -59,6 +74,16 @@ pub struct Snapshot {
     pub quit: bool,
     pub gui: bool,
     pub ai_compiled: bool,
+    pub installation_plan: Option<crate::dependencies::InstallPlan>,
+    pub installation_running: bool,
+    pub installation_log: Option<PathBuf>,
+    #[serde(default)]
+    pub dependencies: Vec<crate::dependencies::DependencyState>,
+    pub dependency_error: Option<String>,
+    pub resources: Vec<crate::resources::Resource>,
+    pub importing: bool,
+    pub imported: Option<crate::resources::Resource>,
+    pub import_revision: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -78,14 +103,26 @@ pub struct Engine {
     stream: Option<Stream>,
     last_refresh: Instant,
     write_failures: BTreeMap<String, String>,
+    installation: Option<crate::dependencies::Installation>,
+    installation_revision: u64,
+    import: Option<crate::resources::Import>,
+    resource_root: PathBuf,
+    last_dependency_refresh: Instant,
+    removing_video_tools: bool,
 }
 
 impl Engine {
     pub fn new(path: PathBuf, gui: bool) -> Result<Self> {
         let config = Config::load(&path)?;
+        let resource_root = path
+            .parent()
+            .context("Configuração sem diretório")?
+            .join("resources");
+        let resources = crate::resources::catalog(&resource_root, &config.effects);
         let state = Snapshot {
             config,
             cameras: Vec::new(),
+            virtual_cameras: Vec::new(),
             camera: None,
             modes: Vec::new(),
             mode: None,
@@ -100,6 +137,15 @@ impl Engine {
             quit: false,
             gui,
             ai_compiled: cfg!(feature = "ai"),
+            installation_plan: None,
+            installation_running: false,
+            installation_log: None,
+            dependencies: Vec::new(),
+            dependency_error: None,
+            resources,
+            importing: false,
+            imported: None,
+            import_revision: 0,
         };
         let mut engine = Self {
             shared: Arc::new(RwLock::new(state.clone())),
@@ -109,6 +155,15 @@ impl Engine {
             stream: None,
             last_refresh: Instant::now(),
             write_failures: BTreeMap::new(),
+            installation: None,
+            import: None,
+            resource_root,
+            last_dependency_refresh: Instant::now(),
+            removing_video_tools: false,
+            installation_revision: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_millis()
+                .try_into()?,
         };
         if let Err(e) = engine.refresh() {
             engine.state.error = Some(format!("{e:#}"));
@@ -170,8 +225,70 @@ impl Engine {
         self.query_controls()
     }
 
+    fn refresh_dependencies(&mut self) {
+        self.last_dependency_refresh = Instant::now();
+        match crate::dependencies::discover() {
+            Ok(states) => {
+                self.state.dependencies = states;
+                self.state.dependency_error = None;
+            }
+            Err(error) => {
+                self.state.dependencies.clear();
+                self.state.dependency_error = Some(format!("{error:#}"));
+            }
+        }
+    }
+
+    fn prepare_dependency(
+        &mut self,
+        dependency: crate::dependencies::Dependency,
+        action: crate::dependencies::Action,
+    ) -> Result<String> {
+        use crate::dependencies::{Action, Dependency};
+        if self.installation.is_some() {
+            bail!("Aguarde a operação APT atual terminar");
+        }
+        self.state.installation_plan = None;
+        if action == Action::Remove && dependency == Dependency::VideoTools && self.stream.is_some()
+        {
+            bail!("Pare o preview e a câmera virtual antes de desinstalar FFmpeg e V4L2");
+        }
+        self.installation_revision = self
+            .installation_revision
+            .checked_add(1)
+            .context("Identificador de instalação esgotado")?;
+        self.refresh_dependencies();
+        let directory = self.path.parent().context("Configuração sem diretório")?;
+        let plan = match action {
+            Action::Install => {
+                crate::dependencies::prepare(dependency, self.installation_revision, directory)?
+            }
+            Action::Remove => crate::dependencies::prepare_removal(
+                dependency,
+                self.installation_revision,
+                directory,
+            )?,
+        };
+        self.state.installation_plan = Some(plan);
+        Ok("Revise os comandos e confirme a operação APT".into())
+    }
+
     fn refresh(&mut self) -> Result<()> {
         self.last_refresh = Instant::now();
+        self.refresh_dependencies();
+        self.state.resources =
+            crate::resources::catalog(&self.resource_root, &self.state.config.effects);
+        self.state.virtual_cameras = camera::discover_virtual();
+        if self.stream.is_none()
+            && !self
+                .state
+                .virtual_cameras
+                .iter()
+                .any(|c| c.path == self.state.config.virtual_device)
+            && let Some(camera) = self.state.virtual_cameras.first()
+        {
+            self.state.config.virtual_device = camera.path.clone();
+        }
         let cameras = camera::discover()?;
         let camera = cameras
             .iter()
@@ -212,6 +329,9 @@ impl Engine {
     }
 
     fn start(&mut self, virtual_output: bool, preview: bool) -> Result<()> {
+        if self.removing_video_tools {
+            bail!("Aguarde a desinstalação das ferramentas de vídeo terminar");
+        }
         if self.stream.is_some()
             && self.state.streaming == virtual_output
             && self.state.preview == preview
@@ -252,6 +372,59 @@ impl Engine {
     fn execute(&mut self, request: Request) -> Result<String> {
         match request {
             Request::Status => return Ok(self.state.message.clone()),
+            Request::ImportResource { kind, path } => {
+                if self.import.is_some() {
+                    bail!("Aguarde a importação atual terminar");
+                }
+                self.import = Some(crate::resources::Import::start(
+                    self.resource_root.clone(),
+                    kind,
+                    path,
+                )?);
+                self.state.importing = true;
+                return Ok("Adicionando arquivo à biblioteca…".into());
+            }
+            Request::PrepareInstall { dependency } => {
+                return self.prepare_dependency(dependency, crate::dependencies::Action::Install);
+            }
+            Request::PrepareUninstall { dependency } => {
+                return self.prepare_dependency(dependency, crate::dependencies::Action::Remove);
+            }
+            Request::ConfirmInstall { id } => {
+                if self.installation.is_some() {
+                    bail!("Aguarde a operação APT atual terminar");
+                }
+                let plan = self
+                    .state
+                    .installation_plan
+                    .as_ref()
+                    .filter(|plan| plan.id == id)
+                    .context(
+                        "Plano ausente ou expirado; prepare e confirme a instalação novamente",
+                    )?;
+                let removing_video_tools = plan.action == crate::dependencies::Action::Remove
+                    && plan.dependency == crate::dependencies::Dependency::VideoTools;
+                if removing_video_tools && self.stream.is_some() {
+                    bail!("Pare o preview e a câmera virtual antes de confirmar a desinstalação");
+                }
+                let installation = crate::dependencies::Installation::start(plan.clone())?;
+                self.removing_video_tools = removing_video_tools;
+                self.state.installation_log = Some(plan.log.clone());
+                self.installation = Some(installation);
+                self.state.installation_plan = None;
+                self.state.installation_running = true;
+                return Ok(
+                    "Executando operação APT; confirme a autenticação administrativa do Ubuntu"
+                        .into(),
+                );
+            }
+            Request::CancelInstall => {
+                if self.installation.is_some() {
+                    bail!("A operação já foi iniciada; aguarde o APT concluir");
+                }
+                self.state.installation_plan = None;
+                return Ok("Plano cancelado; nenhum comando desse plano foi iniciado".into());
+            }
             Request::Refresh => {
                 crate::ai_paths::autofill(&mut self.state.config.effects);
                 self.write_failures.clear();
@@ -295,6 +468,8 @@ impl Engine {
             }
             Request::SetEffects { mut effects } => {
                 crate::ai_paths::autofill(&mut effects);
+                effects.validate()?;
+                crate::resources::materialize(&self.resource_root, &effects.lut)?;
                 effects.preflight()?;
                 if effects.background_blur {
                     crate::ai::check(&effects)?;
@@ -303,6 +478,8 @@ impl Engine {
                 let outputs = (self.state.streaming, self.state.preview);
                 self.stop()?;
                 self.state.config.effects = effects;
+                self.state.resources =
+                    crate::resources::catalog(&self.resource_root, &self.state.config.effects);
                 let result = (|| {
                     if outputs.0 || outputs.1 {
                         self.start(outputs.0, outputs.1)?;
@@ -379,6 +556,12 @@ impl Engine {
             }
             Request::Show => self.state.show_revision = self.state.show_revision.wrapping_add(1),
             Request::Quit => {
+                if self.import.is_some() {
+                    bail!("Aguarde a importação terminar antes de encerrar o aplicativo");
+                }
+                if self.installation.is_some() {
+                    bail!("Aguarde a operação APT terminar antes de encerrar o aplicativo");
+                }
                 self.stop()?;
                 self.state.quit = true;
             }
@@ -426,6 +609,49 @@ impl Engine {
 
     pub fn tick(&mut self) -> bool {
         let mut changed = false;
+        if let Some(import) = &self.import
+            && let Some(result) = import.poll()
+        {
+            self.import = None;
+            self.state.importing = false;
+            match result {
+                Ok(resource) => {
+                    self.state.resources =
+                        crate::resources::catalog(&self.resource_root, &self.state.config.effects);
+                    self.state.message = format!(
+                        "{} adicionado à biblioteca; selecione Aplicar e salvar para usar",
+                        resource.name
+                    );
+                    self.state.imported = Some(resource);
+                    self.state.import_revision = self.state.import_revision.wrapping_add(1);
+                    self.state.error = None;
+                }
+                Err(message) => self.state.error = Some(message),
+            }
+            changed = true;
+        }
+        if let Some(installation) = &self.installation
+            && let Some(result) = installation.poll()
+        {
+            self.installation = None;
+            self.removing_video_tools = false;
+            self.state.installation_running = false;
+            self.refresh_dependencies();
+            match result {
+                Ok(message) => {
+                    self.state.message = message;
+                    self.state.error = None;
+                }
+                Err(message) => {
+                    self.state.error = Some(message);
+                }
+            }
+            changed = true;
+        }
+        if self.last_dependency_refresh.elapsed().as_secs() >= 5 {
+            self.refresh_dependencies();
+            changed = true;
+        }
         if let Some(stream) = &mut self.stream {
             self.state.uptime_seconds = stream.started.elapsed().as_secs();
             self.state.preview_frames = stream

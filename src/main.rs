@@ -1,16 +1,22 @@
 mod ai;
 mod ai_paths;
+#[cfg(feature = "ai")]
+mod background;
 mod camera;
 mod config;
+mod dependencies;
 mod desktop;
 mod effects;
 mod engine;
 #[cfg(feature = "gui")]
 mod gui;
 mod ipc;
+mod resources;
 mod stream;
 #[cfg(feature = "tray")]
 mod tray;
+#[cfg(feature = "ai")]
+mod video_background;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
@@ -54,10 +60,43 @@ struct Args {
         help = "Check the configured AI model and runtime, including a real inference"
     )]
     check_ai: bool,
+    #[arg(
+        long,
+        value_enum,
+        help = "Prepare an APT installation plan without running it"
+    )]
+    prepare_install: Option<dependencies::Dependency>,
+    #[arg(
+        long,
+        value_enum,
+        help = "Prepare a reviewed APT removal plan without uninstalling anything"
+    )]
+    prepare_uninstall: Option<dependencies::Dependency>,
+    #[arg(
+        long,
+        value_name = "PLAN_ID",
+        help = "Explicitly confirm a previously reviewed installation plan"
+    )]
+    confirm_install: Option<u64>,
+    #[arg(long, help = "Discard the pending installation plan")]
+    cancel_install: bool,
+    #[arg(
+        long,
+        value_enum,
+        requires = "import_file",
+        help = "Import a LUT, image or video into the application library"
+    )]
+    import_resource: Option<resources::Kind>,
+    #[arg(long, requires = "import_resource", value_name = "FILE")]
+    import_file: Option<PathBuf>,
     #[arg(long, hide = true)]
     ai_worker: Option<String>,
     #[arg(long, hide = true)]
     ai_size: Option<String>,
+    #[arg(long, hide = true)]
+    ai_rate: Option<f64>,
+    #[arg(long, hide = true)]
+    decode_background: Option<String>,
     #[arg(long)]
     install_autostart: bool,
     #[arg(long)]
@@ -128,9 +167,18 @@ fn background_start(path: &std::path::Path) -> Result<()> {
 
 fn run() -> Result<()> {
     let args = Args::parse();
+    if let Some(json) = args.decode_background {
+        #[cfg(feature = "ai")]
+        return video_background::decode(&serde_json::from_str(&json)?);
+        #[cfg(not(feature = "ai"))]
+        {
+            let _ = json;
+            bail!("Esta compilação não inclui fundos com IA");
+        }
+    }
     if let Some(json) = args.ai_worker {
         let effects = serde_json::from_str(&json)?;
-        return ai::worker(&effects, args.ai_size.as_deref());
+        return ai::worker(&effects, args.ai_size.as_deref(), args.ai_rate);
     }
     let path = args
         .config
@@ -165,6 +213,21 @@ fn run() -> Result<()> {
     }
     if args.status {
         return print_reply(ipc::send(&Request::Status)?);
+    }
+    if let Some(dependency) = args.prepare_install {
+        return print_reply(ipc::send(&Request::PrepareInstall { dependency })?);
+    }
+    if let Some(dependency) = args.prepare_uninstall {
+        return print_reply(ipc::send(&Request::PrepareUninstall { dependency })?);
+    }
+    if let Some(id) = args.confirm_install {
+        return print_reply(ipc::send(&Request::ConfirmInstall { id })?);
+    }
+    if args.cancel_install {
+        return print_reply(ipc::send(&Request::CancelInstall)?);
+    }
+    if let (Some(kind), Some(path)) = (args.import_resource, args.import_file) {
+        return print_reply(ipc::send(&Request::ImportResource { kind, path })?);
     }
     if args.check_ai {
         let config = config::Config::load(&path)?;

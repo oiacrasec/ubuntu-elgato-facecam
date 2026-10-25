@@ -42,7 +42,7 @@ do código, como `elgato-virtualcam`, `background_blur` e `SetEffects`. Escreva
 NVIDIA, CUDA, ONNX Runtime e V4L2 com a capitalização correspondente.
 
 Reproduza os rótulos da interface exatamente, em **negrito**, mesmo quando estão
-em inglês. Por exemplo: “Na aba **Effects**, ative **Desfocar fundo com IA**”.
+em inglês. Por exemplo: “Na aba **Effects**, ative **Ativar fundo com IA**”.
 Para uma sequência de navegação, use **Camera** › **Device** › **SAVE**.
 Use crases para comandos, caminhos, nomes de arquivos, parâmetros e valores.
 

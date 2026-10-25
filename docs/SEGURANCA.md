@@ -20,6 +20,10 @@ FFmpeg, drivers e componentes ONNX/CUDA externos.
 | Configuração → disco | `config` | Erro preserva JSON inválido; backup e arquivo temporário |
 | Inferência → runtime nativo | worker `ai` | Processo separado e validação do contrato do modelo |
 | Descoberta → arquivos locais | `ai_paths` | Diretórios conhecidos e leituras delimitadas, sem download |
+| Fundo próprio → decoder | worker `background` | PNG/JPEG/WebP/BMP, arquivo até 32 MiB, 8192×8192, limite de decodificação 128 MiB |
+| Arquivo escolhido → biblioteca | `resources`, `engine` | Importação única em segundo plano, cópia oculta 0600, limites por tipo, validação e publicação sem sobrescrita; catálogo limitado |
+| Vídeo próprio → FFmpeg | `video_background` | Arquivo local regular até 4 GiB, demuxers MOV/Matroska/WebM e protocolos file/pipe; saída RGB limitada por dimensão e pipe |
+| Plano APT → sistema | `dependencies`, `engine` | Comandos definidos no núcleo, ID atual e confirmação explícita; autenticação por pkexec e log privado |
 
 Um processo separado isola falhas de carregamento, mas não restringe automaticamente
 acesso a arquivos, rede ou GPU. `unsafe_code = "forbid"` vale para a aplicação;
@@ -43,6 +47,23 @@ Configurações malformadas são preservadas. O salvamento usa backup inicial,
 arquivo temporário e rename. A descoberta não substitui caminhos explicitamente
 configurados, não ativa IA e não carrega bibliotecas. O preparador usa versões
 fixadas e confere hashes dos downloads antes de extrair os pacotes.
+
+A instalação de dependências não aceita comandos de shell pelo IPC nem recebe
+senhas. Planos cancelados ou substituídos perdem validade. O cadastro NVIDIA usa
+uma chave pública com SHA-256 fixado e `Signed-By` embutido na fonte deb822;
+a chave não ganha confiança global para outros repositórios. A sintaxe segue
+o [contrato do APT](https://manpages.debian.org/trixie/apt/sources.list.5.en.html).
+Os passos administrativos começam somente após confirmação. O `.deb` local não
+é usado. Uma falha interrompe os próximos passos; alterações administrativas
+já concluídas não são revertidas automaticamente. O aplicativo não encerra uma
+transação APT para atender Quit.
+
+A remoção consulta uma simulação e recusa pacotes além dos solicitados, sem
+autoremove ou purge. A conferência é repetida antes da execução privilegiada.
+Isso não constitui uma transação atômica entre simulação e remoção se outro
+gerenciador alterar o sistema nesse intervalo. O plano avisa que os pacotes são
+compartilhados por outros aplicativos. Ferramentas de vídeo não são removidas
+durante captura e não há remoção automática ao encerrar o Facecam Hub.
 
 ## Limitações conhecidas
 

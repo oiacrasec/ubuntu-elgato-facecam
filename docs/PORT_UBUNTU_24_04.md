@@ -6,6 +6,9 @@ Este documento preserva o levantamento anterior à migração. A implementação
 Rust atual está descrita em [ARQUITETURA.md](ARQUITETURA.md), com verificações em [TESTES.md](TESTES.md).
 A equivalência integral com o Camera Hub continua pendente.
 
+A [investigação do MSI Windows](REFERENCIA_WINDOWS.md) complementa este registro
+e documenta a preparação posterior de um Ghidra 12.1.4 compatível com o REA.
+
 ## Referência e evidências
 
 - Instalador: `package/CameraHub_2.3.0.7295.pkg`, 387.718.516 bytes.

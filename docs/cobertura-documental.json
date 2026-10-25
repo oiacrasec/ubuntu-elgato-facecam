@@ -281,7 +281,7 @@
       "id": "D035",
       "subject": "Visão de formatos",
       "destination": "FORMATOS_E_COMPATIBILIDADE.md",
-      "adaptation": "Matriz de vídeo, configuração, LUT e ONNX realmente disponíveis.",
+      "adaptation": "Matriz de vídeo, biblioteca de recursos, importação validada, LUT e ONNX realmente disponíveis; uso em Efeitos.",
       "source_sha256": "c48faddfa215edf8361fe742e17a352bad6b11d1ddba414bc209b14005b281e3",
       "source_bytes": 1200
     },
@@ -337,7 +337,7 @@
       "id": "D042",
       "subject": "Instalação e confiança nos arquivos",
       "destination": "USO.md",
-      "adaptation": "Primeira execução e dependências do usuário, sem instalador de outro sistema.",
+      "adaptation": "Primeira execução, estado dpkg e instalação/remoção APT com confirmação, sem instalador de outro sistema.",
       "source_sha256": "5e332a2a69d6b77f90f50a198f3b3d76db2b77c93c07f00f03cf479a623e5438",
       "source_bytes": 1148
     },
@@ -985,7 +985,7 @@
       "id": "D123",
       "subject": "Diálogos e foco",
       "destination": "UI_E_INTERACAO.md",
-      "adaptation": "Abrir/aplicar/cancelar, filhos, preview, teclado e parâmetros estáveis.",
+      "adaptation": "Cards de Camera/Effects, abrir/aplicar/cancelar, centralização, dependências, filhos, preview, teclado e parâmetros estáveis.",
       "source_sha256": "969347e5e2e5730b2addb0d67854fb5bf2501a0bc7c5522a0b44ef3d0c213187",
       "source_bytes": 14655
     },
