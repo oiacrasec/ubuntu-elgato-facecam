@@ -137,9 +137,7 @@ pub fn verify_virtual_device(device: &str) -> Result<()> {
     });
     if !is_loopback {
         bail!(
-            "{} não é uma câmera v4l2loopback. Prepare a saída com: sudo modprobe v4l2loopback video_nr={} card_label=VirtualCam exclusive_caps=1",
-            device,
-            device.trim_start_matches("/dev/video")
+            "Saída virtual v4l2loopback indisponível em {device}. Abra Configurações › Câmera virtual › Preparar câmera virtual, ou use --prepare-virtual-camera pela CLI"
         );
     }
     Ok(())

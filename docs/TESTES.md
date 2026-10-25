@@ -69,11 +69,29 @@ cargo test --locked ffmpeg_video_background -- --ignored
 O script local executa também esse caso quando FFmpeg está disponível. Não há
 modelo de IA, conta NVIDIA ou câmera nessa verificação.
 
+## Inicialização no desktop
+
+O teste de contrato `autostart_toggle_tracks_disk_reopens_and_preserves_state_on_failure`
+usa diretórios XDG temporários: ativa, reabre, desativa, repete a desativação,
+acompanha entradas desabilitadas externamente e verifica falha de filesystem sem
+gravar o JSON da câmera. Não altera o autostart real do usuário.
+
+`live_settings_persist_only_requested_fields_and_keep_state_on_failure` verifica
+gravação imediata ao marcar/desmarcar, troca de saída, preservação de efeitos e
+campos adicionais e estado inalterado após valor inválido ou falha de escrita.
+
 ## Instalação APT
 
 Os testes comuns verificam preparação/cancelamento sem iniciar instalação,
 IDs expirados, configuração preservada, hash alterado e interrupção ao falhar
 um comando. Não executam comandos administrativos.
+
+A preparação virtual verifica número livre, módulo nativo sem DKMS, pacote
+correspondente ao kernel, ausência de escrita antes da confirmação e uma única
+chamada a pkexec. O payload do helper recusa dispositivos, kernel, pacotes e
+campos não permitidos. Os testes não carregam nem descarregam módulos. O teste
+de falha de startup isola `v4l2-ctl`, inclusive quando há um loopback real no host,
+para impedir captura física nos checks comuns.
 
 Há regressões para pacotes presentes, ausentes, instalação parcial, arquivos de
 configuração residuais e estados incompletos do dpkg. Um processo com banco dpkg
@@ -100,6 +118,23 @@ Capture apenas frames em memória, sem salvar imagens:
 ```bash
 cargo test --no-default-features hardware_preview_produces_frames_and_reaps_its_process -- --ignored
 ```
+
+Para aceitar a saída real, prepare v4l2loopback no app e encerre outros produtores
+que usam a Facecam ou a saída escolhida. O teste abre uma câmera física e mantém
+os pixels apenas em memória; não grava imagens, altera controles ou prepara módulos:
+
+```bash
+FACECAM_TEST_VIRTUAL_DEVICE=/dev/video10 cargo test --locked --test hardware_virtual_camera -- --ignored --nocapture
+```
+
+Um consumidor FFmpeg recebe 30 frames por rodada, confere saturação zero e repete
+depois de parar e reiniciar o produtor. A amostragem usa vizinho mais próximo;
+U/V devem ficar a até 1 de 128, sem interpolação ou conversão RGB no oráculo.
+O runtime e a configuração são temporários.
+O teste fica ignorado e seu nome não corresponde ao filtro `ffmpeg_` dos checks
+sintéticos. Para Chrome/OBS, selecione **VirtualCam**, confira resolução/FPS,
+efeitos, retomada e parada. [Validação local](VALIDACAO_LOCAL.md) registra o teste
+WebRTC real; frame recebido pelo FFmpeg não comprova aceitação pelo navegador.
 
 A inferência é verificada separadamente para cada provider. Configure os arquivos
 conforme [EFEITOS.md](EFEITOS.md) e execute:

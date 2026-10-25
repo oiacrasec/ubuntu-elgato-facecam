@@ -28,6 +28,10 @@ pub enum Request {
         #[serde(default)]
         save: bool,
     },
+    UpdateSettings {
+        virtual_device: Option<String>,
+        start_minimized: Option<bool>,
+    },
     SetControl {
         name: String,
         value: i64,
@@ -35,11 +39,17 @@ pub enum Request {
     SetEffects {
         effects: crate::effects::Effects,
     },
+    SetAutostart {
+        enabled: bool,
+    },
     PrepareInstall {
         dependency: crate::dependencies::Dependency,
     },
     PrepareUninstall {
         dependency: crate::dependencies::Dependency,
+    },
+    PrepareVirtualCamera {
+        persistent: bool,
     },
     ConfirmInstall {
         id: u64,
@@ -74,12 +84,16 @@ pub struct Snapshot {
     pub quit: bool,
     pub gui: bool,
     pub ai_compiled: bool,
+    #[serde(default)]
+    pub autostart_enabled: Option<bool>,
     pub installation_plan: Option<crate::dependencies::InstallPlan>,
     pub installation_running: bool,
     pub installation_log: Option<PathBuf>,
     #[serde(default)]
     pub dependencies: Vec<crate::dependencies::DependencyState>,
     pub dependency_error: Option<String>,
+    #[serde(default)]
+    pub virtual_camera_status: crate::virtual_camera::Status,
     pub resources: Vec<crate::resources::Resource>,
     pub importing: bool,
     pub imported: Option<crate::resources::Resource>,
@@ -109,6 +123,7 @@ pub struct Engine {
     resource_root: PathBuf,
     last_dependency_refresh: Instant,
     removing_video_tools: bool,
+    preparing_virtual_camera: bool,
 }
 
 impl Engine {
@@ -137,11 +152,13 @@ impl Engine {
             quit: false,
             gui,
             ai_compiled: cfg!(feature = "ai"),
+            autostart_enabled: None,
             installation_plan: None,
             installation_running: false,
             installation_log: None,
             dependencies: Vec::new(),
             dependency_error: None,
+            virtual_camera_status: Default::default(),
             resources,
             importing: false,
             imported: None,
@@ -160,6 +177,7 @@ impl Engine {
             resource_root,
             last_dependency_refresh: Instant::now(),
             removing_video_tools: false,
+            preparing_virtual_camera: false,
             installation_revision: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_millis()
@@ -227,6 +245,10 @@ impl Engine {
 
     fn refresh_dependencies(&mut self) {
         self.last_dependency_refresh = Instant::now();
+        self.state.autostart_enabled = crate::desktop::autostart_enabled().ok();
+        if let Ok(status) = crate::virtual_camera::discover() {
+            self.state.virtual_camera_status = status;
+        }
         match crate::dependencies::discover() {
             Ok(states) => {
                 self.state.dependencies = states;
@@ -329,6 +351,9 @@ impl Engine {
     }
 
     fn start(&mut self, virtual_output: bool, preview: bool) -> Result<()> {
+        if self.preparing_virtual_camera {
+            bail!("Aguarde a preparação da câmera virtual terminar");
+        }
         if self.removing_video_tools {
             bail!("Aguarde a desinstalação das ferramentas de vídeo terminar");
         }
@@ -372,6 +397,47 @@ impl Engine {
     fn execute(&mut self, request: Request) -> Result<String> {
         match request {
             Request::Status => return Ok(self.state.message.clone()),
+            Request::UpdateSettings {
+                virtual_device,
+                start_minimized,
+            } => {
+                if virtual_device.is_some() && self.stream.is_some() {
+                    bail!("Pare a captura antes de alterar a câmera virtual");
+                }
+                if virtual_device.is_none() && start_minimized.is_none() {
+                    return Ok("Configurações sem alterações".into());
+                }
+                let mut config = self.state.config.clone();
+                if let Some(device) = virtual_device {
+                    config.virtual_device = device;
+                }
+                if let Some(enabled) = start_minimized {
+                    config.ui.start_minimized = enabled;
+                }
+                config.save(&self.path)?;
+                self.state.config = config;
+                return Ok("Configurações atualizadas".into());
+            }
+            Request::SetAutostart { enabled } => {
+                let result = if enabled {
+                    crate::desktop::install_autostart()
+                } else {
+                    crate::desktop::remove_autostart()
+                };
+                self.state.autostart_enabled = crate::desktop::autostart_enabled().ok();
+                result?;
+                if self.state.autostart_enabled != Some(enabled) {
+                    bail!(
+                        "Não foi possível confirmar o início automático; atualize e tente novamente"
+                    );
+                }
+                return Ok(if enabled {
+                    "Início ao entrar no desktop ativado"
+                } else {
+                    "Início ao entrar no desktop desativado"
+                }
+                .into());
+            }
             Request::ImportResource { kind, path } => {
                 if self.import.is_some() {
                     bail!("Aguarde a importação atual terminar");
@@ -390,6 +456,26 @@ impl Engine {
             Request::PrepareUninstall { dependency } => {
                 return self.prepare_dependency(dependency, crate::dependencies::Action::Remove);
             }
+            Request::PrepareVirtualCamera { persistent } => {
+                if self.installation.is_some() {
+                    bail!("Aguarde a operação administrativa atual terminar");
+                }
+                if self.stream.is_some() {
+                    bail!("Pare a captura antes de preparar a câmera virtual");
+                }
+                self.state.installation_plan = None;
+                self.installation_revision = self
+                    .installation_revision
+                    .checked_add(1)
+                    .context("Identificador de plano esgotado")?;
+                let directory = self.path.parent().context("Configuração sem diretório")?;
+                self.state.installation_plan = Some(crate::virtual_camera::prepare(
+                    self.installation_revision,
+                    directory,
+                    persistent,
+                )?);
+                return Ok("Revise os comandos e confirme a preparação da câmera virtual".into());
+            }
             Request::ConfirmInstall { id } => {
                 if self.installation.is_some() {
                     bail!("Aguarde a operação APT atual terminar");
@@ -407,12 +493,19 @@ impl Engine {
                 if removing_video_tools && self.stream.is_some() {
                     bail!("Pare o preview e a câmera virtual antes de confirmar a desinstalação");
                 }
+                if plan.virtual_camera.is_some() && self.stream.is_some() {
+                    bail!("Pare a captura antes de confirmar a preparação da câmera virtual");
+                }
                 let installation = crate::dependencies::Installation::start(plan.clone())?;
                 self.removing_video_tools = removing_video_tools;
+                self.preparing_virtual_camera = plan.virtual_camera.is_some();
                 self.state.installation_log = Some(plan.log.clone());
                 self.installation = Some(installation);
                 self.state.installation_plan = None;
                 self.state.installation_running = true;
+                if self.preparing_virtual_camera {
+                    return Ok("Preparando câmera virtual; confirme a autenticação administrativa do Ubuntu".into());
+                }
                 return Ok(
                     "Executando operação APT; confirme a autenticação administrativa do Ubuntu"
                         .into(),
@@ -636,7 +729,12 @@ impl Engine {
             self.installation = None;
             self.removing_video_tools = false;
             self.state.installation_running = false;
-            self.refresh_dependencies();
+            if self.preparing_virtual_camera {
+                self.preparing_virtual_camera = false;
+                let _ = self.refresh();
+            } else {
+                self.refresh_dependencies();
+            }
             match result {
                 Ok(message) => {
                     self.state.message = message;
@@ -689,6 +787,67 @@ mod tests {
             "backlight_compensation 0x0098091c (int) : min=0 max=1 step=1 default=0 value=1",
         );
         (dir, engine)
+    }
+
+    #[test]
+    fn live_settings_persist_only_requested_fields_and_keep_state_on_failure() {
+        let (dir, mut engine) = engine();
+        engine.state.config.effects.brightness = -0.25;
+        engine
+            .state
+            .config
+            .extra
+            .insert("custom".into(), serde_json::json!("preserve"));
+        for enabled in [true, false] {
+            assert!(
+                engine
+                    .handle(Request::UpdateSettings {
+                        virtual_device: None,
+                        start_minimized: Some(enabled),
+                    })
+                    .ok
+            );
+            let saved = Config::load(&dir.path().join("config.json")).unwrap();
+            assert_eq!(saved.ui.start_minimized, enabled);
+            assert_eq!(saved.effects.brightness, -0.25);
+            assert_eq!(saved.extra["custom"], "preserve");
+        }
+        assert!(
+            engine
+                .handle(Request::UpdateSettings {
+                    virtual_device: Some("/dev/video234".into()),
+                    start_minimized: None,
+                })
+                .ok
+        );
+        let saved = std::fs::read(dir.path().join("config.json")).unwrap();
+        assert_eq!(
+            Config::load(&engine.path).unwrap().virtual_device,
+            "/dev/video234"
+        );
+        let before = serde_json::to_value(&engine.state.config).unwrap();
+        assert!(
+            !engine
+                .handle(Request::UpdateSettings {
+                    virtual_device: Some("/tmp/invalid-output".into()),
+                    start_minimized: Some(true),
+                })
+                .ok
+        );
+        assert_eq!(serde_json::to_value(&engine.state.config).unwrap(), before);
+        assert_eq!(std::fs::read(&engine.path).unwrap(), saved);
+        engine.path = dir.path().join("not-a-config.json");
+        std::fs::create_dir(&engine.path).unwrap();
+        assert!(
+            !engine
+                .handle(Request::UpdateSettings {
+                    virtual_device: None,
+                    start_minimized: Some(true),
+                })
+                .ok
+        );
+        assert_eq!(serde_json::to_value(&engine.state.config).unwrap(), before);
+        assert!(engine.path.is_dir());
     }
 
     #[test]

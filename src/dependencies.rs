@@ -21,6 +21,7 @@ pub enum Dependency {
     #[default]
     VideoTools,
     SdkManager,
+    VirtualCamera,
 }
 
 impl Dependency {
@@ -28,12 +29,14 @@ impl Dependency {
         match self {
             Self::VideoTools => "FFmpeg e V4L2",
             Self::SdkManager => "NVIDIA SDK Manager",
+            Self::VirtualCamera => "Câmera virtual",
         }
     }
     fn packages(self) -> &'static [&'static str] {
         match self {
             Self::VideoTools => &["ffmpeg", "v4l-utils"],
             Self::SdkManager => &["sdkmanager"],
+            Self::VirtualCamera => &[],
         }
     }
 }
@@ -138,6 +141,8 @@ pub struct InstallPlan {
     pub action: Action,
     #[serde(default)]
     pub removals: Vec<String>,
+    #[serde(default)]
+    pub virtual_camera: Option<crate::virtual_camera::Setup>,
 }
 
 fn apt(arguments: &[&str]) -> Vec<String> {
@@ -192,6 +197,7 @@ pub fn prepare(dependency: Dependency, id: u64, directory: &Path) -> Result<Inst
         dependency,
         action: Action::Install,
         removals: Vec::new(),
+        virtual_camera: None,
     };
     match dependency {
         Dependency::VideoTools => {
@@ -300,11 +306,17 @@ pub fn prepare(dependency: Dependency, id: u64, directory: &Path) -> Result<Inst
                 plan.explanation.push_str(" Cadastra o repositório oficial NVIDIA para Ubuntu 24.04 com chave de assinatura restrita a essa fonte. Não usa instaladores .deb locais. Não instala CUDA Toolkit nem solicita atualização do driver.");
             }
         }
+        Dependency::VirtualCamera => return crate::virtual_camera::prepare(id, directory, true),
     }
     Ok(plan)
 }
 
 pub fn prepare_removal(dependency: Dependency, id: u64, directory: &Path) -> Result<InstallPlan> {
+    if dependency == Dependency::VirtualCamera {
+        bail!(
+            "A preparação não descarrega módulos nem remove pacotes de kernel; gerencie isso no Ubuntu"
+        );
+    }
     let packages: Vec<_> = discover()?
         .into_iter()
         .find(|s| s.dependency == dependency)
@@ -326,7 +338,7 @@ pub fn prepare_removal(dependency: Dependency, id: u64, directory: &Path) -> Res
         explanation: "Remove os pacotes de sistema listados abaixo. Outros aplicativos que usam essas ferramentas também serão afetados. A remoção não usa autoremove nem purge. Configurações e recursos do Facecam Hub são preservados.".into(),
         commands: vec![removal_command(&packages)], log: directory.join(format!("uninstall-{id}.log")),
         verified_file: None, sha256: None, bootstrap: None, repository: None,
-        dependency, action: Action::Remove, removals,
+        dependency, action: Action::Remove, removals, virtual_camera: None,
     })
 }
 
@@ -440,7 +452,10 @@ impl Installation {
             .name("apt-install".into())
             .spawn(move || {
                 let result = run(&plan)
-                    .and_then(|()| verify_result(plan.dependency, plan.action, &discover()?))
+                    .and_then(|()| match &plan.virtual_camera {
+                        Some(setup) => setup.verify_result(),
+                        None => verify_result(plan.dependency, plan.action, &discover()?),
+                    })
                     .map_err(|error| format!("{error:#}. Log: {}", plan.log.display()));
                 let _ = tx.send(result);
             })?;
@@ -472,6 +487,9 @@ fn run(plan: &InstallPlan) -> Result<()> {
         bail!("O plano de remoção mudou; revise e confirme um novo plano");
     }
     for command in &plan.commands {
+        if let Some(setup) = &plan.virtual_camera {
+            setup.validate_current()?;
+        }
         // The first bootstrap command downloads the public key. Every later
         // privileged command checks it against the reviewed, pinned digest.
         if command.first().is_some_and(|v| v == "/usr/bin/pkexec")
@@ -680,6 +698,7 @@ mod tests {
             dependency: Dependency::VideoTools,
             action: Action::Install,
             removals: Vec::new(),
+            virtual_camera: None,
         };
         std::fs::write(path, b"changed after review").unwrap();
         let error = run(&plan).unwrap_err();
@@ -706,6 +725,7 @@ mod tests {
             dependency: Dependency::VideoTools,
             action: Action::Install,
             removals: Vec::new(),
+            virtual_camera: None,
         };
         let error = run(&plan).unwrap_err();
         assert!(error.to_string().contains("Operação APT interrompida"));

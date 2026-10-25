@@ -138,6 +138,8 @@ página. A compatibilidade do SDK Linux com essa placa continua pendente de
 validação; compartilhar compute capability com outra GPU não a comprova.
 As DLLs Windows não substituem esses componentes. Esta inspeção não altera o
 backend ONNX/CUDA existente no [fluxo de efeitos](EFEITOS.md).
+O [plano de integração Maxine](NVIDIA_MAXINE.md) detalha os pacotes Linux,
+a restrição oficial a aplicações cliente e os critérios para validar o backend.
 
 ## Controles específicos: evidência decompilada
 

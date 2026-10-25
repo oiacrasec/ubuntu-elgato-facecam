@@ -334,3 +334,110 @@ firmware ou gravação interna na câmera.
 A qualidade visual da segmentação não foi avaliada em uma bateria de pessoas,
 iluminações e movimentos. Os testes confirmam execução, composição e ciclo de
 vida; não garantem recorte perfeito em qualquer cena.
+
+## Preparação e consumo da câmera virtual — 25/10/2026
+
+Árvore em desenvolvimento após `2091dc1`, Ubuntu 24.04.5, kernel
+`7.0.0-38-generic`, sessão X11 e Facecam MK.2 em USB2. O módulo v4l2loopback
+0.15.3 já estava no pacote nativo do kernel, assinado pela Canonical, com Secure
+Boot ativo. Não foi necessário instalar DKMS ou alterar o driver NVIDIA.
+
+O usuário confirmou o plano na GUI e autenticou a preparação. O fluxo inicial
+solicitou quatro autenticações, uma por comando. Os quatro passos terminaram
+sem erro: modprobe, dois arquivos de configuração e update-initramfs.
+`/dev/video10` apareceu como **VirtualCam**, driver `v4l2 loopback`, e os arquivos
+`/etc/modprobe.d/facecam-hub.conf` e `/etc/modules-load.d/facecam-hub.conf` foram
+conferidos. Não houve reinicialização para testar a persistência.
+
+A revisão seguinte substitui as quatro chamadas pkexec por uma única chamada
+ao helper restrito do próprio binário. Os testes conferem um único comando de
+autorização, igualdade entre payload e etapas revisadas e recusa de entradas
+inválidas. A execução privilegiada desse novo helper ainda não foi repetida:
+o módulo já estava carregado, e o app não o descarrega para refazer a preparação.
+
+O Chrome 156.0.8078.47 consumiu a câmera virtual real por WebRTC, em perfil
+temporário e sem dispositivo de câmera sintético. O produtor usou a Facecam em
+MJPEG 1280×720/30 e enviou yuv420p. O preview permaneceu desligado.
+
+| Rodada | Saturação | Vídeo informado pelo consumidor | Frames apresentados | Janela de medição |
+| --- | --- | --- | --- | --- |
+| 1 | 0 | 1280×720, 30 fps, sem redimensionamento | 45 | 1.535 ms |
+| 2, após parar e reiniciar | 1 | 1280×720, 30 fps, sem redimensionamento | 45 | 1.503 ms |
+
+Uma amostra em memória de 64×36 confirmou a alteração de cor: a maior diferença
+entre canais RGB foi 3 com saturação zero e 185 com saturação um. A parada final
+deixou `streaming` e `preview` falsos, sem erro. São amostras curtas de aceitação,
+não um ensaio de estabilidade ou garantia sustentada de taxa.
+
+O teste optativo Rust `hardware_virtual_camera_delivers_effects_and_restarts`
+também passou: um consumidor FFmpeg recebeu 30 frames em cada uma de duas rodadas
+com parada e retomada. Conferiu crominância neutra a até 1 de 128 com saturação
+zero. Pixels ficaram apenas em memória; não foram salvas imagens, gravações ou
+capturas de tela da pessoa. Nenhum controle físico foi escrito.
+
+`./test-desktop-app.sh` passou com 50 testes comuns no build completo, 43 no
+headless, três checks FFmpeg sintéticos, formatação, Clippy e sintaxe dos scripts.
+Os checks comuns continuam sem captura física; o teste de falha de startup
+agora isola a ferramenta V4L2 para não selecionar um loopback presente no host.
+O teste físico permanece ignorado por padrão. Logs e métricas locais estão em
+`target/virtual-camera-review/`, ignorado pelo Git.
+
+OBS, sessão Wayland, operação prolongada e persistência após reiniciar continuam
+pendentes. A investigação seguinte confirmou a distribuição separada de Core e
+recursos VFX/AR e o limite oficial de suporte a aplicações cliente no Linux;
+[NVIDIA Maxine](NVIDIA_MAXINE.md) registra fontes e condições para avançar.
+Não foram encontrados os pacotes de runtime/modelos necessários no host, nem
+foi implementado ou anunciado um backend Maxine nesta revisão.
+
+## Checkbox de início automático — 25/10/2026
+
+**Iniciar ao entrar no desktop** passou a ser um checkbox com aplicação imediata
+pelo controlador. Na janela X11 de 1240×790, marcar criou a entrada desktop em
+um `XDG_CONFIG_HOME` isolado, e desmarcar removeu o arquivo e publicou false no
+snapshot. **Iniciar na bandeja** permanece uma preferência confirmada por **Salvar**.
+As capturas `enabled.png` e `disabled.png` em `target/autostart-ui-check/` mostram
+preview pausado. O cadastro real do usuário não foi alterado pelo teste visual.
+
+O contrato automatizado confirmou persistência ao reabrir, desativação idempotente,
+atualização após desabilitação externa e falha de filesystem sem marcar sucesso
+ou gravar a configuração da câmera. O script completo passou com 51 testes no
+build padrão e 44 no headless, além de três checks FFmpeg, formatação e Clippy.
+O caso de autostart atualizado também passou isoladamente nas duas compilações.
+O build release foi atualizado; não houve novo login no desktop nesta validação.
+
+## Configurações com aplicação imediata — 25/10/2026
+
+O botão **Salvar** foi removido de Configurações. `UpdateSettings` persiste os
+campos alterados antes de publicar o novo estado, preservando efeitos e controles.
+**Iniciar na bandeja** pode ser alterado durante captura; a seleção da câmera
+virtual continua disponível apenas com captura parada.
+
+Na janela X11 de 1343×856, o checkbox foi marcado e desmarcado, sem botão de
+confirmação. O JSON isolado e o snapshot acompanharam true e false imediatamente.
+A janela permaneceu aberta com preview pausado. A imagem `settings.png` e os
+resultados em `target/settings-live-ui-check/` registram essa inspeção; não houve
+alteração do autostart real do usuário ou de controles da câmera.
+
+O teste de núcleo confirmou preservação de efeitos/campos adicionais e manutenção
+do estado em valor inválido ou erro de filesystem. O script completo passou com
+52 testes comuns no build padrão e 45 no headless, três checks FFmpeg sintéticos,
+formatação, Clippy e sintaxe dos scripts. O release foi atualizado.
+
+## Ajuda contextual em Configurações — 25/10/2026
+
+O aviso permanente sobre revisar comandos APT foi removido de Configurações.
+A orientação para parar a captura foi movida para o pequeno **(?)** ao lado de
+**Câmera virtual**. Na janela X11 de 1343×856, a mensagem apareceu ao passar o
+mouse sobre o indicador; a linha de orientação deixou de ocupar espaço no bloco.
+O preview permaneceu pausado, sem operações administrativas.
+
+As imagens `settings.png` e `help.png` em `target/settings-help-ui-check/` registram
+a inspeção do layout e do tooltip. Formatação, Clippy, links e inventário
+documental passaram. A alteração afeta apenas apresentação; o build release
+foi atualizado, sem repetir testes de hardware.
+
+O indicador textual foi substituído por um ícone vetorial circular com **?**
+centralizado, desenhado pelo egui. A revisão visual em 1343×856 confirmou o ícone
+e a ajuda ao passar o mouse, com preview pausado. As imagens ficam em
+`target/settings-help-icon-ui-check/`. Formatação, Clippy, documentação e build
+release passaram nesta alteração de apresentação.

@@ -64,8 +64,9 @@ saída para outro aplicativo não deve receber acidentalmente grade ou controles
 
 ## Diálogos, confirmação e cancelamento
 
-A janela atual de **Configurações** edita um rascunho e envia `Configure` ao
-salvar. O produto não tem um gerenciador geral de pilha modal, schemas de diálogos,
+A janela de **Configurações** aplica e persiste as preferências a cada alteração,
+sem botão **Salvar**. `UpdateSettings` atualiza somente os campos alterados,
+preservando efeitos e controles. O produto não tem um gerenciador geral de pilha modal, schemas de diálogos,
 histórico de desfazer ou controles de todas as janelas por IPC.
 
 **Configurações** fica ancorada no centro horizontal e vertical da janela, com
@@ -75,8 +76,17 @@ exibem **Desinstalar…**, ausentes ou incompletos exibem **Instalar…**; vers�
 no tooltip. Falha de consulta e operação em andamento desabilitam as ações.
 
 **Câmera virtual** usa título em destaque e separador, com o seletor e
-**Atualizar dispositivos** na mesma linha. **Salvar** fica à direita das opções,
-e **Encerrar aplicativo** fica alinhado à direita no rodapé da janela.
+**Atualizar dispositivos** na mesma linha. **Encerrar aplicativo** fica alinhado
+à direita no rodapé da janela.
+O pequeno ícone circular com **?** ao lado de **Câmera virtual** mostra, ao passar o mouse, a
+orientação para parar a captura antes de alterar formato ou dispositivo.
+**Dependências do Ubuntu** apresenta as ações sem aviso técnico permanente.
+
+**Iniciar ao entrar no desktop** é um checkbox ligado ao estado real de autostart.
+Marcar ativa e desmarcar remove imediatamente pelo controlador, sem **Salvar**.
+Falhas aparecem no estado, sem manter uma marcação que não foi confirmada.
+**Iniciar na bandeja** também é salvo ao marcar ou desmarcar, mesmo durante
+captura. Alterar essa preferência não reinicia ou esconde a janela atual.
 
 As ações de dependências abrem um plano com comandos APT e mudanças de repositório.
 **Confirmar instalação** ou **Confirmar desinstalação** inicia a operação; a autenticação administrativa pertence

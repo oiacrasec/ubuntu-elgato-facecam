@@ -17,6 +17,7 @@ mod stream;
 mod tray;
 #[cfg(feature = "ai")]
 mod video_background;
+mod virtual_camera;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
@@ -33,6 +34,8 @@ use std::{
     about = "Facecam Hub — native camera controller for Ubuntu 24.04+"
 )]
 struct Args {
+    #[arg(long, hide = true)]
+    virtual_camera_helper: Option<String>,
     #[arg(long)]
     config: Option<PathBuf>,
     #[arg(long, help = "Detect Facecam capture devices without opening a window")]
@@ -72,6 +75,17 @@ struct Args {
         help = "Prepare a reviewed APT removal plan without uninstalling anything"
     )]
     prepare_uninstall: Option<dependencies::Dependency>,
+    #[arg(
+        long,
+        help = "Review virtual-camera setup commands without executing them"
+    )]
+    prepare_virtual_camera: bool,
+    #[arg(
+        long,
+        requires = "prepare_virtual_camera",
+        help = "Prepare the virtual camera for this boot only"
+    )]
+    virtual_camera_session_only: bool,
     #[arg(
         long,
         value_name = "PLAN_ID",
@@ -167,6 +181,9 @@ fn background_start(path: &std::path::Path) -> Result<()> {
 
 fn run() -> Result<()> {
     let args = Args::parse();
+    if let Some(payload) = &args.virtual_camera_helper {
+        return virtual_camera::run_privileged(payload);
+    }
     if let Some(json) = args.decode_background {
         #[cfg(feature = "ai")]
         return video_background::decode(&serde_json::from_str(&json)?);
@@ -193,15 +210,17 @@ fn run() -> Result<()> {
             ipc::runtime_dir()?.display()
         );
     }
-    if args.install_autostart {
-        return desktop::install_autostart();
-    }
-    if args.remove_autostart {
-        let path = desktop::autostart_path()?;
-        if path.exists() {
-            std::fs::remove_file(path)?;
+    if args.install_autostart || args.remove_autostart {
+        if let Ok(reply) = ipc::send(&Request::SetAutostart {
+            enabled: args.install_autostart,
+        }) {
+            return print_reply(reply);
         }
-        return Ok(());
+        return if args.install_autostart {
+            desktop::install_autostart()
+        } else {
+            desktop::remove_autostart()
+        };
     }
     if args.test_camera {
         let cameras = camera::discover()?;
@@ -219,6 +238,11 @@ fn run() -> Result<()> {
     }
     if let Some(dependency) = args.prepare_uninstall {
         return print_reply(ipc::send(&Request::PrepareUninstall { dependency })?);
+    }
+    if args.prepare_virtual_camera {
+        return print_reply(ipc::send(&Request::PrepareVirtualCamera {
+            persistent: !args.virtual_camera_session_only,
+        })?);
     }
     if let Some(id) = args.confirm_install {
         return print_reply(ipc::send(&Request::ConfirmInstall { id })?);

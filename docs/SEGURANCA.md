@@ -24,6 +24,7 @@ FFmpeg, drivers e componentes ONNX/CUDA externos.
 | Arquivo escolhido → biblioteca | `resources`, `engine` | Importação única em segundo plano, cópia oculta 0600, limites por tipo, validação e publicação sem sobrescrita; catálogo limitado |
 | Vídeo próprio → FFmpeg | `video_background` | Arquivo local regular até 4 GiB, demuxers MOV/Matroska/WebM e protocolos file/pipe; saída RGB limitada por dimensão e pipe |
 | Plano APT → sistema | `dependencies`, `engine` | Comandos definidos no núcleo, ID atual e confirmação explícita; autenticação por pkexec e log privado |
+| Preparação virtual → kernel e `/etc` | `virtual_camera`, `engine` | Uma autorização, payload tipado, pacotes e destinos restritos; sem shell, descarga de módulos ou alteração de Secure Boot |
 
 Um processo separado isola falhas de carregamento, mas não restringe automaticamente
 acesso a arquivos, rede ou GPU. `unsafe_code = "forbid"` vale para a aplicação;

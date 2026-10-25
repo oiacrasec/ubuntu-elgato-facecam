@@ -77,12 +77,17 @@ para esse diagnóstico e evita registrar o vídeo da pessoa.
 
 Confirme que o nó configurado pertence a v4l2loopback e que a captura está ativa.
 Selecione a câmera virtual no consumidor, não necessariamente a Facecam física.
-Se o módulo precisa ser preparado, siga o [README](../README.md), preservando
-outros dispositivos em uso. Não descarregue um módulo usado por outro aplicativo.
+Sem saída, pare a captura e abra **Configurações** › **Câmera virtual** ›
+**Preparar câmera virtual…**. Revise e confirme o plano conforme
+[o guia de uso](USO.md#preparar-a-câmera-virtual). Inicie a saída antes de atualizar
+a lista do consumidor. Não descarregue um módulo usado por outro aplicativo.
 
 A saída atual é yuv420p. Validar imagem e taxa no consumidor é uma etapa separada
-do preview. Secure Boot, DKMS e permissões do host podem requerer diagnóstico do
-sistema; o aplicativo não os modifica automaticamente.
+do preview. Uma falha de assinatura com Secure Boot exige um módulo aceito pelo
+Ubuntu; o app não desativa a proteção. Sem pacote pré-compilado para o kernel,
+a preparação assistida pede configuração do módulo no sistema. Consulte o log
+publicado em Configurações e no estado CLI. Cancelar autenticação interrompe os
+passos restantes, preservando os já executados.
 
 ## Configuração inválida e recuperação
 

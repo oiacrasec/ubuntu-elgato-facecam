@@ -28,6 +28,15 @@ captura; `engine` coordena esses componentes. `ipc`, `gui`, `tray` e `main`
 adaptam os comandos aos meios de interação. O núcleo não depende de egui.
 Uma alteração de UI não deve criar outra implementação de Start, Stop ou Save.
 
+O checkbox de inicialização no desktop envia `SetAutostart` ao controlador.
+`desktop` cadastra/remove a entrada do usuário, e `autostart_enabled` publica o
+estado confirmado do arquivo, consultado também na atualização periódica.
+A GUI não grava arquivos de autostart diretamente. A preferência de abrir na
+bandeja permanece em `config.ui.start_minimized`, persistida por `UpdateSettings`
+a cada alteração. Esse comando atualiza apenas as preferências enviadas, salva
+antes de publicar o estado e permite alterar o início na bandeja durante captura.
+A troca de câmera virtual continua exigindo captura parada.
+
 ## Comandos e estado
 
 `Request`, em `engine.rs`, é um enum serializável com discriminador `command`.
@@ -134,6 +143,20 @@ nenhum instalador `.deb` local é usado. Isso prepara uma dependência de sistem
 sem implementar um backend Maxine ou mudar o provider ONNX/CUDA.
 
 ## Contratos da câmera e persistência
+
+`virtual_camera` consulta o kernel, modinfo e Secure Boot sem carregar módulos.
+`PrepareVirtualCamera` produz um plano revisável, sem escrita administrativa.
+Após `ConfirmInstall`, o worker usa uma única chamada pkexec ao modo restrito
+`--virtual-camera-helper` do próprio binário, antes da inicialização de GUI/IPC.
+O helper exige root, valida novamente kernel, dispositivo livre, pacotes permitidos
+e arquivos do app. Ele gera as etapas internamente, sem ler scripts do usuário:
+APT opcional, modprobe, dois arquivos persistentes opcionais e update-initramfs.
+Os destinos são constantes e a escrita usa arquivo temporário e rename.
+Cada erro interrompe a sequência; não há rollback de módulos ou APT.
+Captura fica indisponível durante a preparação. O controlador verifica o driver,
+as permissões e os arquivos persistentes e redescobre dispositivos ao concluir.
+Não descarrega módulo existente, não desativa Secure Boot e não grava controles
+na câmera física. [Uso](USO.md#preparar-a-câmera-virtual) descreve os limites.
 
 O nó de captura é descoberto em sysfs e confirmado por V4L2; nós de metadados
 são excluídos. Resolução, formato e FPS são escolhidos a partir dos modos reais.

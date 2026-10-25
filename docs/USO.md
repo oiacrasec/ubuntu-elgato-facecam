@@ -14,6 +14,14 @@ janela existente; um binário recompilado só substitui o código em execução 
 encerrar e reabrir o aplicativo. Fechar a janela com bandeja mantém o controlador;
 use **Encerrar aplicativo** em Configurações ou `--quit` para sair por completo.
 
+Em **Configurações**, as preferências são aplicadas e salvas ao alterar, sem botão
+**Salvar**. **Iniciar na bandeja** define como a janela abre e pode ser alterado
+durante a captura. O seletor de câmera virtual exige captura parada.
+**Iniciar ao entrar no desktop** é um checkbox
+independente: marcar cadastra a inicialização automática do usuário e desmarcar
+remove esse cadastro imediatamente, sem precisar de **Salvar** ou senha.
+O estado acompanha o arquivo de autostart, inclusive ao reabrir o aplicativo.
+
 ## Instalar dependências com confirmação
 
 Abra **Configurações** e escolha **Instalar FFmpeg e V4L2…** ou
@@ -69,13 +77,42 @@ manual indisponível. Tempo de exposição e ganho têm as unidades indicadas na
 os controles salvos que a câmera aceitar naquela configuração. O aplicativo não
 promete memória interna, presets de firmware ou equivalência entre câmeras.
 
-## Alterar cor e efeitos
+## Preparar a câmera virtual
 
 Nas configurações, **Câmera virtual** também lista os dispositivos detectados pelo
 nome. O controlador usa a saída configurada quando disponível ou a primeira
-v4l2loopback encontrada; nenhum campo de caminho precisa ser preenchido. Se não
-houver saída, prepare o módulo conforme [o guia de instalação](../README.md)
-e clique em **Atualizar dispositivos**. A descoberta não carrega o módulo.
+v4l2loopback encontrada; nenhum campo de caminho precisa ser preenchido.
+
+1. Pare preview e saída virtual.
+2. Abra **Configurações** › **Câmera virtual**.
+3. Escolha **Disponível após reiniciar o Ubuntu** ou desmarque para usar somente
+   nesta sessão.
+4. Clique em **Preparar câmera virtual…**, confira comandos e arquivos e selecione
+   **Confirmar preparação**.
+5. Conclua a autenticação administrativa do Ubuntu e aguarde o resultado.
+6. Clique em **Iniciar câmera virtual** antes de abrir ou atualizar o consumidor;
+   nele, escolha **VirtualCam**.
+
+Uma autorização executa as etapas fixas de preparação. O plano escolhe um número
+livre a partir de `/dev/video10` e carrega v4l2loopback com `exclusive_caps=1`,
+para compatibilidade com navegadores. Aproveita o módulo existente; quando ausente,
+consulta o pacote oficial correspondente ao kernel. Não substitui um módulo
+presente por DKMS. Sem pacote pré-compilado nos repositórios, a preparação assistida
+informa que é necessário configurar o módulo no Ubuntu.
+
+O modo persistente grava `/etc/modprobe.d/facecam-hub.conf` e
+`/etc/modules-load.d/facecam-hub.conf`, identificados como gerenciados pelo app,
+e atualiza o initramfs do kernel atual. Arquivos desses nomes que não pertencem
+ao app são recusados. Secure Boot permanece ativo; o módulo precisa de assinatura
+aceita pelo Ubuntu. O app não descarrega módulos ou resolve conflitos removendo
+dispositivos de outros aplicativos. Uma falha administrativa interrompe as próximas
+etapas; as alterações concluídas permanecem e o log indica onde parou.
+
+A confirmação verifica se a saída se tornou acessível e, no modo persistente,
+se os arquivos foram gravados. Isso não substitui um teste após reiniciar nem
+comprova consumo de vídeo. Abrir, atualizar ou cancelar o plano não carrega o módulo.
+
+## Alterar cor e efeitos
 
 1. Abra **Effects**.
 2. Escolha uma LUT em **Look**, ajuste brilho, contraste e saturação em **Picture**,
@@ -132,7 +169,7 @@ A segmentação pode errar; confira o vídeo antes de compartilhar.
 espelho dentro de **Effects** também afeta a saída virtual. Alterar visualização
 não deve ser confundido com editar resolução ou FOV da câmera.
 
-Prepare v4l2loopback conforme o [README](../README.md), inicie a câmera virtual
+Faça a [preparação assistida](#preparar-a-câmera-virtual), inicie a câmera virtual
 e selecione **VirtualCam** no consumidor. Isso entrega vídeo ao aplicativo
 selecionado; não exporta uma foto, salva uma gravação ou cria um documento em
 camadas. Não há exportador de PNG/JPEG, gravação de vídeo ou impressão na UI atual.

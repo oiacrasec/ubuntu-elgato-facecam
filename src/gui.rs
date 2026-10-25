@@ -157,6 +157,7 @@ struct App {
     file_dialog_error: Option<String>,
     import_revision: u64,
     thumbnail: Option<Thumbnail>,
+    virtual_camera_persistent: bool,
     #[cfg(feature = "tray")]
     tray: Option<ksni::blocking::Handle<crate::tray::Tray>>,
     #[cfg(feature = "tray")]
@@ -228,6 +229,7 @@ impl App {
             file_dialog_error: None,
             import_revision: 0,
             thumbnail: None,
+            virtual_camera_persistent: true,
             #[cfg(feature = "tray")]
             tray,
             #[cfg(feature = "tray")]
@@ -793,11 +795,15 @@ impl App {
                             )
                             .clicked()
                         {
-                            self.dispatch(if state.streaming {
-                                Request::Stop
+                            if !state.streaming && state.virtual_cameras.is_empty() {
+                                self.settings = true;
                             } else {
-                                Request::Start { preview: true }
-                            });
+                                self.dispatch(if state.streaming {
+                                    Request::Stop
+                                } else {
+                                    Request::Start { preview: true }
+                                });
+                            }
                         }
                     });
                 });
@@ -809,13 +815,8 @@ impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         self.poll_file_dialog();
         let state = self.state();
-        if !state
-            .virtual_cameras
-            .iter()
-            .any(|c| c.path == self.config.virtual_device)
-        {
-            self.config.virtual_device = state.config.virtual_device.clone();
-        }
+        self.config.virtual_device = state.config.virtual_device.clone();
+        self.config.ui = state.config.ui.clone();
         if state.import_revision != self.import_revision {
             self.import_revision = state.import_revision;
             if let Some(resource) = &state.imported
@@ -946,12 +947,19 @@ impl eframe::App for App {
             .resizable(false)
             .show(&ctx, |ui| {
                 ui.separator();
-                ui.strong("Câmera virtual");
+                ui.horizontal(|ui| {
+                    ui.strong("Câmera virtual");
+                    let (rect, response) = ui.allocate_exact_size(Vec2::splat(16.0), egui::Sense::hover());
+                    ui.painter().circle_stroke(rect.center(), 6.5, Stroke::new(1.0, MUTED));
+                    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "?", egui::FontId::proportional(11.0), MUTED);
+                    response.on_hover_text("Pare a captura para alterar o formato ou o dispositivo.");
+                });
+                let mut virtual_device = state.config.virtual_device.clone();
                 ui.add_enabled_ui(!state.streaming && !state.preview, |ui| {
                     let selected = state
                         .virtual_cameras
                         .iter()
-                        .find(|c| c.path == self.config.virtual_device)
+                        .find(|c| c.path == virtual_device)
                         .map_or("Nenhuma câmera virtual detectada", |c| c.name.as_str());
                     ui.horizontal(|ui| {
                         let selector_width =
@@ -962,7 +970,7 @@ impl eframe::App for App {
                             .show_ui(ui, |ui| {
                                 for camera in &state.virtual_cameras {
                                     ui.selectable_value(
-                                        &mut self.config.virtual_device,
+                                        &mut virtual_device,
                                         camera.path.clone(),
                                         &camera.name,
                                     );
@@ -975,33 +983,46 @@ impl eframe::App for App {
                             self.dispatch(Request::Refresh);
                         }
                     });
-                    ui.label(
-                        RichText::new("Pare a captura para alterar o formato ou o dispositivo.")
-                            .size(11.0)
-                            .color(MUTED),
-                    );
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.config.ui.start_minimized, "Iniciar na bandeja");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Salvar").clicked() {
-                                let mut config = self.config.clone();
-                                config.effects = state.config.effects.clone();
-                                self.dispatch(Request::Configure {
-                                    config: Box::new(config),
-                                    save: true,
-                                });
-                            }
-                        });
-                    });
+                    if state.virtual_cameras.is_empty() {
+                        ui.checkbox(
+                            &mut self.virtual_camera_persistent,
+                            "Disponível após reiniciar o Ubuntu",
+                        );
+                        if ui
+                            .add_enabled(
+                                !state.installation_running,
+                                egui::Button::new("Preparar câmera virtual…"),
+                            )
+                            .clicked()
+                        {
+                            self.dispatch(Request::PrepareVirtualCamera {
+                                persistent: self.virtual_camera_persistent,
+                            });
+                        }
+                    }
                 });
-                if ui.button("Iniciar ao entrar no desktop").clicked()
-                    && let Err(e) = crate::desktop::install_autostart()
-                {
-                    eprintln!("{e}");
+                let mut start_minimized = state.config.ui.start_minimized;
+                let start_minimized_changed = ui.checkbox(&mut start_minimized, "Iniciar na bandeja").changed();
+                let device_changed = virtual_device != state.config.virtual_device;
+                if device_changed || start_minimized_changed {
+                    self.dispatch(Request::UpdateSettings {
+                        virtual_device: device_changed.then_some(virtual_device),
+                        start_minimized: start_minimized_changed.then_some(start_minimized),
+                    });
+                }
+                let mut autostart = state.autostart_enabled.unwrap_or(false);
+                let autostart_response = ui.add_enabled(
+                    state.autostart_enabled.is_some(),
+                    egui::Checkbox::new(&mut autostart, "Iniciar ao entrar no desktop"),
+                ).on_hover_text("Marcar ativa o início automático; desmarcar desfaz. A alteração é imediata.");
+                if autostart_response.changed() {
+                    self.dispatch(Request::SetAutostart { enabled: autostart });
+                }
+                if state.autostart_enabled.is_none() {
+                    ui.label("Não foi possível consultar o início automático. Atualize os dispositivos e tente novamente.");
                 }
                 ui.separator();
                 ui.strong("Dependências do Ubuntu");
-                ui.label("Revise os comandos APT antes de confirmar.");
                 ui.horizontal(|ui| {
                     let width =
                         ((ui.available_width() - ui.spacing().item_spacing.x) / 2.0).max(0.0);
@@ -1085,6 +1106,15 @@ impl eframe::App for App {
                         ui.add(egui::Label::new(RichText::new(crate::dependencies::display_command(command)).monospace()).wrap());
                         ui.add_space(5.0);
                     }
+                    if let Some(setup) = &plan.virtual_camera {
+                        ui.label("Etapas após a autorização única do Ubuntu:");
+                        if let Ok(steps) = setup.review_steps() {
+                            for step in steps {
+                                ui.add(egui::Label::new(RichText::new(crate::dependencies::display_command(&step)).monospace()).wrap());
+                                ui.add_space(5.0);
+                            }
+                        }
+                    }
                     if let Some(hash) = &plan.sha256 {
                         ui.label("SHA-256 da chave de assinatura NVIDIA:");
                         ui.monospace(hash);
@@ -1100,7 +1130,7 @@ impl eframe::App for App {
                 ui.label("O Ubuntu pedirá autenticação administrativa. O aplicativo não recebe sua senha.");
                 ui.horizontal(|ui| {
                     cancel = ui.button("Cancelar").clicked();
-                    let label = if plan.action == crate::dependencies::Action::Remove { "Confirmar desinstalação" } else { "Confirmar instalação" };
+                    let label = if plan.virtual_camera.is_some() { "Confirmar preparação" } else if plan.action == crate::dependencies::Action::Remove { "Confirmar desinstalação" } else { "Confirmar instalação" };
                     confirm = ui.add(egui::Button::new(label).fill(ACCENT)).clicked();
                 });
             });

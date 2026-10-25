@@ -337,7 +337,7 @@
       "id": "D042",
       "subject": "Instalação e confiança nos arquivos",
       "destination": "USO.md",
-      "adaptation": "Primeira execução, estado dpkg e instalação/remoção APT com confirmação, sem instalador de outro sistema.",
+      "adaptation": "Primeira execução, estado dpkg, instalação/remoção APT e preparação virtual com confirmação, sem instalador de outro sistema.",
       "source_sha256": "5e332a2a69d6b77f90f50a198f3b3d76db2b77c93c07f00f03cf479a623e5438",
       "source_bytes": 1148
     },

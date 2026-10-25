@@ -94,6 +94,68 @@ fn cli(dir: &Path, args: &[&str]) -> Output {
 }
 
 #[test]
+fn autostart_toggle_tracks_disk_reopens_and_preserves_state_on_failure() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.json");
+    let xdg = dir.path().join("xdg-config");
+    let entry = xdg.join("autostart/elgato-virtualcam.desktop");
+    let launch = || {
+        let process = Process(
+            Command::new(BIN)
+                .args(["--headless", "--config"])
+                .arg(&config)
+                .env("XDG_RUNTIME_DIR", dir.path())
+                .env("XDG_CONFIG_HOME", &xdg)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !cli(dir.path(), &["--status"]).status.success() {
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(25));
+        }
+        process
+    };
+    let state =
+        || -> Value { serde_json::from_slice(&cli(dir.path(), &["--status"]).stdout).unwrap() };
+    let mut controller = launch();
+    assert_eq!(state()["state"]["autostart_enabled"], false);
+    assert!(cli(dir.path(), &["--install-autostart"]).status.success());
+    assert!(entry.is_file());
+    assert_eq!(state()["state"]["autostart_enabled"], true);
+    assert!(!config.exists());
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(controller.0.wait().unwrap().success());
+    controller = launch();
+    assert_eq!(state()["state"]["autostart_enabled"], true);
+    assert!(cli(dir.path(), &["--remove-autostart"]).status.success());
+    assert!(!entry.exists());
+    assert_eq!(state()["state"]["autostart_enabled"], false);
+    assert!(cli(dir.path(), &["--remove-autostart"]).status.success());
+    assert!(cli(dir.path(), &["--install-autostart"]).status.success());
+    for disabled in ["Hidden=true", "X-GNOME-Autostart-enabled=false"] {
+        std::fs::write(&entry, format!("[Desktop Entry]\n{disabled}\n")).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(7);
+        while state()["state"]["autostart_enabled"] != false {
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(cli(dir.path(), &["--install-autostart"]).status.success());
+        assert_eq!(state()["state"]["autostart_enabled"], true);
+    }
+    assert!(cli(dir.path(), &["--remove-autostart"]).status.success());
+    std::fs::create_dir(&entry).unwrap();
+    assert!(!cli(dir.path(), &["--remove-autostart"]).status.success());
+    assert!(entry.is_dir());
+    assert!(state()["state"]["autostart_enabled"].is_null());
+    assert!(!config.exists());
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(controller.0.wait().unwrap().success());
+}
+
+#[test]
 fn library_import_is_async_persistent_and_does_not_apply_or_save_effects() {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("config.json");
@@ -470,17 +532,25 @@ fn effects_cli_accepts_signed_values_and_preserves_disk_and_state_on_rejection()
 
 #[test]
 fn failed_background_start_reports_the_error_and_closes_its_controller() {
+    use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("config.json");
+    // Discovery can replace a missing configured node with a real loopback device.
+    // Isolate the V4L2 tool so this failure test never starts a physical capture.
+    let tool = dir.path().join("v4l2-ctl");
+    std::fs::write(&tool, "#!/bin/sh\nexit 1\n").unwrap();
+    std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o700)).unwrap();
     std::fs::write(&config, r#"{"virtual_device":"/dev/video999999"}"#).unwrap();
     let out = Command::new(BIN)
         .args(["--start", "--config"])
         .arg(&config)
         .env("XDG_RUNTIME_DIR", dir.path())
+        .env("PATH", dir.path())
         .output()
         .unwrap();
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("v4l2loopback"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--prepare-virtual-camera"));
     let reply: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(reply["ok"], false);
     let deadline = Instant::now() + Duration::from_secs(3);

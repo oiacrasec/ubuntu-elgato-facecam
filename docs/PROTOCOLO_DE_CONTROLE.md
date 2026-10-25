@@ -27,9 +27,12 @@ A proteção atual depende do usuário e das permissões locais.
 | `preview` | nenhum | Inicia somente a visualização |
 | `stop` | nenhum | Encerra captura e filhos de vídeo |
 | `configure` | `config`, `save`, bool, padrão false | Valida formato/configuração com captura parada; salvamento opcional |
+| `update_settings` | `virtual_device`, string opcional; `start_minimized`, bool opcional | Aplica e salva apenas os campos enviados; troca de saída exige captura parada |
 | `set_control` | `name`, string; `value`, i64 | Valida e escreve um controle V4L2, com leitura de retorno |
 | `set_effects` | `effects`, objeto | Detecta campos de IA vazios, valida, aplica e salva efeitos |
-| `prepare_install` | `dependency`: `video_tools` ou `sdk_manager` | Prepara comandos APT para revisão; não executa instalação |
+| `set_autostart` | `enabled`, bool | Ativa ou remove a inicialização automática do usuário imediatamente |
+| `prepare_install` | `dependency`: `video_tools`, `sdk_manager` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
+| `prepare_virtual_camera` | `persistent`, bool obrigatório | Prepara módulo e persistência opcional, com captura parada |
 | `prepare_uninstall` | `dependency`: `video_tools` ou `sdk_manager` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
 | `confirm_install` | `id`, u64 | Confirma o plano atual e inicia instalação com autenticação do Ubuntu |
 | `cancel_install` | nenhum | Descarta o plano pendente; não interrompe uma transação APT iniciada |
@@ -49,9 +52,16 @@ Exemplos de linhas de protocolo:
 `Reply` contém `ok`, `message` e `state`. O estado inclui configuração, dispositivos,
 modos e controles, disponibilidade, erro, flags de captura, contagem do preview,
 revisão de exibição e suporte compilado a IA. Frames não são serializados no JSON.
+`autostart_enabled` informa a presença de um cadastro ativo, ou null se a consulta
+falhou. A abertura, atualização, consulta periódica e conclusão de `set_autostart`
+releem o arquivo. `--install-autostart` e `--remove-autostart` usam esse comando
+quando há controlador e operam diretamente pelo mesmo módulo quando não há instância.
 `virtual_cameras` lista somente saídas confirmadas como v4l2loopback. Sem captura,
 atualizar preserva a saída disponível ou seleciona a primeira descoberta, sem
 escrever a configuração nem carregar módulos.
+`virtual_camera_status` publica kernel, presença e carga do módulo, versão,
+assinante e estado do Secure Boot, quando legível. Ter módulo no disco não
+significa ter saída carregada ou vídeo em execução.
 `installation_plan`, `installation_running` e `installation_log` descrevem a
 instalação de dependências. O ID não é uma credencial: a fronteira continua
 sendo o socket do usuário e a autorização administrativa por PolicyKit.
@@ -99,6 +109,15 @@ remoção. Revise comandos e pacotes; `--confirm-install ID` confirma esse plano
 Ferramentas de vídeo só podem ser removidas com captura parada. Após a conclusão,
 o estado do dpkg é verificado antes de anunciar sucesso; alterações externas
 também são refletidas na consulta periódica, sem reabrir a janela.
+
+`--prepare-virtual-camera` prepara a saída persistente;
+`--prepare-virtual-camera --virtual-camera-session-only` limita a esta sessão.
+Revise `installation_plan`, incluindo o payload tipado `virtual_camera`, antes
+de `--confirm-install ID`. `--cancel-install` descarta o plano. O helper executa
+apenas as etapas fixas geradas desse payload e usa uma chamada a pkexec para a
+preparação inteira. Não recebe comandos ou destinos arbitrários. A saída é
+redescoberta ao concluir; iniciar captura durante a preparação é recusado.
+Não existe desinstalação assistida de módulos do kernel.
 
 O CLI não possui comandos de batch, geração de man pages, exportação de LUT,
 completions instaladas ou servidor MCP. Uma integração futura deve adaptar os

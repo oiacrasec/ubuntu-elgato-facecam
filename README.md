@@ -9,7 +9,7 @@ espelhamento, redução de ruído e desfoque ou substituição de fundo por IA o
 
 ```bash
 sudo apt install build-essential pkg-config libxkbcommon-dev libwayland-dev \
-  libx11-dev libgl1-mesa-dev ffmpeg v4l-utils v4l2loopback-dkms
+  libx11-dev libgl1-mesa-dev ffmpeg v4l-utils
 export PATH="$HOME/.cargo/bin:$PATH"
 cargo build --release --locked
 ./target/release/elgato-virtualcam
@@ -26,15 +26,17 @@ SDK Manager por APT, mostra os comandos e pede confirmação antes de autenticar
 pelo Ubuntu. O SDK Manager usa repositório, sem instalador `.deb` local.
 Veja o [fluxo de instalação assistida](docs/USO.md#instalar-dependências-com-confirmação).
 
-Para usar a saída em OBS, navegador ou videoconferência, prepare um nó livre:
+Para enviar vídeo a OBS, navegador ou videoconferência, abra **Configurações** ›
+**Câmera virtual** › **Preparar câmera virtual…**. Revise o plano e clique em
+**Confirmar preparação**. O app aproveita o módulo v4l2loopback do kernel ou
+propõe seu pacote oficial por APT; uma autorização do Ubuntu executa a preparação.
+**Disponível após reiniciar o Ubuntu** controla a persistência.
+Veja [preparação e limites](docs/USO.md#preparar-a-câmera-virtual).
 
-```bash
-sudo modprobe v4l2loopback video_nr=10 card_label=VirtualCam exclusive_caps=1
-```
-
-Clique em **Iniciar câmera virtual** e selecione **VirtualCam** no consumidor.
-O aplicativo não carrega ou descarrega módulos automaticamente. Preview e
-ajustes da câmera funcionam sem a saída virtual. A saída é yuv420p.
+Depois clique em **Iniciar câmera virtual** e selecione **VirtualCam** no consumidor.
+Abrir ou atualizar o app não carrega módulos. O aplicativo nunca descarrega o
+módulo para substituir dispositivos em uso. Preview e ajustes funcionam sem
+a saída virtual, que usa yuv420p.
 
 ## Efeitos e IA NVIDIA
 

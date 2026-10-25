@@ -31,3 +31,36 @@ pub fn install_autostart() -> Result<()> {
     println!("{}", path.display());
     Ok(())
 }
+
+pub fn autostart_enabled() -> Result<bool> {
+    let text = match fs::read_to_string(autostart_path()?) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error).context("Não foi possível consultar o início automático"),
+    };
+    let mut desktop_entry = false;
+    let mut found = false;
+    for line in text.lines().map(str::trim) {
+        if line.starts_with('[') {
+            desktop_entry = line == "[Desktop Entry]";
+            found |= desktop_entry;
+        } else if desktop_entry
+            && let Some((key, value)) = line.split_once('=')
+            && matches!(
+                (key.trim(), value.trim()),
+                ("Hidden", "true") | ("X-GNOME-Autostart-enabled", "false")
+            )
+        {
+            return Ok(false);
+        }
+    }
+    Ok(found)
+}
+
+pub fn remove_autostart() -> Result<()> {
+    match fs::remove_file(autostart_path()?) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).context("Não foi possível desativar o início automático"),
+    }
+}

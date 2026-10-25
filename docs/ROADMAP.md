@@ -11,13 +11,14 @@ local, lacunas e condições de aceitação.
 | Descoberta de câmera e modos | Implementado | sysfs, V4L2 e captura física local |
 | Controles padrão | Implementado, dependente do dispositivo | Limites, menus, leitura de retorno e recusas observadas |
 | Preview | Implementado | Frame completo, tamanho limitado e último frame |
-| Saída virtual | Implementado; aceitação parcial | Sink sintético verificado; falta consumidor OBS/navegador local |
+| Saída virtual | Implementado, validação local | Chrome WebRTC real em 1280×720/30, cor, retomada e parada; OBS e longa duração pendentes |
+| Preparação da câmera virtual | Implementado, aceitação parcial | Módulo nativo assinado, revisão e persistência; carga real validada, falta reinício e execução administrativa do helper com autorização única |
 | Efeitos comuns | Implementado | Cor, LUT, mirror e denoise com teste de pixels |
 | IA de fundo | Implementado, paridade parcial | ONNX CPU/CUDA; backend Maxine VFX/AR e bateria de qualidade ainda pendentes |
 | Substituição de fundo | Implementado | Cor sólida, três cenários ilustrados e PNG/JPEG/WebP/BMP próprio |
 | Fundo animado | Implementado, validação local | MP4/MOV/WebM/MKV próprio em loop; FPS sincronizado e decoder vinculado ao worker |
 | Biblioteca de Looks e fundos | Implementado nesta revisão | Nomes, miniatura de fundo, três LUTs próprias, importação validada e descoberta sem campos de caminho |
-| Instalação de dependências por APT | Implementado, aceitação parcial | Revisão, confirmação, autenticação Ubuntu e logs; instalação administrativa real não exercitada |
+| Instalação de dependências por APT | Implementado, aceitação parcial | Estado dpkg e logs reais de FFmpeg/V4L2; SDK Manager instalado; remoção administrativa pendente |
 | Descoberta de arquivos de IA | Implementado nesta revisão | Diretórios conhecidos, registro do preparador e testes sem `--config` |
 | Interface | Implementado, paridade parcial | Layout Camera Hub e validação X11; comparação completa com Windows, Wayland e acessibilidade pendentes |
 | CLI/IPC e instância única | Implementado | Contratos em testes de processo |
@@ -53,13 +54,16 @@ A [matriz Windows/macOS](REFERENCIA_WINDOWS.md) detalha as lacunas por recurso,
 incluindo fundos animados, VFX, AR, Prompter e controles específicos de câmera.
 
 1. Exercitar saída virtual de ponta a ponta em consumidores selecionados, registrando
-   resolução, taxa, cor, retomada e parada.
-2. Validar sessão Wayland, escalas de desktop, bandeja e navegação assistiva.
-3. Avaliar qualidade e estabilidade de segmentação com cenas autorizadas, movimento,
+   resolução, taxa, cor, retomada e parada. Chrome local validado; concluir OBS,
+   longa duração e persistência após reinício.
+2. Obter Core e recursos Maxine VFX/AR Linux pelo NGC e validar a RTX neste ambiente;
+   seguir [requisitos e limitações](NVIDIA_MAXINE.md) antes de implementar o backend.
+3. Validar sessão Wayland, escalas de desktop, bandeja e navegação assistiva.
+4. Avaliar qualidade e estabilidade de segmentação com cenas autorizadas, movimento,
    cabelos, baixa luz e custo de CPU/GPU.
-4. Reduzir lacunas de confiabilidade: desconexão, modelo inválido, perda de GPU,
+5. Reduzir lacunas de confiabilidade: desconexão, modelo inválido, perda de GPU,
    logs, timeout e recuperação sem dano à configuração.
-5. Preparar distribuição reproduzível e política de suporte antes de publicação.
+6. Preparar distribuição reproduzível e política de suporte antes de publicação.
 
 Uma entrega só fica concluída quando seus checks correspondentes passam. Não
 há cronograma em horas ou data prometida para recursos não investigados.

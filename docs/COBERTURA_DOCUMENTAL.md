@@ -29,6 +29,12 @@ Isso verifica rastreabilidade; a revisão editorial continua responsável pela
 qualidade da adaptação. O [manifesto JSON](cobertura-documental.json) conserva
 os hashes completos e é a fonte dos registros abaixo.
 
+A preparação virtual com confirmação está em [Uso](USO.md#preparar-a-câmera-virtual),
+com contratos em [Arquitetura](ARQUITETURA.md) e [Protocolo](PROTOCOLO_DE_CONTROLE.md).
+[Testes](TESTES.md) separa checks comuns da aceitação física no consumidor.
+Os requisitos da próxima integração de IA estão em [NVIDIA Maxine](NVIDIA_MAXINE.md),
+sem alterar o inventário das fontes documentais examinadas.
+
 ## Registros por arquivo documental
 
 | ID | Assunto | Destino | Adaptação | SHA-256 (prefixo) |
@@ -74,7 +80,7 @@ os hashes completos e é a fonte dos registros abaixo.
 | D039 | SVG e inserção de vetores | [FORMATOS_E_COMPATIBILIDADE.md](FORMATOS_E_COMPATIBILIDADE.md) | Recursos externos, texto e limites para uma integração futura. | `3ac4894dc5bb` |
 | D040 | Build e ferramentas | [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md) | Comandos Cargo reais, pré-requisitos e compilação mínima. | `d424d8098857` |
 | D041 | Contribuição e confiança | [CONTRIBUICAO.md](CONTRIBUICAO.md) | Regras Rust, erro, camadas e documentação na mesma alteração. | `30b667f95866` |
-| D042 | Instalação e confiança nos arquivos | [USO.md](USO.md) | Primeira execução, estado dpkg e instalação/remoção APT com confirmação, sem instalador de outro sistema. | `5e332a2a69d6` |
+| D042 | Instalação e confiança nos arquivos | [USO.md](USO.md) | Primeira execução, estado dpkg, instalação/remoção APT e preparação virtual com confirmação, sem instalador de outro sistema. | `5e332a2a69d6` |
 | D043 | Créditos | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Nomes voluntários e distinção entre autoria, modelo e estatística gerada. | `4eb5df4d2b3e` |
 | D044 | Licenças de projeto e recursos | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Preservar notices dos componentes realmente distribuídos. | `e7bd6ca6bba1` |
 | D045 | Planejamento do produto | [ROADMAP.md](ROADMAP.md) | Prioridades próprias e gates de hardware, consumidores e distribuição. | `d7e2d0501291` |

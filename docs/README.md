@@ -19,6 +19,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Instalação e execução](../README.md)
 - [Operação da câmera, presets e visualização](USO.md)
 - [Efeitos e IA, incluindo descoberta automática](EFEITOS.md)
+- [Requisitos e limites da integração NVIDIA Maxine](NVIDIA_MAXINE.md)
 - [Falhas e recuperação](SOLUCAO_DE_PROBLEMAS.md)
 - [Comandos, CLI e protocolo local](PROTOCOLO_DE_CONTROLE.md)
 - [Formatos, importação e fidelidade](FORMATOS_E_COMPATIBILIDADE.md)
