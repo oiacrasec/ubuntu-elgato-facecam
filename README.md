@@ -1,265 +1,119 @@
-# Elgato VirtualCam for Linux
+# Facecam Hub para Ubuntu
 
-A professional desktop application for using the **Elgato Facecam** as a virtual webcam on Ubuntu Linux. This unified application creates a virtual webcam device (e.g. `/dev/video10`) that works seamlessly with Chrome, OBS, Zoom, and other video applications.
+Controlador nativo em Rust para Elgato Facecam, com layout do Camera Hub:
+controles à esquerda, preview à direita e abas Camera e Effects. Destino:
+Ubuntu 24.04+. Preview e câmera virtual compartilham LUT, ajustes de cor,
+espelhamento, redução de ruído e desfoque de fundo por IA opcional.
 
-**✅ NEW: Desktop Application Architecture** - Replaces the problematic systemd approach with a reliable, single-process desktop application.
-
----
-
-## 📦 Features
-
-- **🎥 Auto-detection** of Elgato Facecam
-- **🔄 Automatic transcoding** to browser-friendly `yuv420p` format
-- **🖥️ Single desktop application** - No systemd permission issues
-- **🖱️ Integrated system tray** with real-time status indicators
-- **🎨 Dynamic status icons** (green=streaming, gray=ready, red=error)
-- **📱 Desktop notifications** when streaming starts/stops
-- **⚙️ JSON configuration** with GUI settings (coming soon)
-- **🏗️ Professional packaging** ready for PyPI distribution
-
----
-
-## 🚀 Installation
-
-### Quick Start
+## Executar
 
 ```bash
-git clone https://github.com/Aaronontheweb/ubuntu-elgato-facecam.git
-cd ubuntu-elgato-facecam
-./install-desktop-app.sh
+sudo apt install build-essential pkg-config libxkbcommon-dev libwayland-dev \
+  libx11-dev libgl1-mesa-dev ffmpeg v4l-utils v4l2loopback-dkms
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo build --release --locked
+./target/release/elgato-virtualcam
 ```
 
-Optional custom venv path:
+Use Rust 1.95 ou posterior ([instalação](https://rustup.rs/)). Clique em
+**Iniciar preview** para ver a câmera. A captura negocia formato, resolução e FPS
+com o dispositivo. A GUI usa egui/OpenGL, e a bandeja usa D-Bus; não é necessário
+runtime Python, Qt, GTK ou navegador. No GNOME, a bandeja pode exigir a extensão
+AppIndicator. Sem bandeja, a janela permanece acessível.
+
+Para usar a saída em OBS, navegador ou videoconferência, prepare um nó livre:
 
 ```bash
-./install-desktop-app.sh --venv-path /my/custom/path
+sudo modprobe v4l2loopback video_nr=10 card_label=VirtualCam exclusive_caps=1
 ```
 
-The script will:
-- Install system dependencies (`v4l-utils`, `v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`, `python3-venv`)
-- Create/use a virtual environment (default: `/opt/ubuntu-elgato-facecam`)
-- Install the app into that virtual environment
-- Configure desktop autostart integration
-- Test camera detection
+Clique em **Iniciar câmera virtual** e selecione **VirtualCam** no consumidor.
+O aplicativo não carrega ou descarrega módulos automaticamente. Preview e
+ajustes da câmera funcionam sem a saída virtual. A saída é yuv420p.
 
-**What you get:**
-- 🎥 Virtual webcam available at `/dev/video10`
-- 🖱️ System tray camera icon for easy control
-- 🚀 Auto-starts on login via desktop integration
-- ⚙️ Professional configuration management
-- 🐍 Stable command shim at `~/.local/bin/elgato-virtualcam`
+## Efeitos e IA NVIDIA
 
-**After installation:**
-- Refresh your shell: `exec bash`
-- Start the app in background: `~/.local/bin/elgato-virtualcam &`
-- Look for the camera icon in your system tray
-- The app will auto-start on future logins
+Na aba **Effects**, ajuste cor, redução de ruído e LUT `.cube`, ou configure
+**AI Background**. **Aplicar e salvar** reinicia brevemente a captura e aplica
+os efeitos às duas saídas. A grade e o botão de espelho abaixo do preview são
+ferramentas locais de visualização.
 
-### 🗑️ Uninstalling
+A IA segmenta a pessoa e desfoca o fundo. O provider **NVIDIA CUDA** usa ONNX
+Runtime GPU; **CPU** é uma escolha explícita. Modelo, runtime e dependências
+CUDA/cuDNN são externos e carregados somente ao ativar IA. Nenhum arquivo é
+baixado ao abrir a aplicação. Consulte [EFEITOS.md](docs/EFEITOS.md) para
+preparação, JSON, comandos e limites. Essa implementação não usa o SDK
+proprietário da NVIDIA nem exige conta NGC.
 
-To completely remove the desktop application:
+Modelo e runtime disponíveis são detectados na abertura normal, incluindo os
+arquivos preparados em `target/ai-runtime`. Instalações personalizadas são
+registradas pelo preparador. Caminhos manuais têm prioridade; **Detectar arquivos**
+na aba Effects permite preencher campos vazios sem reiniciar a janela.
+
+## CLI e instalação
 
 ```bash
-./uninstall-desktop-app.sh
+./target/release/elgato-virtualcam --test-camera
+./target/release/elgato-virtualcam --list-controls
+./target/release/elgato-virtualcam --set-control pan_absolute=-3600
+./target/release/elgato-virtualcam --headless          # controlador sem janela
+./target/release/elgato-virtualcam --start             # saída virtual em segundo plano
+./target/release/elgato-virtualcam --set-effects effects.json
+./target/release/elgato-virtualcam --status            # estado em JSON
+./target/release/elgato-virtualcam --stop
+./target/release/elgato-virtualcam --quit
+./install-desktop-app.sh                             # ~/.local por padrão
+./install-desktop-app.sh --autostart                  # opcional
+./uninstall-desktop-app.sh                           # preserva configuração
 ```
 
-If the venv was installed in a custom location and metadata is missing:
+GUI, bandeja e CLI usam a mesma instância. Fechar a janela com bandeja mantém a
+saída virtual e pausa o preview. Sair encerra somente os processos da aplicação.
+O instalador aceita `--prefix /caminho/absoluto` e `--no-build`.
+
+Para compilar somente CLI, use `--no-default-features`; acrescente `--features ai`
+se desejar IA nessa compilação. Não é necessário CUDA para compilar.
+
+## Configuração e controles
+
+O arquivo fica em `~/.config/elgato-virtualcam/config.json`, respeitando
+`XDG_CONFIG_HOME`; use `--config ARQUIVO` para selecionar outro. Campos adicionais
+na raiz são preservados. Um JSON inválido permanece intacto. O primeiro
+salvamento mantém o arquivo anterior em `config.json.backup`.
+
+**SAVE** e **R** salvam e restauram ajustes neste computador. Não gravam na memória
+interna da câmera. Os controles respeitam limites, passos, menus e dependências
+auto/manual; ganho permanece na unidade do driver.
+
+Se o hardware recusar um valor, o aplicativo relê o estado e mostra
+**Indisponível nesta configuração**. SAVE exclui esse controle e Restore continua
+pelos demais. **Atualizar dispositivos e ajustes** permite nova tentativa.
+Isso cobre a Facecam MK.2 que anuncia Backlight 0–1, mas pode recusar ambos.
+
+## Documentação e validação
+
+- [Manual completo](docs/README.md)
+- [Cobertura de todos os temas documentais](docs/COBERTURA_DOCUMENTAL.md)
+- [Arquitetura e fluxo de comandos](docs/ARQUITETURA.md)
+- [Padrões de documentação e escrita](docs/PADROES_DE_DOCUMENTACAO.md)
+- [Configuração, efeitos e IA](docs/EFEITOS.md)
+- [Testes e verificações com hardware](docs/TESTES.md)
+- [Resultados e limites da validação local](docs/VALIDACAO_LOCAL.md)
+- [Investigação do pacote macOS e V4L2](docs/PORT_UBUNTU_24_04.md)
 
 ```bash
-./uninstall-desktop-app.sh --venv-path /my/custom/path
-```
-
-This will:
-- Stop the running application
-- Remove autostart entry
-- Optionally remove the virtual environment
-- Remove configuration (with confirmation)
-- Remove sudoers permissions
-- Optionally remove from video group
-
-### Legacy Files (Systemd - Deprecated)
-
-⚠️ **Not recommended** - The old systemd files remain for reference:
-```bash
-./install.sh        # Has known permission issues
-```
-
----
-
-## 🖱️ Using the Desktop Application
-
-After installation, you'll see a **camera icon** in your system tray that provides easy control:
-
-### 📱 Quick Actions
-- **Left-click**: Toggle streaming on/off
-- **Right-click**: Open context menu with options:
-  - Start/Stop VirtualCam
-  - Settings (coming soon)
-  - Status & Logs
-  - Refresh
-  - Quit
-
-### 🎨 Status Indicators
-- **🟢 Green icon**: VirtualCam is streaming
-- **⚫ Gray icon**: VirtualCam is ready (camera detected)
-- **🔴 Red icon**: Camera not detected or error
-- **🟡 Amber icon**: Starting up
-
-### 🔧 Command Line Interface
-
-```bash
-VENV_BIN="/opt/ubuntu-elgato-facecam/bin"
-
-# Run the application in background
-"$VENV_BIN/elgato-virtualcam" &
-
-# Test camera detection
-"$VENV_BIN/elgato-virtualcam" --test-camera
-
-# Install autostart
-"$VENV_BIN/elgato-virtualcam" --install-autostart
-
-# Debug mode (foreground for logs)
-"$VENV_BIN/elgato-virtualcam" --debug
-
-# If ~/.local/bin is in PATH, you can also use:
-elgato-virtualcam
-```
-
----
-
-## 🧪 Testing & Verification
-
-### ✅ Comprehensive Test Suite
-
-```bash
-# Run all tests
 ./test-desktop-app.sh
 ```
 
-This tests:
-- System dependencies
-- Camera detection
-- Virtual device creation
-- Application startup
-- Configuration management
+Os testes cobrem valores negativos, zero, positivos, extremos, persistência,
+recusas, comandos IPC e renderização sintética. A verificação de câmera física
+é optativa. Logs de vídeo ficam ao lado da configuração em `virtualcam.err.log`.
 
-### ✅ Manual Testing
+Firmware, HDR proprietário, Prompter e persistência interna da câmera permanecem
+fora da implementação. A compilação suporta X11 e Wayland; a validação local
+inicial foi em X11. A integração com cada consumidor de câmera virtual precisa
+ser exercitada no ambiente de destino.
 
-```bash
-# Check virtual device exists
-v4l2-ctl --list-devices
-
-# Test with cheese
-cheese -d /dev/video10
-
-# Test camera detection only
-~/.local/bin/elgato-virtualcam --test-camera
-```
-
-### ✅ Browser Testing
-
-Open these in your browser and select **"VirtualCam"**:
-- [https://webcamtests.com](https://webcamtests.com)
-- Google Meet camera settings
-- Zoom camera settings
-
----
-
-## 🔧 Troubleshooting
-
-### 🎥 Camera Not Detected
-
-```bash
-# Check if Elgato is connected
-lsusb | grep -i elgato
-
-# Test detection manually
-~/.local/bin/elgato-virtualcam --test-camera
-
-# Check video devices
-v4l2-ctl --list-devices
-```
-
-### 🔧 Virtual Device Issues
-
-```bash
-# Remove old module and restart
-sudo modprobe -r v4l2loopback
-~/.local/bin/elgato-virtualcam  # Will reload module automatically
-```
-
-### 📱 System Tray Not Visible
-
-**GNOME users:**
-```bash
-# Install AppIndicator extension
-sudo apt install gnome-shell-extension-appindicator
-```
-
-**General:**
-- Verify PyQt5: `python3 -c "import PyQt5; print('OK')"`
-- Run directly: `~/.local/bin/elgato-virtualcam --debug`
-
-### 📋 View Application Logs
-
-```bash
-# Application logs
-tail -f ~/.config/elgato-virtualcam/virtualcam.log
-
-# FFmpeg error logs  
-tail -f ~/.config/elgato-virtualcam/virtualcam.err.log
-```
-
-### 🔄 Reset Configuration
-
-```bash
-# Remove config to reset to defaults
-rm -rf ~/.config/elgato-virtualcam/config.json
-```
-
----
-
-## 🧼 Uninstallation
-
-### Desktop App Removal
-
-```bash
-# Stop application
-pkill -f "virtualcam_app.py|elgato-virtualcam"
-
-# Remove autostart
-rm ~/.config/autostart/elgato-virtualcam.desktop
-
-# Remove default venv (or your custom --venv-path)
-sudo rm -rf /opt/ubuntu-elgato-facecam
-
-# Remove configuration
-rm -rf ~/.config/elgato-virtualcam/
-
-# Remove virtual device module
-sudo modprobe -r v4l2loopback
-```
-
-### Legacy Systemd Removal
-
-```bash
-# For old systemd installation
-./uninstall.sh
-```
-
-**System packages remain** (safe to keep):
-- `v4l-utils`, `v4l2loopback-dkms`, `ffmpeg`, `python3-pyqt5`
-
----
-
-## 🤝 Credits
-
-- Based on tools provided by the Linux UVC community
-- Inspired by OBS + v4l2loopback setups
-
----
-
-## 📬 License
-
-MIT License — see `LICENSE` file for details.
+Projeto independente, sem afiliação com Elgato ou Corsair. Código sob [MIT](LICENSE).
+O pacote macOS e evidências locais ficam em `package/`, ignorado pelo Git, e não
+integram a distribuição. Modelos e runtimes externos mantêm suas próprias licenças.

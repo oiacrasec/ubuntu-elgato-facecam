@@ -1,0 +1,40 @@
+[package]
+name = "elgato-virtualcam"
+version = "3.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Native Facecam controller and virtual camera for Ubuntu 24.04+"
+license = "MIT"
+
+[features]
+default = ["gui", "tray", "ai"]
+ai = ["dep:ort"]
+gui = ["dep:eframe"]
+tray = ["gui", "dep:ksni"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+ctrlc = { version = "3", features = ["termination"] }
+fs2 = "0.4"
+nix = { version = "0.31", features = ["signal", "user"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "load-dynamic", "cuda"], optional = true }
+eframe = { version = "0.36", default-features = false, features = ["default_fonts", "glow", "wayland", "x11", "accesskit"], optional = true }
+ksni = { version = "0.3.7", default-features = false, features = ["async-io", "blocking"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.dev]
+debug = 1

@@ -1,0 +1,1225 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-25",
+  "source_revision": "c65b5d25d3cfee71ecdb96b6549721e0deac8840",
+  "source_documents": 152,
+  "source_markdown_documents": 137,
+  "entries": [
+    {
+      "id": "D001",
+      "subject": "Regras para manutenção e agentes",
+      "destination": "CONTRIBUICAO.md",
+      "adaptation": "Comandos no núcleo, erros de entrada, recursos próprios e revisão verificável.",
+      "source_sha256": "2fcac6815bcd6e1f140afe98287c521a033a5a2e9254134761a4ec3619e26662",
+      "source_bytes": 19238
+    },
+    {
+      "id": "D002",
+      "subject": "Atribuição e recursos de terceiros",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Inventário de origem e licença somente dos recursos realmente usados.",
+      "source_sha256": "f9c076102d8e7cfd92ee035960cbf70ad0fdf5b8a3649150f4b6fde5e9d1a42d",
+      "source_bytes": 26844
+    },
+    {
+      "id": "D003",
+      "subject": "Licenças permissivas e avisos",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Condições de componentes externos não substituem a licença MIT local.",
+      "source_sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "source_bytes": 10174
+    },
+    {
+      "id": "D004",
+      "subject": "Licença do código",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Distinguir licença do projeto e direitos de recursos opcionais.",
+      "source_sha256": "1a8f66d8a86b146f5336fa0d4b1186576c8aa98e60823080c85c7811cfd810af",
+      "source_bytes": 1102
+    },
+    {
+      "id": "D005",
+      "subject": "Notices e proveniência",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Preservar avisos aplicáveis sem incorporar recursos que não são distribuídos.",
+      "source_sha256": "25a69f3364a0d7fea0ea486a9def19c3dc1af51608ec1218911a1a24069b4454",
+      "source_bytes": 1646
+    },
+    {
+      "id": "D006",
+      "subject": "Apresentação e primeira execução",
+      "destination": "README.md",
+      "adaptation": "Manual, caminhos operacionais, dependências e limites do produto Linux.",
+      "source_sha256": "a889dff2d23b6f039caec31c2051d40e264b45a92944ef57d27bee372a736f6c",
+      "source_bytes": 33515
+    },
+    {
+      "id": "D007",
+      "subject": "Roadmap resumido e prontidão",
+      "destination": "ROADMAP.md",
+      "adaptation": "Matriz por dimensão sem importar porcentagens ou estimativas externas.",
+      "source_sha256": "8ff8c3dae3f1710625ce1842cd5e449098825ac864f74a44db7636fd4ea865fc",
+      "source_bytes": 9064
+    },
+    {
+      "id": "D008",
+      "subject": "Política de segurança",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Escopo, relato mínimo e ausência de canal privado ou SLA definido.",
+      "source_sha256": "34988a5b1c09c6366541ce22e90c2aed4b179115a82a35447bab904420291d1e",
+      "source_bytes": 4113
+    },
+    {
+      "id": "D009",
+      "subject": "Licença de ícone",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Adoção de ícone requer proveniência e licença próprias.",
+      "source_sha256": "a5cf25f3f3c2fe2c6d294db04f1bfea7259ac21e8edde5c7fabaa4c379e94795",
+      "source_bytes": 586
+    },
+    {
+      "id": "D010",
+      "subject": "Geometria, paleta e geração de ícone",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Identidade e legibilidade de artefatos próprios; nenhum ícone externo incorporado.",
+      "source_sha256": "25a24e4419428cc5c6e78f2486f3529d053c68842676ea745032475def1e73f1",
+      "source_bytes": 2067
+    },
+    {
+      "id": "D011",
+      "subject": "Dicionários e licenciamento",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Dicionários não fazem parte do runtime da câmera.",
+      "source_sha256": "e2a852424fe4ee684225a6a8a34c73f8944f11ad825b7fc3a58ddcee617ed23d",
+      "source_bytes": 12561
+    },
+    {
+      "id": "D012",
+      "subject": "Licenciamento de fontes de UI",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Fontes externas exigem licença e orçamento; uso atual de default_fonts.",
+      "source_sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a",
+      "source_bytes": 4380
+    },
+    {
+      "id": "D013",
+      "subject": "Licenciamento de fontes numéricas",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Números, fallback e legibilidade sem incorporar arquivos de fonte externos.",
+      "source_sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+      "source_bytes": 4399
+    },
+    {
+      "id": "D014",
+      "subject": "Licenciamento de conjunto de ícones",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Ícones de terceiros têm condições independentes da licença do código.",
+      "source_sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57",
+      "source_bytes": 3208
+    },
+    {
+      "id": "D015",
+      "subject": "Atribuição de ícone especializado",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Nenhum asset é trazido apenas porque seu texto de licença foi examinado.",
+      "source_sha256": "667185ed8a375d40aff0d19f02ce880e786e355253b7c5adba2be7471b70c36a",
+      "source_bytes": 20102
+    },
+    {
+      "id": "D016",
+      "subject": "Atribuição de símbolos de simetria",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Separar documentação de recurso gráfico efetivamente redistribuído.",
+      "source_sha256": "d43c48d168983b4d2a48e3d0d1b3c8f3ff662e8161da2d91d229b587f5e421ec",
+      "source_bytes": 11525
+    },
+    {
+      "id": "D017",
+      "subject": "Configuração de livro e publicação",
+      "destination": "PADROES_DE_DOCUMENTACAO.md",
+      "adaptation": "Índice Markdown atual e schema de publicação apenas quando houver consumidor.",
+      "source_sha256": "d891ac9664d14549bffc6584c18adebdf90ec72536e7dbd0b79f8a7905d7f844",
+      "source_bytes": 649
+    },
+    {
+      "id": "D018",
+      "subject": "Entrada do manual e linguagem de status",
+      "destination": "README.md",
+      "adaptation": "Definir Implementado, Limitação, Proposto e Fora do escopo.",
+      "source_sha256": "0f42bf998b8f5dce5e1db044cc8b9f7642adc45585df60f934bc02e145b8f802",
+      "source_bytes": 2208
+    },
+    {
+      "id": "D019",
+      "subject": "Sumário e navegação",
+      "destination": "README.md",
+      "adaptation": "Índice completo com destinos responsáveis e sem duplicar explicações.",
+      "source_sha256": "c1505da2397d0f72a0448126b6d53fa8dd666127e8c93e1675ac22cd071435dd",
+      "source_bytes": 1678
+    },
+    {
+      "id": "D020",
+      "subject": "Arquitetura de automação",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Adaptadores convergem para Request e Snapshot; MCP permanece proposto.",
+      "source_sha256": "5b46768b60238221400b8909e839048fa7b83ad66d9e754e9d9bc4d55b4edbf9",
+      "source_bytes": 1529
+    },
+    {
+      "id": "D021",
+      "subject": "Motor de comandos e contrato de entrada",
+      "destination": "PROTOCOLO_DE_CONTROLE.md",
+      "adaptation": "Variantes reais, parâmetros, disponibilidade e erros do controlador.",
+      "source_sha256": "809782e7cc9e0e2d79a89f83c39d3738e57810f55bf6d987360ba6b08bb23e08",
+      "source_bytes": 1972
+    },
+    {
+      "id": "D022",
+      "subject": "Camadas e dependências",
+      "destination": "DESENVOLVIMENTO.md",
+      "adaptation": "Mapeamento por módulos atuais sem criar um workspace fictício.",
+      "source_sha256": "971abd16c5ea0c297cf48acc6513b3552d8eb89c6eccdf1291cba5b08a6867c8",
+      "source_bytes": 1868
+    },
+    {
+      "id": "D023",
+      "subject": "Visão arquitetural",
+      "destination": "ARQUITETURA.md",
+      "adaptation": "UI fina, controlador único, captura e processamento isolados da apresentação.",
+      "source_sha256": "9325980979da4a0c9360506f6dd4a95b04d5fbf4f08ba32982ba43735d840480",
+      "source_bytes": 1887
+    },
+    {
+      "id": "D024",
+      "subject": "Renderização e verificação",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Comparação de saída, formatos explícitos e distinção entre preview e consumidor.",
+      "source_sha256": "2ec19a3aac5ba8a246330e0b04f042428abef78e795f05b1673d6883b702b9c5",
+      "source_bytes": 1465
+    },
+    {
+      "id": "D025",
+      "subject": "Linha de comando",
+      "destination": "PROTOCOLO_DE_CONTROLE.md",
+      "adaptation": "Flags atuais, arquivos de efeitos e recursos de CLI ainda não implementados.",
+      "source_sha256": "20dc10c1f0ed5a8ad605f49d8430fc654569aca7a9352aebf5378faa60bf96a1",
+      "source_bytes": 7339
+    },
+    {
+      "id": "D026",
+      "subject": "Protocolo de controle",
+      "destination": "PROTOCOLO_DE_CONTROLE.md",
+      "adaptation": "Socket Unix, JSON por linha, limites e resultado observável.",
+      "source_sha256": "f3d8f612ccef93dea6243a51a39c3e62e7d9446fe651e34c76a9c87195783cf8",
+      "source_bytes": 2749
+    },
+    {
+      "id": "D027",
+      "subject": "MCP e bridge",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Desenho futuro de sessão e bridge sem anunciar ferramentas inexistentes.",
+      "source_sha256": "cc5fcb6aed634906ae8691d0c28f483b794c3a167c87879e2219c816dd5e6fe9",
+      "source_bytes": 3840
+    },
+    {
+      "id": "D028",
+      "subject": "Superfícies de automação",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Distinguir execução própria e encaminhamento para a instância ativa.",
+      "source_sha256": "691c8424d4ff35377ed1d4104614934fdb964e96c16d9ff4ed404c3ba96fcc5a",
+      "source_bytes": 1448
+    },
+    {
+      "id": "D029",
+      "subject": "Segurança de automação",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Autoridade local atual e capabilities futuras explicitamente propostas.",
+      "source_sha256": "da7548fcc5d944bdd8cb55956bff638947a06c94ed6b688a8ada695f54fd2416",
+      "source_bytes": 2577
+    },
+    {
+      "id": "D030",
+      "subject": "Política de dependências",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Lockfile, revisão de bibliotecas nativas e lacunas de auditoria automática.",
+      "source_sha256": "889e66955605a8b7aeccb3df3eb21221878de4cd9fc500839b53b7551013d98f",
+      "source_bytes": 1164
+    },
+    {
+      "id": "D031",
+      "subject": "Fuzzing de desenvolvimento",
+      "destination": "TESTES.md",
+      "adaptation": "Entradas adversariais e regressões; job dedicado ainda ausente.",
+      "source_sha256": "be4c11c644e97cbcfc00fffe107c8e41b36749c51e8466b552b6b5fb05aabedd",
+      "source_bytes": 827
+    },
+    {
+      "id": "D032",
+      "subject": "Segurança de publicação",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Hashes, promoção de build, segredos e garantias ainda não implementadas.",
+      "source_sha256": "e4ae5d9217177e4e630172a86b0297fa132f1e0582826ec4bed3f82d5dcabf23",
+      "source_bytes": 1424
+    },
+    {
+      "id": "D033",
+      "subject": "Estratégia de testes",
+      "destination": "TESTES.md",
+      "adaptation": "Checks relevantes, isolamento de hardware e contratos de processo.",
+      "source_sha256": "3329606e531e1f348dbd0ca5a364e987856d851a6945cff7de0d1883fc7426cf",
+      "source_bytes": 1115
+    },
+    {
+      "id": "D034",
+      "subject": "Importação de documentos proprietários",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Fora do escopo atual; leitura, preview e escrita são contratos distintos.",
+      "source_sha256": "368eacebe8a258248d5018c4642f40d10143078b458522cf70b5acdc9d52f1a6",
+      "source_bytes": 2321
+    },
+    {
+      "id": "D035",
+      "subject": "Visão de formatos",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Matriz de vídeo, configuração, LUT e ONNX realmente disponíveis.",
+      "source_sha256": "c48faddfa215edf8361fe742e17a352bad6b11d1ddba414bc209b14005b281e3",
+      "source_bytes": 1200
+    },
+    {
+      "id": "D036",
+      "subject": "Formato nativo, limites e recuperação",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "JSON atual e critérios para manifesto, presets, blobs e recuperação futuros.",
+      "source_sha256": "07439af9ba8149d2a6cb98ae940a59f579f0d29b2cd4cb763b8dc4fff6ef753a",
+      "source_bytes": 2125
+    },
+    {
+      "id": "D037",
+      "subject": "Documentos grandes em camadas",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Parser, conversão, preservação opaca e aceitação por consumidor separados.",
+      "source_sha256": "737f47bdbaafb732ce5c22019440436875066c937bbcddc96032ab50702e98ee",
+      "source_bytes": 1558
+    },
+    {
+      "id": "D038",
+      "subject": "Formatos raster e metadados",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Profundidade, orientação, alpha, animação, metadata e limites de decode.",
+      "source_sha256": "d7292d37dddc4d07846a0fc4f8d257bf8f445d1a35b381ca2f2cf50d0cf90f11",
+      "source_bytes": 8504
+    },
+    {
+      "id": "D039",
+      "subject": "SVG e inserção de vetores",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Recursos externos, texto e limites para uma integração futura.",
+      "source_sha256": "3ac4894dc5bb6c867106c3912174063c652fd8919e05fb52dabdbda4efd16001",
+      "source_bytes": 2402
+    },
+    {
+      "id": "D040",
+      "subject": "Build e ferramentas",
+      "destination": "DESENVOLVIMENTO.md",
+      "adaptation": "Comandos Cargo reais, pré-requisitos e compilação mínima.",
+      "source_sha256": "d424d80988571d5fb35b1eb380180a7782de81df9e715c38e098df9e24aa10b5",
+      "source_bytes": 1188
+    },
+    {
+      "id": "D041",
+      "subject": "Contribuição e confiança",
+      "destination": "CONTRIBUICAO.md",
+      "adaptation": "Regras Rust, erro, camadas e documentação na mesma alteração.",
+      "source_sha256": "30b667f95866c07daad9a88f40cba0a610717c3ebbf67d4192767ce1c01d4268",
+      "source_bytes": 1559
+    },
+    {
+      "id": "D042",
+      "subject": "Instalação e confiança nos arquivos",
+      "destination": "USO.md",
+      "adaptation": "Primeira execução e dependências do usuário, sem instalador de outro sistema.",
+      "source_sha256": "5e332a2a69d6b77f90f50a198f3b3d76db2b77c93c07f00f03cf479a623e5438",
+      "source_bytes": 1148
+    },
+    {
+      "id": "D043",
+      "subject": "Créditos",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Nomes voluntários e distinção entre autoria, modelo e estatística gerada.",
+      "source_sha256": "4eb5df4d2b3e0d4656cc66d67074e4bf5c74f5ed2d2b21e85d6620c69ebfad1e",
+      "source_bytes": 542
+    },
+    {
+      "id": "D044",
+      "subject": "Licenças de projeto e recursos",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Preservar notices dos componentes realmente distribuídos.",
+      "source_sha256": "e7bd6ca6bba15abc56de2c8dd4cc923b90d9e5268c4c19c0e158a7c2e4885b3f",
+      "source_bytes": 879
+    },
+    {
+      "id": "D045",
+      "subject": "Planejamento do produto",
+      "destination": "ROADMAP.md",
+      "adaptation": "Prioridades próprias e gates de hardware, consumidores e distribuição.",
+      "source_sha256": "d7e2d0501291092c33aa5931e5a2356e085f44ee54e68949d3883d321d7fb6fe",
+      "source_bytes": 951
+    },
+    {
+      "id": "D046",
+      "subject": "Sessões e budgets de automação",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Controles existentes separados de autenticação, scopes e auditoria futuros.",
+      "source_sha256": "288b57396837675eaa3cde42cc074efb9096d7550495293e328a07e73077eacf",
+      "source_bytes": 6931
+    },
+    {
+      "id": "D047",
+      "subject": "Regressões e corpus seguro",
+      "destination": "TESTES.md",
+      "adaptation": "Fixtures mínimas, geração sintética e corpus externo com revisão/hash.",
+      "source_sha256": "957b0211dbef88e5878dafb18363e4ec0102a5e29ec30fc6fa1359a1c03ccadd",
+      "source_bytes": 2062
+    },
+    {
+      "id": "D048",
+      "subject": "Postura de segurança",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Proteções e limitações por fronteira, sem garantias universais.",
+      "source_sha256": "79ffbf707d12a01ecc454f3a070f40457c02084ab3b2b1883070a297549b9227",
+      "source_bytes": 2826
+    },
+    {
+      "id": "D049",
+      "subject": "Endurecimento de parsers",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Offsets, tamanhos, profundidade, decode e alocação antes do trabalho caro.",
+      "source_sha256": "9f48ee418b40b79e275aca4f65f3221372f7b1ae571c371edeeefc1d64fec382",
+      "source_bytes": 2380
+    },
+    {
+      "id": "D050",
+      "subject": "Arquivos e capabilities",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Backup/rename atual; handles, races e autoridade de filesystem como evolução.",
+      "source_sha256": "a0d27ba1d63e0b83000bc7fae2864410f2907fd39f4fadf9be6a8cd75f2a71b0",
+      "source_bytes": 3043
+    },
+    {
+      "id": "D051",
+      "subject": "Modelo de ameaças",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Ativos, atores, pontos de entrada e objetivos do aplicativo local.",
+      "source_sha256": "217b845b4fb8fcefd02a29475904652e3380e41f0240d9310b508f8fc79c07ad",
+      "source_bytes": 3894
+    },
+    {
+      "id": "D052",
+      "subject": "Fronteiras de confiança",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Responsabilidades entre GUI, IPC, engine, processos e runtime nativo.",
+      "source_sha256": "a1b9c2e16dd77ef30b3384a3bd58cbb2924ea161729229da8da01916c1a4ad74",
+      "source_bytes": 2356
+    },
+    {
+      "id": "D053",
+      "subject": "Reporte de vulnerabilidade",
+      "destination": "SEGURANCA.md",
+      "adaptation": "Reprodução mínima sem segredos e canal privado ainda a definir.",
+      "source_sha256": "f638ea2b5b97faa3176176b12bc39e86de0dac37aa17bf170b9c37a344181077",
+      "source_bytes": 1069
+    },
+    {
+      "id": "D054",
+      "subject": "Parser de documentos e clean-room",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Critérios de fidelidade, preview opaco, limites e dados autorizados.",
+      "source_sha256": "510ab12e5808522bd313d2d28a019d06ab01c79fee3297e0afea8b8f2408ac00",
+      "source_bytes": 10996
+    },
+    {
+      "id": "D055",
+      "subject": "Gestão de cor e perfis",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Contratos RGB/YUV atuais e ICC/calibração não implementados.",
+      "source_sha256": "3e35e709ded9cb43aa332c029bcd9dcdac3863f7f61260a943c837488607de31",
+      "source_bytes": 5515
+    },
+    {
+      "id": "D056",
+      "subject": "Codecs e matriz de capacidade",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Ler, escrever, profundidade, metadados e assimetrias precisam de prova própria.",
+      "source_sha256": "544a6a775ec833f89cf9be0e313f5cddc01b594e7c10eb96bd5447db9fd5a36d",
+      "source_bytes": 22234
+    },
+    {
+      "id": "D057",
+      "subject": "Decoder opcional e distribuição",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Recursos nativos opcionais e análise técnica/licença antes de inclusão.",
+      "source_sha256": "b0d123debb0fe364e45260848f94fecc7bd508c5f383706ec000d6af0c203fb5",
+      "source_bytes": 2106
+    },
+    {
+      "id": "D058",
+      "subject": "Impressão e IPP",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Impressão é uma integração separada e não existe no fluxo V4L2 atual.",
+      "source_sha256": "26caddcef72ba50a0ce088d73c889997a4574c886099abffb3a671708fafbed4",
+      "source_bytes": 1422
+    },
+    {
+      "id": "D059",
+      "subject": "Round-trip de documentos estruturados",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Padding, endianess, canais e preservação desconhecida como critérios futuros.",
+      "source_sha256": "2339485758c1a1b176cfedd7407a16552c6f17a5288e093c8e063bdc773956d0",
+      "source_bytes": 13012
+    },
+    {
+      "id": "D060",
+      "subject": "Desenvolvimento RAW de sensor",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Crop, orientação, níveis e calibração não equivalem a raw RGB/YUV de webcam.",
+      "source_sha256": "bca1d46f93502ae37b8ce7d4b0d6f3a0cb32f016bf449603bbe4e03d4b59e9f2",
+      "source_bytes": 14318
+    },
+    {
+      "id": "D061",
+      "subject": "Arquitetura detalhada e decisões",
+      "destination": "DESENVOLVIMENTO.md",
+      "adaptation": "Dados, operações, snapshots, jobs e extensão adaptados aos módulos reais.",
+      "source_sha256": "373d14e11c8a99a7fb72dff2cbbe13502e26afbf51999210292f600231c64506",
+      "source_bytes": 46097
+    },
+    {
+      "id": "D062",
+      "subject": "Batch e templates de nome",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Desenho futuro com parâmetros estáveis, colisões e efeitos parciais explícitos.",
+      "source_sha256": "c3cee190eeb7e98c42bafb2b808c949a32008c38b9a3f08b16f8b74ccd6e4482",
+      "source_bytes": 2104
+    },
+    {
+      "id": "D063",
+      "subject": "Marcas e recursos restritos",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Marcas não foram incorporadas; licença de código não concede direitos de marca.",
+      "source_sha256": "f0a582a0645a2ec9c979ac2619e9503315483a33f1bb39b56fe5b55632b0ca79",
+      "source_bytes": 2270
+    },
+    {
+      "id": "D064",
+      "subject": "Pintura, pressão e gestos",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Máscaras manuais e gestos são propostas com contrato de operação e cancelamento.",
+      "source_sha256": "e50d0a38cd402ec634b30ddcbc3efc6a1869003d34ca38adea183b2df0a94c16",
+      "source_bytes": 11103
+    },
+    {
+      "id": "D065",
+      "subject": "Histogramas, scopes e parâmetros",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Análise em proxy, curvas e diferença entre parâmetros iguais e pixels iguais.",
+      "source_sha256": "b63723ac37a8cca33d0a4d2c0e30eec2b355f934a7584b988ee9d794320c102e",
+      "source_bytes": 7169
+    },
+    {
+      "id": "D066",
+      "subject": "Navegação de preview",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Separar zoom visual, FOV, coordenadas e amostragem da imagem.",
+      "source_sha256": "bff6d85203d3fc3470538851228abad28c612ecedc2a86c9a6fc2e47539c518b",
+      "source_bytes": 2354
+    },
+    {
+      "id": "D067",
+      "subject": "Conta-gotas e captura externa",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Contrato de cor e permissões de compositor para uma função futura.",
+      "source_sha256": "adae7eb3f6eabb2888b783d669d6f5c68f611eac26c691b4494d30204c319701",
+      "source_bytes": 4985
+    },
+    {
+      "id": "D068",
+      "subject": "Inventário de menus de contexto",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Ações futuras precisam da mesma disponibilidade e execução dos botões.",
+      "source_sha256": "f7d033a61a60c48cc13054fa2986c01280ca7217edb17426a53ca9bbf5d54e27",
+      "source_bytes": 9743
+    },
+    {
+      "id": "D069",
+      "subject": "Dispatch de menus e superfície de interação",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Comando central, coordenadas, estados e verificação visual por cenário.",
+      "source_sha256": "2c45b4305607952ab3e9275cc3702f0688a86de6b3a6c98062ba69eebac61ffd",
+      "source_bytes": 18454
+    },
+    {
+      "id": "D070",
+      "subject": "Checklist de contribuição",
+      "destination": "CONTRIBUICAO.md",
+      "adaptation": "Novos comandos, testes pertinentes, código próprio e revisão focada.",
+      "source_sha256": "38745beffcff4e30b6292b853bcd4aacd6b58a0aeff1bad20084a5f9716d4f0b",
+      "source_bytes": 3993
+    },
+    {
+      "id": "D071",
+      "subject": "Créditos e manutenção de autoria",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Não deduzir dados pessoais; gerador ou aba About não existem atualmente.",
+      "source_sha256": "c78ceac9e7cdcf0173f0835f32d016753d59bffd88b5a610a210aafb164a3a4d",
+      "source_bytes": 2938
+    },
+    {
+      "id": "D072",
+      "subject": "Referência ampla de controle",
+      "destination": "PROTOCOLO_DE_CONTROLE.md",
+      "adaptation": "Somente comandos existentes são operacionais; batch e preferências futuras têm limites definidos.",
+      "source_sha256": "db9fe9e42286020ded571e8ebb11932b2d0bf91015ff65e8eb83884524282e65",
+      "source_bytes": 97079
+    },
+    {
+      "id": "D073",
+      "subject": "Registro de decisões",
+      "destination": "DECISOES.md",
+      "adaptation": "Identidade de recursos, substituição de arquivos e motivação das escolhas.",
+      "source_sha256": "5341d87dcc1296a4b711eeb1801f27fa668f4dcc50ea5c2658f98b57df8a4f5f",
+      "source_bytes": 2823
+    },
+    {
+      "id": "D074",
+      "subject": "Desenvolvimento e diagnóstico",
+      "destination": "DESENVOLVIMENTO.md",
+      "adaptation": "Build, runtime isolado, logs, gráficos, variáveis e serviços explícitos.",
+      "source_sha256": "d9afd1f2a55fca2a6fe4ac1ce84e5a492136ae8a0e16783f0fb0aa7c2304f865",
+      "source_bytes": 69712
+    },
+    {
+      "id": "D075",
+      "subject": "Fidelidade e compatibilidade por formato",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Separar capacidade de parser, modelo, visualização e aceitação do arquivo.",
+      "source_sha256": "b764c695295e5152e3a979b9e7197a82179205a7dabbefd12a14999867bcb3a9",
+      "source_bytes": 32212
+    },
+    {
+      "id": "D076",
+      "subject": "Dados brutos de benchmarks de filtros",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Esquema de amostras e hashes preservado como método, sem usar tempos externos como locais.",
+      "source_sha256": "049d8ea65d6a86514e069bcddd17ee56d2df652a2a6db8425a38527cfc1fdd24",
+      "source_bytes": 17318
+    },
+    {
+      "id": "D077",
+      "subject": "Otimização de cinco famílias de algoritmos",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Células, streaks, rotação, lente e expansão de tinta com equivalência e custo limitados.",
+      "source_sha256": "9e1c6e5f983c1a07e93504899f0986fe1a7e91a6dee90669f7a3993597172734",
+      "source_bytes": 8527
+    },
+    {
+      "id": "D078",
+      "subject": "Resolução de fontes",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Família, glifos e fallback não garantem fidelidade tipográfica.",
+      "source_sha256": "229abcaccc337409da4d6f3875d33bc52213ef67d224b8465fc7519f989f50ed",
+      "source_bytes": 2126
+    },
+    {
+      "id": "D079",
+      "subject": "Inventário de lacunas",
+      "destination": "ROADMAP.md",
+      "adaptation": "Impacto, evidência e gate de aceitação, sem copiar estimativas de outro domínio.",
+      "source_sha256": "f1fd847811cf54cabf3ec5bc3223a1de7849c243be2526c363b377dfc27c5d33",
+      "source_bytes": 45214
+    },
+    {
+      "id": "D080",
+      "subject": "Reuso de composição GPU",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Fronteiras seguras, invalidação, orçamento e risco de reusar frames diferentes.",
+      "source_sha256": "abe4759f9cb1d05f398f520236bec07de814b61d5082382f422e2069ab14db3a",
+      "source_bytes": 5533
+    },
+    {
+      "id": "D081",
+      "subject": "GPU, displays e periféricos",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Matriz Linux e validação real; tablets, HID e HDR permanecem fora do suporte anunciado.",
+      "source_sha256": "e1a75b64475123b58a0f99a171b704b5235702a4c8433386d35a080c031ece03",
+      "source_bytes": 4313
+    },
+    {
+      "id": "D082",
+      "subject": "Origem das imagens documentais",
+      "destination": "DEPENDENCIAS_E_LICENCAS.md",
+      "adaptation": "Capturas próprias e dados autorizados, sem reutilizar assets externos.",
+      "source_sha256": "ccd8ec0d862900597ca727451e15575ab76b78e0f031d4a7cf0cfaa31f7c89fc",
+      "source_bytes": 3213
+    },
+    {
+      "id": "D083",
+      "subject": "Alinhamento físico de pixels",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "DPI e coordenadas lógicas; comparação visual deve isolar escala e interpolação.",
+      "source_sha256": "bff557e0df73dd1cb4b9b8491d6e5deb4dc160f16946de3d6c9db144fde1d6c8",
+      "source_bytes": 1065
+    },
+    {
+      "id": "D084",
+      "subject": "Desfoque com geometria de foco",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Níveis gaussianos, invariantes, bordas e referência numérica para estudo futuro.",
+      "source_sha256": "8073e55aab67e3307b3b072423f7e2ce23e7ab780d231ad36864b5f6c591d592",
+      "source_bytes": 14717
+    },
+    {
+      "id": "D085",
+      "subject": "Contêiner de documento em camadas",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "KRA fora do escopo; estruturas, recursos e composição requerem importador próprio.",
+      "source_sha256": "22a614dc1a4078c225061ef913e6325c2793868bff51477a2d808ddcbc04f157",
+      "source_bytes": 4694
+    },
+    {
+      "id": "D086",
+      "subject": "Terminologia espanhola",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Revisão nativa e cobertura de textos dinâmicos, sem alegar catálogo disponível.",
+      "source_sha256": "e1d82eec1e7888a2ba75fe73b66b9b44bb2f3a089536543eb060c3037b0419f5",
+      "source_bytes": 5010
+    },
+    {
+      "id": "D087",
+      "subject": "Terminologia italiana",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Registro, termos de câmera e estados de revisão explícitos.",
+      "source_sha256": "514ed396be4bbc5bc264d8639dbc82c5cf08aa73048ff42f645758ceca177144",
+      "source_bytes": 4922
+    },
+    {
+      "id": "D088",
+      "subject": "Terminologia coreana",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Espaçamento, formalidade e glifos precisam de testes próprios.",
+      "source_sha256": "bd9c9621c8944f1e28e26c1c0dbf66a8a17e418953a1afdeb680516026484c3d",
+      "source_bytes": 2594
+    },
+    {
+      "id": "D089",
+      "subject": "Cobertura entre idiomas",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Contar erros, menus, plurais e textos gerados, além das chaves estáticas.",
+      "source_sha256": "22c59408999d8e32a26caba763e31fb594c04fe0bc61b2601564afd1e99ae8e4",
+      "source_bytes": 8498
+    },
+    {
+      "id": "D090",
+      "subject": "Terminologia russa",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Plurais, placeholders e revisão linguística por idioma.",
+      "source_sha256": "3396649f6076b6d2f7a9a98217b0955d1cfffcedf0b0904fdfb51479ca2b4b10",
+      "source_bytes": 4358
+    },
+    {
+      "id": "D091",
+      "subject": "Chinês simplificado",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Distinguir script simplificado/tradicional e fallback de fontes.",
+      "source_sha256": "a857b918a34d6ddb83288b34b54720c43476b74e2a667619e3b0a77e1f5e1b76",
+      "source_bytes": 3993
+    },
+    {
+      "id": "D092",
+      "subject": "Idioma ao vivo e fallback",
+      "destination": "LOCALIZACAO.md",
+      "adaptation": "Preferência salva, sistema, cancelamento, bidi e fontes são contratos futuros.",
+      "source_sha256": "e501ea45b46d43f3fb0550252d087ef4cea587e3baa8bc6be0503dd14afcba86",
+      "source_bytes": 8738
+    },
+    {
+      "id": "D093",
+      "subject": "Convenções MCP",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Schemas, sessão, resources, progresso e limites sem servidor implementado.",
+      "source_sha256": "ad74d8570aa8e9f167bea01f2d4cf90c56d8cb1da27d4983ee7dcdf5a53b5417",
+      "source_bytes": 9176
+    },
+    {
+      "id": "D094",
+      "subject": "Calibração, crop e fitting de RAW",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Modelo/sensor exatos, crop antes da orientação e preservação dos controles do usuário.",
+      "source_sha256": "11113ed77903b00044ce2e1d28e10d70a0ad8bad897f9e08cebee50d299585cf",
+      "source_bytes": 3460
+    },
+    {
+      "id": "D095",
+      "subject": "Morfologia octogonal de máscaras",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Footprint, decomposição, empates, bordas e scratch documentados como estudo.",
+      "source_sha256": "1ceb6e68240e5a64e6f55c65f35be9d2e7d20106a7fcce52a38ded2d120bde4c",
+      "source_bytes": 7933
+    },
+    {
+      "id": "D096",
+      "subject": "Convolução de pintura estilizada",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Streamlines e arredondamento exigem prova; vizinhos não compartilham necessariamente o caminho.",
+      "source_sha256": "4ec313792e6fe5d1505df03b326fadfa6c99ae53fe51a8c9726e8c2253951f7b",
+      "source_bytes": 6829
+    },
+    {
+      "id": "D097",
+      "subject": "OpenRaster",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Camadas, blend, recursos e limites antes de qualquer importação.",
+      "source_sha256": "25a15bb0a059de2d80cab107136da768160bc2eff26ac9f3515e661b02d69313",
+      "source_bytes": 5683
+    },
+    {
+      "id": "D098",
+      "subject": "Checklist de menus",
+      "destination": "ROADMAP.md",
+      "adaptation": "Presença de menu separada de comportamento e evidência de aceitação.",
+      "source_sha256": "22c2e1a03d0f729ba10ed30cfadefe46d4c1ea38a54a193992d2113be269f316",
+      "source_bytes": 537
+    },
+    {
+      "id": "D099",
+      "subject": "Documentos Paint.NET",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Formato fora do escopo com critérios de preservação e limites explícitos.",
+      "source_sha256": "50ee911f4d490bf8653b77f3186d37e66d29e1074337aa8d0d43d0003b096907",
+      "source_bytes": 3648
+    },
+    {
+      "id": "D100",
+      "subject": "Células e pointillismo",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Preparação por célula, spans, bordas, alpha e fallback escalar.",
+      "source_sha256": "38fd059397b464ffcfe92da018e09ab35146156621fc80308158005231dfeb95",
+      "source_bytes": 8180
+    },
+    {
+      "id": "D101",
+      "subject": "Amostras de comandos e filtros por célula",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Distinguir kernel, filtro e comando; hashes e amostras não são latência de UI.",
+      "source_sha256": "88b21749025a5b9366ffbac4a65978ce8c2d8200429af6c02560f3d7079a9806",
+      "source_bytes": 30097
+    },
+    {
+      "id": "D102",
+      "subject": "Amostras de pixelização",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Raw data, mediana e equivalência com método reproduzível.",
+      "source_sha256": "576b15fef950533f76364dbad9bc2315343dc7facc585c73fd13031810576a34",
+      "source_bytes": 5425
+    },
+    {
+      "id": "D103",
+      "subject": "Facet e meios-tons",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Buffers circulares, memoização por canal e limites de halo/tabelas.",
+      "source_sha256": "78e21499662735f10a9c9df66e3de0412ff1d5a25d4d7b8a7fdebd3ea0026c5e",
+      "source_bytes": 4928
+    },
+    {
+      "id": "D104",
+      "subject": "ABI e sandbox de plug-ins",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Manifesto, memória, fuel, unidades, alpha e contexto como contrato proposto.",
+      "source_sha256": "b5b2c1a49f8784a9a9facd6891eb2ee4f19c89d530187d86dc99fdd9c295f4fe",
+      "source_bytes": 10705
+    },
+    {
+      "id": "D105",
+      "subject": "Impressão e integração de sistema",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "IPP, orientação, DPI e cor são distintos da câmera virtual e não estão implementados.",
+      "source_sha256": "f35e3e2ae3886ceada4d52cfc6f01f22b3a0c4b56145fa05a2cc9d4c60b2fac4",
+      "source_bytes": 6319
+    },
+    {
+      "id": "D106",
+      "subject": "Busca de retoque por proximidade",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Área somada recortada, poda por SSD e regra de empate sem promessa de qualidade.",
+      "source_sha256": "e022c3bc6ebe4ae07c9ee9f200c8801eefdf0258112bb36073425cd4bc275c6f",
+      "source_bytes": 4451
+    },
+    {
+      "id": "D107",
+      "subject": "Interleaving e alocação de pixels",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Comparar leitura, conversão, bytes e memória no ciclo completo.",
+      "source_sha256": "5701f7fed78a2d0bd9db4dfcc76e4118ab423def03527c80617700a5e6c02a90",
+      "source_bytes": 5420
+    },
+    {
+      "id": "D108",
+      "subject": "Seleção por grafos",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Capacidades, fluxo residual, solve repetido e testes de corte mínimo.",
+      "source_sha256": "91a23bcd6e9332429cbc2275770f444ea0584f1f0e672c1446d18480c747b298",
+      "source_bytes": 9802
+    },
+    {
+      "id": "D109",
+      "subject": "Amostragem de blur radial",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Tabelas de transformações, canais compartilhados e caminho exato de referência.",
+      "source_sha256": "bb48d27e32f832a08226d885c44e83bd18cdf15e74cc78c3b045e65e65230ba3",
+      "source_bytes": 3058
+    },
+    {
+      "id": "D110",
+      "subject": "Playbook de release",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Receita local documentada sem depender de processo privado externo.",
+      "source_sha256": "1eb1c7b6fa6cd10509c29315780f08b57502f97a7e4533c05e1a1e6c8e552861",
+      "source_bytes": 475
+    },
+    {
+      "id": "D111",
+      "subject": "Publicação multiplataforma e atualização",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Artefato Linux atual, assinatura futura, pacotes e atualização sem garantias inventadas.",
+      "source_sha256": "ec8ccf88aa8134ebb6ee2913bd910858f4061d0cbba8c9d81f5f76b560e2cde5",
+      "source_bytes": 25390
+    },
+    {
+      "id": "D112",
+      "subject": "Marcos e gates",
+      "destination": "ROADMAP.md",
+      "adaptation": "Foco, aceitação e estado por cenário em vez de cronograma não medido.",
+      "source_sha256": "5554102c18c92654b3923bae57045ec110b0790c95ce9a50290145003fb1c129",
+      "source_bytes": 13391
+    },
+    {
+      "id": "D113",
+      "subject": "Scorecard e budgets",
+      "destination": "ROADMAP.md",
+      "adaptation": "Separar UI, compatibilidade, desempenho, automação, confiabilidade e distribuição.",
+      "source_sha256": "eff304bdefb58d44fad8a4f32ed1a6018d2c5f568200f10432143f6b2b536930",
+      "source_bytes": 90689
+    },
+    {
+      "id": "D114",
+      "subject": "Seam carving e coordenadas",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Mapeamento por listas, busca binária e custo residual; não é tracking de pessoa.",
+      "source_sha256": "aee12340c058d63c4c6bf3a58000e10fae16fda588c58ebd7ea516146c509e56",
+      "source_bytes": 5894
+    },
+    {
+      "id": "D115",
+      "subject": "Transformada de distância de seleção",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Duas passagens, precisão de interseção, força bruta e memória auxiliar.",
+      "source_sha256": "97493bc39ecbe2cc3891f68d389d3188a272ce8b58d444497e7b8bc6ca5bd5bf",
+      "source_bytes": 4402
+    },
+    {
+      "id": "D116",
+      "subject": "Strokes de formas",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Texto/vetores futuros precisam de geometria, alpha e rasterização próprios.",
+      "source_sha256": "18d34c27bd1109d1d732961b24566b8a813e5213127938ccd99aa27bec81cd61",
+      "source_bytes": 7703
+    },
+    {
+      "id": "D117",
+      "subject": "Filtros não destrutivos",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Identidade, ordem, reabertura da entrada e preservação de efeitos indisponíveis.",
+      "source_sha256": "bbbf570a7d1fd72846ba04a178077552bd30954f1fb9a2f7962553cd0914deb0",
+      "source_bytes": 3288
+    },
+    {
+      "id": "D118",
+      "subject": "Leituras esparsas de pixels",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Acesso contíguo e regiões úteis sem alegar tiles no fluxo RGB atual.",
+      "source_sha256": "3a3dbac10c2ea374559f689b6448cb7138145b3a8788191763a5fed83a86fb65",
+      "source_bytes": 4910
+    },
+    {
+      "id": "D119",
+      "subject": "Avaliação de paridade funcional",
+      "destination": "ROADMAP.md",
+      "adaptation": "Amplitude, profundidade, fidelidade e prontidão com evidência separada.",
+      "source_sha256": "39607fa09b213ba51632eb86271b7a0a59b075d8fa2cd755f8cc10ff08b92cf2",
+      "source_bytes": 56419
+    },
+    {
+      "id": "D120",
+      "subject": "Custo de rasterização de texto",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Passagens independentes, prefix sums e carry entre linhas antes de paralelizar.",
+      "source_sha256": "f51953a2c62f04ea69057a8504b90f035581e7a875d15c120cd915d0658a4301",
+      "source_bytes": 3829
+    },
+    {
+      "id": "D121",
+      "subject": "Tilt-shift e campo de sigma",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Níveis gaussianos, bordas de acumulação, cancelamento e contrato numérico.",
+      "source_sha256": "978cced47f0f48c434d86e3e3ef77057857434ffd56769679c580b50435f034d",
+      "source_bytes": 19233
+    },
+    {
+      "id": "D122",
+      "subject": "Sistema de design",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Tokens, componentes, truncamento, DPI, temas e validação na organização Camera Hub.",
+      "source_sha256": "5d063574847067eb91ddfb23ca8e60d8809f8efc712854ae009087ed2b26ac53",
+      "source_bytes": 24169
+    },
+    {
+      "id": "D123",
+      "subject": "Diálogos e foco",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Abrir/aplicar/cancelar, filhos, preview, teclado e parâmetros estáveis.",
+      "source_sha256": "969347e5e2e5730b2addb0d67854fb5bf2501a0bc7c5522a0b44ef3d0c213187",
+      "source_bytes": 14655
+    },
+    {
+      "id": "D124",
+      "subject": "Gestos, handles e navegação",
+      "destination": "UI_E_INTERACAO.md",
+      "adaptation": "Coordenadas e disponibilidade; ferramentas de documento fora do escopo atual.",
+      "source_sha256": "37faf632a7b0c2a1d354e882e96e04da78f15503261cdb0d12fdbcdc7c319fea",
+      "source_bytes": 39399
+    },
+    {
+      "id": "D125",
+      "subject": "Unsharp mask e FFT",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Convolução separável, tolerância, threshold e scratch antes de escolher otimização.",
+      "source_sha256": "565140561850ee64835e16ffde21d8347baee0b57e60aa95b37cf8f0607ba0bf",
+      "source_bytes": 1391
+    },
+    {
+      "id": "D126",
+      "subject": "Regras de documentação de usuário",
+      "destination": "PADROES_DE_DOCUMENTACAO.md",
+      "adaptation": "Resposta primeiro, passos, labels exatos, metadados e revisão de afirmações.",
+      "source_sha256": "da2394fff872fd0ebcf5b8b39361537fdd7884a7ee34b84fd6a453a956b038bd",
+      "source_bytes": 2818
+    },
+    {
+      "id": "D127",
+      "subject": "Orientação documental para agentes",
+      "destination": "PADROES_DE_DOCUMENTACAO.md",
+      "adaptation": "Uma fonte normativa local, ligada a AGENTS e CLAUDE.",
+      "source_sha256": "a0f75510722e7ef49119f799e8de287611db1d61c22c92541b2e2602923639f5",
+      "source_bytes": 69
+    },
+    {
+      "id": "D128",
+      "subject": "Índice de perguntas frequentes",
+      "destination": "USO.md",
+      "adaptation": "Navegação de uso, licença, formatos e limites sem duplicar o manual.",
+      "source_sha256": "eb7c0d0d172a1c71363d75aa2a6b8ce01c343f8f4a64f62bc121dc89d766d91d",
+      "source_bytes": 327
+    },
+    {
+      "id": "D129",
+      "subject": "Licença e acesso ao produto",
+      "destination": "USO.md",
+      "adaptation": "Código MIT, componentes opcionais independentes e ausência de serviço remoto obrigatório.",
+      "source_sha256": "02ceb4d94cad981d42af0667970adb11e08126ea2a8a893daa3475caa9107155",
+      "source_bytes": 633
+    },
+    {
+      "id": "D130",
+      "subject": "Compatibilidade de arquivos gráficos",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Documentos em camadas não são entradas do aplicativo de câmera.",
+      "source_sha256": "b1fe165f2830b54518a3fcc379c3f63041aa734e2947b2e2150d3adabd779b1b",
+      "source_bytes": 1266
+    },
+    {
+      "id": "D131",
+      "subject": "Limites e substituição de outro produto",
+      "destination": "ROADMAP.md",
+      "adaptation": "Descrever tarefas suportadas sem prometer paridade integral.",
+      "source_sha256": "a6dfdba5103eeb47f7749010aacf40402020314c908280193854bbc106add3e6",
+      "source_bytes": 1131
+    },
+    {
+      "id": "D132",
+      "subject": "Índice de primeiros passos",
+      "destination": "USO.md",
+      "adaptation": "Instalação, abrir, selecionar fonte e próximo passo verificável.",
+      "source_sha256": "76267fe5ee6d12d4bddfb7b17dfa99114640b448681e242255b4d86d26af6cf4",
+      "source_bytes": 1085
+    },
+    {
+      "id": "D133",
+      "subject": "Instalação por plataforma e integridade",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Linux e scripts atuais; outras plataformas e assinatura mantidas como propostas.",
+      "source_sha256": "af65ea62b5c1e761a00514fabca90bbc1793cf7b318da0fee5f8cadab0eb397b",
+      "source_bytes": 4336
+    },
+    {
+      "id": "D134",
+      "subject": "Inserção de texto e estilos",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Sobreposições de texto/vetor são futuras, com fontes e rasterização próprias.",
+      "source_sha256": "36f8aea43241718586c7ca4f9d976f62908fe7e03949224d73070ce8d9a349c1",
+      "source_bytes": 2155
+    },
+    {
+      "id": "D135",
+      "subject": "Ajustes não destrutivos de cor",
+      "destination": "USO.md",
+      "adaptation": "Efeitos locais, rascunho e aplicar separados dos controles do hardware.",
+      "source_sha256": "a471870d85d2cf6951e8d4fca55cb88147fb0ceb67946a777b05fae315a7219f",
+      "source_bytes": 1999
+    },
+    {
+      "id": "D136",
+      "subject": "Exportação e preservação de camadas",
+      "destination": "USO.md",
+      "adaptation": "Saída virtual entrega vídeo; gravação, foto e documentos editáveis não são anunciados.",
+      "source_sha256": "dd3b165f038cd2d740ad6382c40084dbec6f105f2fd713e406de6a74bf3c03c6",
+      "source_bytes": 2085
+    },
+    {
+      "id": "D137",
+      "subject": "Índice de guias por tarefa",
+      "destination": "README.md",
+      "adaptation": "Navegação canônica com guias operacionais e referência técnica.",
+      "source_sha256": "58719c05c9d574f9e08ffe0a1b96a88285ec975e9752bd8a7e3a25891e587baa",
+      "source_bytes": 524
+    },
+    {
+      "id": "D138",
+      "subject": "Abrir, salvar e cópia de trabalho",
+      "destination": "USO.md",
+      "adaptation": "Configuração/presets e backup no lugar de um modelo de documentos inexistente.",
+      "source_sha256": "2f6c386d5dc8e327af2a846568c97cd90338f5d363a439c68fb9b6be60181516",
+      "source_bytes": 2647
+    },
+    {
+      "id": "D139",
+      "subject": "Seleções e máscaras",
+      "destination": "ALGORITMOS_DE_EFEITOS.md",
+      "adaptation": "Alpha automático existente e critérios de edição/refino manual futuros.",
+      "source_sha256": "4973f1a50be5427aa22be5545b96a9f49868846747b57c2209acc81bed7fbfcf",
+      "source_bytes": 2178
+    },
+    {
+      "id": "D140",
+      "subject": "Entrada da ajuda ao usuário",
+      "destination": "README.md",
+      "adaptation": "Manual do produto com uso, engenharia, evidências e solução de problemas.",
+      "source_sha256": "d9a38db10b7871af178b4f183dbd64dc61884f1e9b94a0cdb4b1322586b9000a",
+      "source_bytes": 1646
+    },
+    {
+      "id": "D141",
+      "subject": "Bordas e dimensão de visualização",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Proporção, padding e distinção entre geometria visual e FOV real.",
+      "source_sha256": "ba6c836875f259d6e0d38c323db43b6fc80563dceb350321eaace3603045a80e",
+      "source_bytes": 1975
+    },
+    {
+      "id": "D142",
+      "subject": "Como pedir ajuda",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Versão, ambiente, reprodução e logs mínimos sem informações pessoais.",
+      "source_sha256": "aa8cdb7b134316e9b880490fbd522a3344f9f5a4579ae2a0bf15f63ee28abaa7",
+      "source_bytes": 1062
+    },
+    {
+      "id": "D143",
+      "subject": "Índice de diagnóstico",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Organização por sintoma, correção e contexto.",
+      "source_sha256": "5fc27427d82974f8e35902f173ce11f89ccc66557173435cb9f7e30c91a58186",
+      "source_bytes": 477
+    },
+    {
+      "id": "D144",
+      "subject": "Falha na abertura",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Separar janela, sessão gráfica e controlador, preservando arquivos.",
+      "source_sha256": "d0938a1a3fb51f48e57d5f6d217d72e084d3a54e44005116325c7749eb4aa5cf",
+      "source_bytes": 4716
+    },
+    {
+      "id": "D145",
+      "subject": "Falhas de composição do desktop",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Diagnóstico Linux de janela preta sem importar correções de outros sistemas.",
+      "source_sha256": "7cc113bc7d653953e481e8569159531cf2f3e49a0ba831ad3d0daacf734800cb",
+      "source_bytes": 2108
+    },
+    {
+      "id": "D146",
+      "subject": "Deslocamento de texto e fontes",
+      "destination": "SOLUCAO_DE_PROBLEMAS.md",
+      "adaptation": "Escala, tamanho, texto longo e captura isolada do card afetado.",
+      "source_sha256": "e3dbcd76a176a568208afd118fe0acdf2ec003ca45c67a7c5e89561057e3090a",
+      "source_bytes": 2174
+    },
+    {
+      "id": "D147",
+      "subject": "Durabilidade de salvamento",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Rename não comprova fsync, ACLs ou recuperação; contrato futuro explícito.",
+      "source_sha256": "0f0de8ee0361a20b6266e13b69993b11df1ce23d186e05fe299d8e89bbc15d12",
+      "source_bytes": 4579
+    },
+    {
+      "id": "D148",
+      "subject": "XCF e semântica de composição",
+      "destination": "FORMATOS_E_COMPATIBILIDADE.md",
+      "adaptation": "Luz linear, alpha, clipping e limites em importação futura.",
+      "source_sha256": "ca7afe6d73eee620ad454e15c5c79707deb31eedb8ea80260f1ded32fe368313",
+      "source_bytes": 6408
+    },
+    {
+      "id": "D149",
+      "subject": "Reuso de writer e compressão",
+      "destination": "DESEMPENHO.md",
+      "adaptation": "Buffers e compressor reutilizáveis exigem prova no ciclo completo, sem formato comprimido atual.",
+      "source_sha256": "428585ce496dfce099da6511d94d0e3faa2213c509355b5c21ee544693b31f79",
+      "source_bytes": 3254
+    },
+    {
+      "id": "D150",
+      "subject": "Exemplo mínimo de plug-in",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Proposta de filtro de inversão para validar ABI; nenhum wasm instalável presente.",
+      "source_sha256": "ce43c84e6aae0121ad43316fa5febfc1f843121784feca6527c23f7954616871",
+      "source_bytes": 1067
+    },
+    {
+      "id": "D151",
+      "subject": "Apresentação de instalador macOS",
+      "destination": "DISTRIBUICAO.md",
+      "adaptation": "Artefatos próprios, rótulos legíveis e regras por plataforma; sem DMG no Linux.",
+      "source_sha256": "4176ebecc16207280d058d4a6953b30ac313573a46b2c47af6f694a1428420f0",
+      "source_bytes": 2743
+    },
+    {
+      "id": "D152",
+      "subject": "Hospedagem web, assets e fontes",
+      "destination": "EXTENSOES.md",
+      "adaptation": "Critérios futuros de MIME, cache, 404, HTTPS e iframe; não há site de execução atual.",
+      "source_sha256": "aaea849c10990c07af626b8529faaa3648f9865f2b73bf3bea364cabee16267e",
+      "source_bytes": 13270
+    }
+  ]
+}
