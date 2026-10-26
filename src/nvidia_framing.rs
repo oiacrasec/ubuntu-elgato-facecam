@@ -96,7 +96,13 @@ impl Framing {
             .get("output_cov/Sigmoid")
             .context("Saída AR ausente")?
             .try_extract_raw_tensor::<f32>()?;
-        self.letterbox.decode(boxes, confidence)
+        self.letterbox.decode_tracked(
+            boxes,
+            confidence,
+            self.correction
+                .as_ref()
+                .and_then(|correction| correction.tracked_face()),
+        )
     }
 
     pub fn frame(&mut self, rgb: &[u8]) -> Result<DynValue> {

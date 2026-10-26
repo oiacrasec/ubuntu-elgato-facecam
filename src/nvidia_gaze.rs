@@ -21,8 +21,7 @@ pub struct Correction {
     validate: Stage,
     compose: Stage,
     size: [usize; 2],
-    strength: f32,
-    step: f32,
+    temporal: gaze::Temporal,
     face: Option<Rect>,
 }
 
@@ -82,19 +81,23 @@ impl Correction {
             )?,
             compose: Stage::open(&compose_model(size), &["result"], &[], device, "eye-blend")?,
             size,
-            strength: 0.0,
-            step: 1.0 - (-1.0 / (fps as f32 * 0.18)).exp(),
+            temporal: gaze::Temporal::new(fps)?,
             face: None,
         };
         let black = Tensor::from_array(([1, 3, 64, 256], vec![0_f32; 3 * 64 * 256]))?.into_dyn();
         let decoded = correction.infer(&black, [0.0, 0.0])?;
         correction.check(&decoded)?;
+        correction.reset();
         Ok(correction)
     }
 
     pub fn reset(&mut self) {
-        self.strength = 0.0;
+        self.temporal.reset();
         self.face = None;
+    }
+
+    pub(crate) fn tracked_face(&self) -> Option<Rect> {
+        self.face
     }
 
     fn bind_affine(stage: &mut Stage, transform: Affine, size: [usize; 2]) -> Result<()> {
@@ -175,13 +178,17 @@ impl Correction {
     fn blend(
         &mut self,
         source: &DynValue,
+        aligned: &DynValue,
         patch: &DynValue,
         geometry: &Geometry,
     ) -> Result<DynValue> {
         Self::bind_affine(&mut self.compose, geometry.to_patch, [256, 64])?;
         self.compose.binding.bind_input("rgb", source)?;
+        self.compose.binding.bind_input("aligned", aligned)?;
         self.compose.binding.bind_input("patch", patch)?;
-        for (i, ([x, y, rx, ry], open)) in geometry.eyes.iter().zip(geometry.open).enumerate() {
+        for (i, ([x, y, rx, ry], visibility)) in
+            geometry.eyes.iter().zip(geometry.visibility).enumerate()
+        {
             let names = if i == 0 {
                 ["ex0", "ey0", "rx0", "ry0", "gain0"]
             } else {
@@ -192,7 +199,7 @@ impl Correction {
                 y / 32.0 - 1.0,
                 rx / 128.0,
                 ry / 32.0,
-                if open { self.strength * 0.85 } else { 0.0 },
+                visibility * 0.85,
             ]) {
                 self.compose.binding.bind_input(
                     name,
@@ -223,18 +230,27 @@ impl Correction {
             self.reset();
             return Ok(None);
         };
+        if self
+            .face
+            .is_some_and(|previous| previous.overlap(face) <= 0.1)
+        {
+            self.reset();
+        }
         let Some(geometry) = self.locate(source, face)? else {
             self.reset();
             return Ok(None);
         };
         self.face = Some(face);
+        let geometry = self.temporal.update(geometry)?;
+        if geometry.visibility.iter().all(|v| *v == 0.0) {
+            return Ok(None);
+        }
         Self::bind_affine(&mut self.eye_input, geometry.to_source, self.size)?;
         self.eye_input.binding.bind_input("rgb", source)?;
         let eyes = take(&mut self.eye_input.run()?, "image")?;
         let decoded = self.infer(&eyes, [0.0, 0.0])?;
         self.check(&decoded)?;
-        self.strength += self.step * (1.0 - self.strength);
-        Ok(Some(self.blend(source, &decoded, &geometry)?))
+        Ok(Some(self.blend(source, &eyes, &decoded, &geometry)?))
     }
 }
 
@@ -343,17 +359,21 @@ fn compose_model(size: [usize; 2]) -> Vec<u8> {
     let mut g = Graph::default();
     g.value("rgb", 1, &[1, 3, h as i64, w as i64], true);
     g.value("patch", 1, &[1, 3, 64, 256], true);
+    g.value("aligned", 1, &[1, 3, 64, 256], true);
     grid(&mut g, size);
     g.scalar("zero", 0.0);
     g.scalar("one", 1.0);
     g.scalar("two", 2.0);
     g.scalar("three", 3.0);
-    g.scalar("feather", 0.35);
+    g.scalar("feather", 0.55);
     g.scalar("scale", 255.0);
     g.node("Clip", &["patch", "zero", "one"], "bounded", &[]);
+    // Warp only the model's change. Re-warping the original eye texture would
+    // blur/shimmer even for a decoder that returns its input unchanged.
+    g.node("Sub", &["bounded", "aligned"], "delta", &[]);
     g.node(
         "GridSample",
-        &["bounded", "grid"],
+        &["delta", "grid"],
         "warped",
         &[
             integer("align_corners", 0),
@@ -396,10 +416,15 @@ fn compose_model(size: [usize; 2]) -> Vec<u8> {
         "mask",
         &[integers("perm", &[0, 3, 1, 2])],
     );
-    g.node("Mul", &["warped", "scale"], "replacement", &[]);
-    g.node("Sub", &["replacement", "rgb"], "difference", &[]);
+    g.node("Mul", &["warped", "scale"], "difference", &[]);
     g.node("Mul", &["difference", "mask"], "correction", &[]);
-    g.node("Add", &["rgb", "correction"], "result", &[]);
+    g.node("Add", &["rgb", "correction"], "unbounded_result", &[]);
+    g.node(
+        "Clip",
+        &["unbounded_result", "zero", "scale"],
+        "result",
+        &[],
+    );
     g.value("result", 1, &[1, 3, h as i64, w as i64], false);
     g.finish()
 }
@@ -468,6 +493,15 @@ mod tests {
             .unwrap();
         let eyes = take(&mut correction.eye_input.run().unwrap(), "image").unwrap();
         let original = download(&eyes, &[1, 3, 64, 256], device);
+        let identity = correction.blend(&source, &eyes, &eyes, &geometry).unwrap();
+        let unchanged = download(&identity, &[1, 3, size[1] as i64, size[0] as i64], device);
+        let original_nchw: Vec<f32> = (0..3)
+            .flat_map(|c| input.pixels().map(move |p| p[c] as f32))
+            .collect();
+        assert_eq!(
+            unchanged, original_nchw,
+            "identity decoder must not resample source texture"
+        );
         let a = correction.infer(&eyes, [0.0, 0.0]).unwrap();
         correction.check(&a).unwrap();
         let frontal = download(&a, &[1, 3, 64, 256], device);
@@ -504,9 +538,6 @@ mod tests {
         pixels(&normalized, input.width(), input.height())
             .save("target/ar-gaze-contract/corrected-public-face.png")
             .unwrap();
-        let original_nchw: Vec<f32> = (0..3)
-            .flat_map(|c| input.pixels().map(move |p| p[c] as f32))
-            .collect();
         let changed = blended
             .iter()
             .zip(&original_nchw)
@@ -538,6 +569,78 @@ mod tests {
         }
         assert!(correction.correct(&source, &[]).unwrap().is_none());
         eprintln!("decoded_target_difference={delta:.5}, changed_channels={changed}");
+    }
+
+    #[test]
+    #[ignore = "requires prepared Ada, CUDA paths and the public astronaut fixture"]
+    fn public_face_small_photometric_changes_keep_detection() {
+        let root = crate::nvidia_ar_setup::root().unwrap();
+        let install = crate::nvidia_ar_setup::Installation::load(&root).unwrap();
+        ort::init_from(install.runtime().unwrap().runtime.to_string_lossy())
+            .commit()
+            .unwrap();
+        let device = crate::nvidia::ada_device().unwrap();
+        let path = std::env::var_os("FACECAM_AR_TEST_IMAGE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| "target/ar-face-contract/astronaut.png".into());
+        assert_eq!(
+            crate::nvidia_setup::checksum(&path).unwrap(),
+            "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5"
+        );
+        let input = crate::background::load_image(path.to_str().unwrap())
+            .unwrap()
+            .to_rgb8();
+        let size = [input.width() as usize, input.height() as usize];
+        let mut ar = crate::nvidia_framing::Framing::open(&root, size, 30.0, device, true).unwrap();
+        for i in 0..6 {
+            let image = image::RgbImage::from_fn(input.width(), input.height(), |x, y| {
+                let p = input.get_pixel(x, y);
+                image::Rgb(std::array::from_fn(|c| {
+                    if i == 0 {
+                        p[c]
+                    } else {
+                        (i32::from(p[c])
+                            + if i % 2 == 0 { -1 } else { 1 }
+                            + ((x * 13 + y * 7 + c as u32 + i) % 3) as i32
+                            - 1)
+                        .clamp(0, 255) as u8
+                    }
+                }))
+            });
+            let output = ar.frame(image.as_raw()).unwrap();
+            let output = download(&output, &[1, 3, size[1] as i64, size[0] as i64], device);
+            let original: Vec<f32> = (0..3)
+                .flat_map(|c| image.pixels().map(move |p| p[c] as f32))
+                .collect();
+            let changed = output
+                .iter()
+                .zip(original)
+                .filter(|(a, b)| (*a - *b).abs() > 0.5)
+                .count();
+            eprintln!("phase={i}, changed_channels={changed}");
+            assert!(
+                changed > 20 && changed < 30_000,
+                "correction dropped out in phase {i}: {changed}"
+            );
+        }
+        // Losing the face must discard the lower continuation threshold.
+        ar.frame(&vec![0; size[0] * size[1] * 3]).unwrap();
+        let weak = image::RgbImage::from_fn(input.width(), input.height(), |x, y| {
+            let p = input.get_pixel(x, y);
+            image::Rgb(std::array::from_fn(|c| {
+                (i32::from(p[c]) + 1 + ((x * 13 + y * 7 + c as u32 + 1) % 3) as i32 - 1)
+                    .clamp(0, 255) as u8
+            }))
+        });
+        let output = ar.frame(weak.as_raw()).unwrap();
+        let output = download(&output, &[1, 3, size[1] as i64, size[0] as i64], device);
+        let original: Vec<f32> = (0..3)
+            .flat_map(|c| weak.pixels().map(move |p| p[c] as f32))
+            .collect();
+        assert_eq!(
+            output, original,
+            "weak detection must not reacquire after face loss"
+        );
     }
 
     #[test]

@@ -233,3 +233,14 @@ a reutilizar o instalador local diretamente, evitando recriar uma cópia de 1,3 
 O próximo trabalho é validar a correção em captura e consumidor reais, com
 qualidade, piscadas, confiança, resolução e FPS medidos separadamente. Preserve
 os ensaios sem gravação de imagens pessoais e os limites do [Roadmap](ROADMAP.md).
+
+## Revisão de estabilidade dos olhos — 26/10/2026
+
+`6cb515b` registra a correção frontal e a limpeza anteriores. Após relato de
+tremulação e aspecto artificial, a integração Windows foi revista; o Camera Hub
+ativa `Temporal` e configura `EyeSizeSensitivity`. A implementação própria ganhou
+histerese do detector para o rosto já validado, estabilização de geometria/máscara,
+visibilidade contínua por olho e composição do residual para preservar textura.
+Regressões GPU reproduzem a oscilação fotométrica e a perda/reaquisição; os
+resultados e limites estão em [Validação local](VALIDACAO_LOCAL.md#estabilidade-dos-olhos-após-avaliação-do-usuário--26102026).
+O alinhamento 3D e a equivalência visual com Windows permanecem pendentes.

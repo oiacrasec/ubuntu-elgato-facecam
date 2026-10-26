@@ -353,6 +353,15 @@ confiança, head pose e pálpebras fechadas. A CLI recusa CPU/ONNX para
 é aceito sem ligar processamento e não volta à serialização. Esses testes não
 carregam CUDA nem abrem a câmera.
 
+`gaze::tests::temporal_reduces_jitter_follows_motion_and_never_delays_a_blink`
+reproduz oscilações alternadas de 0,75 pixel a 15/30/60 fps, exige redução da
+variação, resposta a deslocamento intencional, piscada imediata por olho e
+aquisição nova sem herdar o ganho anterior. Outro check verifica atenuação
+contínua antes dos cortes de confiança e pose. Não usa imagens ou hardware.
+O teste de caixas confere que uma confiança 0,64 só mantém a caixa associada ao
+rosto anterior; rosto novo, caixa sem sobreposição e confiança abaixo de 0,5
+não usam o limiar de continuação.
+
 Com os componentes preparados e `LD_LIBRARY_PATH` apontando às bibliotecas do
 manifesto VFX 1.20.1, execute os checks GPU optativos:
 
@@ -381,9 +390,17 @@ FACECAM_AR_TEST_IMAGE=/tmp/facecam-astronaut.png cargo test --locked --bin elgat
 SHA-256: `88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5`.
 O ensaio alinha os olhos, conecta encoder→decoder e verifica que o alvo muda a
 imagem gerada. A composição precisa alterar a região ocular e conservar todos
-os valores fora das elipses. NaN, infinito e intensidade fora do limite geram
+os valores fora das elipses. Também aplica um decoder identidade: todos os pixels
+precisam ficar exatamente iguais à entrada, inclusive dentro dos olhos após
+alinhamento e transformação inversa. NaN, infinito e intensidade fora do limite geram
 recusa. Sem rosto, a correção retorna a imagem original. Derivados públicos de
 inspeção ficam em `target/ar-gaze-contract/`, ignorado pelo Git.
+
+`public_face_small_photometric_changes_keep_detection` inicia com a fotografia
+original e aplica cinco variações de brilho/ruído de um nível por canal. Cada
+quadro precisa manter uma correção local não nula. Depois de um quadro preto,
+uma variante cuja detecção é fraca precisa permanecer exatamente inalterada:
+o limiar de continuação não pode adquirir o rosto novamente.
 
 O teste não substitui aceitação de movimento real, óculos, oclusão, iluminação,
 comparação com Windows ou consumo em OBS/navegador. Inspeções GUI usam preview

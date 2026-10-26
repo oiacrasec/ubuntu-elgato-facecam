@@ -49,7 +49,17 @@ impl Letterbox {
         })
     }
 
+    #[cfg(test)]
     pub fn decode(self, boxes: &[f32], confidence: &[f32]) -> Result<Vec<Rect>> {
+        self.decode_tracked(boxes, confidence, None)
+    }
+
+    pub fn decode_tracked(
+        self,
+        boxes: &[f32],
+        confidence: &[f32],
+        previous: Option<Rect>,
+    ) -> Result<Vec<Rect>> {
         if boxes.len() != 4 * CELLS
             || confidence.len() != CELLS
             || boxes.iter().any(|v| !v.is_finite())
@@ -60,7 +70,7 @@ impl Letterbox {
             bail!("Saída de detecção de rosto inválida");
         }
         let mut candidates = Vec::new();
-        for (i, &score) in confidence.iter().enumerate().filter(|(_, s)| **s >= 0.7) {
+        for (i, &score) in confidence.iter().enumerate().filter(|(_, s)| **s >= 0.5) {
             // The validated Ada model predicts distances from a stride-16 grid,
             // scaled by 35 pixels. Decode only its small output tensors on CPU.
             let cx = (i % COLS) as f32 * 16.0 + 0.5;
@@ -76,15 +86,17 @@ impl Letterbox {
                 / self.size[1] as f32)
                 .clamp(0.0, 1.0);
             if x1 > x0 && y1 > y0 {
-                candidates.push((
-                    score,
-                    Rect {
-                        x: x0,
-                        y: y0,
-                        width: x1 - x0,
-                        height: y1 - y0,
-                    },
-                ));
+                let rect = Rect {
+                    x: x0,
+                    y: y0,
+                    width: x1 - x0,
+                    height: y1 - y0,
+                };
+                // Weak detections may continue only an overlapping, previously
+                // validated face. They must never acquire a new person.
+                if score >= 0.7 || previous.is_some_and(|old| old.overlap(rect) >= 0.3) {
+                    candidates.push((score, rect));
+                }
             }
         }
         candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
@@ -127,6 +139,35 @@ mod tests {
         assert_eq!(faces.len(), 1);
         assert!((faces[0].x - 120.0 / 368.0).abs() < 1e-6);
         assert!((faces[0].height - 110.0 / 207.0).abs() < 1e-6);
+        confidence[5 * COLS + 10] = 0.64;
+        confidence[5 * COLS + 11] = 0.60;
+        assert!(letterbox.decode(&boxes, &confidence).unwrap().is_empty());
+        assert_eq!(
+            letterbox
+                .decode_tracked(&boxes, &confidence, Some(faces[0]))
+                .unwrap()
+                .len(),
+            1
+        );
+        let elsewhere = Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 0.05,
+            height: 0.05,
+        };
+        assert!(
+            letterbox
+                .decode_tracked(&boxes, &confidence, Some(elsewhere))
+                .unwrap()
+                .is_empty()
+        );
+        confidence.fill(0.49);
+        assert!(
+            letterbox
+                .decode_tracked(&boxes, &confidence, Some(faces[0]))
+                .unwrap()
+                .is_empty()
+        );
         assert!(letterbox.decode(&boxes[..10], &confidence).is_err());
         confidence[0] = f32::NAN;
         assert!(letterbox.decode(&boxes, &confidence).is_err());

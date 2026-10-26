@@ -300,3 +300,38 @@ A preparação reutiliza diretamente o instalador local validado por hash quando
 disponível. Não cria outra cópia de aproximadamente 1,3 GB no cache; um download
 para cache acontece somente sem origem local válida. A limpeza de duplicatas
 preservou os manifestos e modelos já preparados, conforme o registro local.
+
+## Revisão temporal após relato de tremulação
+
+Em 26/10/2026, o usuário confirmou funcionamento da correção, mas relatou olhos
+artificiais e tremulação frente ao Camera Hub Windows. O commit `6cb515b` registra
+o estado anterior a esta revisão. A validação em fotografia estática daquele
+estado não cobria estabilidade temporal nem comprovava naturalidade em vídeo.
+
+A inspeção estática do inicializador de olhar do Camera Hub 2.3.0.7295,
+`0x141ea68f0`, confirmou a configuração de `NvAR_Parameter_Config_Temporal`
+com `0xffffffff`, além de `EyeSizeSensitivity`, `Landmarks_Size`, `GazeRedirect`
+e `UseCudaGraph`. Evidência local preservada em
+`package/analysis-windows-2.3.0.7295/direct-gaze-init.c.txt`. Esses argumentos
+confirmam diferenças de integração; não revelam os coeficientes do filtro
+interno nem autorizam atribuir um algoritmo específico ao SDK.
+
+Na implementação própria anterior, o alinhamento e a máscara variavam diretamente
+com cada medição e fechar os dois olhos reiniciava todo o ganho. A composição
+também transformava de volta o recorte inteiro, alterando textura por interpolação
+mesmo sem uma mudança de olhar. A revisão filtra geometria e visibilidade por
+olho, mantém as piscadas atuais e transforma somente o residual do modelo.
+Os contratos e limiares próprios estão em
+[Algoritmos](ALGORITMOS_DE_EFEITOS.md#detecção-e-correção-de-olhar).
+
+O ensaio temporal também reproduziu perda do rosto por variação fotométrica
+pequena: o pico de confiança caiu de 0,7116 para 0,6444 com brilho e ruído de
+um nível por canal. O corte fixo 0,7 desligava o efeito em vez de manter a pessoa
+já reconhecida. A revisão acrescenta histerese de aquisição/continuação,
+condicionada à sobreposição com o rosto validado, sem reutilizar imagens antigas.
+Uma detecção fraca não inicia o efeito e não recupera sozinha um rosto perdido.
+
+O alinhamento continua frontal 2D, diferente do alinhamento 3D do SDK. A aplicação
+de referência indica AR 0.8.2 Ada, enquanto o caminho nativo exercitado usa os
+modelos AR 0.8.7 Ada fixados. Não foi demonstrada equivalência visual entre
+essas versões ou aceitação da revisão na câmera do usuário.

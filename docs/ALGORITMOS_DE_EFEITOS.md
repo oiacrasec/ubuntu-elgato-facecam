@@ -39,8 +39,11 @@ planos de distâncias e um de confiança. O centro de cada célula é
 `(16×coluna+0,5, 16×linha+0,5)`; distâncias multiplicadas por 35 produzem os
 cantos esquerdo/superior por subtração e direito/inferior por adição. A origem do
 contrato está em [Análise RTX](ANALISE_RTX.md#contrato-de-detecção-fechado-e-recorte-digital).
-A implementação própria usa confiança mínima 0,7, supressão por IoU 0,3 e até
-32 caixas, recusando formas/probabilidades inválidas e valores não finitos.
+A implementação própria exige confiança mínima 0,7 para adquirir um rosto.
+Um rosto já validado pelos landmarks pode continuar com confiança de pelo menos
+0,5 e IoU de pelo menos 0,3 com sua caixa anterior. Sem associação, após perda ou
+reinício, vale novamente o corte 0,7. A supressão usa IoU 0,3 e até 32 caixas;
+formas/probabilidades inválidas e valores não finitos são recusados.
 
 O rosto selecionado fornece um recorte quadrado com margem 1,5×, amostrado na GPU
 para 80×80. Os landmarks usam cinza float32 em [0,255], com pesos RGB
@@ -59,14 +62,29 @@ overshoot; a composição limita os canais a [0,1] antes de convertê-los em RGB
 A correção exige confiança média de pelo menos 0,45 e mínima de 0,30 nos pontos
 usados, valores absolutos do tensor de pose até 0,45 e distância ocular suficiente.
 Esse limiar não estabelece a unidade física da saída do modelo.
-A abertura das pálpebras dividida pela largura do olho precisa superar 0,13;
-um olho fechado recebe máscara zero. Dados não finitos ou saída nativa inválida
-geram erro; ausência de rosto, pose inadequada ou baixa confiança preservam a
-imagem e zeram a transição.
+A visibilidade cresce por smoothstep entre razões de abertura/largura de 0,13
+e 0,23. A confiança média modula o ganho entre 0,45 e 0,65; o máximo absoluto
+da pose atenua a correção entre 0,20 e 0,45. Esses fatores chegam a zero antes
+dos cortes de confiança/pose. Um olho fechado recebe máscara zero imediatamente,
+sem reiniciar o acompanhamento do outro olho. Dados não finitos ou saída nativa
+inválida geram erro; ausência de rosto, pose inadequada ou baixa confiança
+preservam a imagem e descartam o acompanhamento.
 
-A composição usa elipses locais com borda suave por smoothstep. O ganho sobe com
-constante de 0,18 segundo de vídeo processado até intensidade 0,85. Fora das
-elipses, os pixels permanecem inalterados. Não há zoom, reenquadramento ou ajuste
+A transformação e os raios da máscara têm filtragem temporal própria. A distância
+entre medições, normalizada pelo afastamento dos olhos e pelo intervalo de frame,
+ajusta a constante da transformação entre 100 e 8 ms: pequenas oscilações recebem
+mais filtragem e movimentos rápidos têm resposta mais curta. Um salto de pelo
+menos 35% da distância ocular reinicia a aquisição. Os raios usam constante de
+80 ms; a visibilidade sobe em 80 ms e cai em 25 ms, exceto fechamento completo,
+que zera imediatamente. Nenhuma imagem de frame anterior é misturada ao atual.
+
+A composição usa elipses menores em torno dos olhos, com borda suave por
+smoothstep e ganho máximo 0,85. Calcula a diferença entre a saída do decoder
+limitada a [0,1] e o recorte de entrada; somente essa diferença é transformada
+de volta e adicionada ao RGB original. Um decoder identidade deve produzir
+imagem exatamente inalterada, evitando blur da dupla interpolação do recorte.
+O RGB final é limitado a [0,255]. Fora das elipses, os pixels permanecem
+inalterados. Não há zoom, reenquadramento ou ajuste
 físico de PTZ. O alinhamento é voltado a rostos frontais e não reproduz o pipeline
 3D proprietário do Windows.
 

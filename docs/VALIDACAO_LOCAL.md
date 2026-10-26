@@ -1184,3 +1184,59 @@ O alinhamento é frontal 2D próprio, sem paridade demonstrada com o alinhamento
 3D do SDK Windows. Câmera real, movimentos, óculos, iluminação variável, sessões
 longas, OBS e navegador continuam pendentes de aceitação. A imagem pública e os
 testes de contrato não comprovam qualidade em todos esses cenários.
+
+## Estabilidade dos olhos após avaliação do usuário — 26/10/2026
+
+O usuário avaliou `6cb515b` como funcional, mas com olhos artificiais e tremulação
+em comparação com o Windows. A revisão estática da integração confirmou o uso
+de `Temporal` e `EyeSizeSensitivity` no Camera Hub, conforme
+[Análise RTX](ANALISE_RTX.md#revisão-temporal-após-relato-de-tremulação).
+Não foi executado o aplicativo Windows nem copiado seu alinhador ou filtro.
+
+A regressão nativa reproduziu um problema de continuidade: brilho/ruído de um
+nível por canal fez o pico do detector cair de 0,7116 para 0,6444. O corte fixo
+0,7 desligava a correção. A histerese agora mantém somente o rosto associado e
+validado pelos landmarks a partir de 0,5; novas aquisições continuam exigindo 0,7.
+Após perda, uma variante fraca não pode reativar a correção sozinha.
+
+Os três testes GPU passaram em 9,37 s na RTX 4070 SUPER com ORT 1.20.1 e
+TensorRT 10.4.0.26. O caso fotométrico manteve a correção nos seis quadros
+exercitados (700, 735, 735, 733, 746 e 739 canais alterados), e verificou a recusa
+de aquisição fraca depois de um quadro preto. O decoder identidade preservou
+exatamente todos os pixels, inclusive dentro dos olhos. O caso de encoder/decoder
+continuou respondendo a alvos distintos e preservando a imagem fora das elipses.
+Log: `target/ar-gaze-quality/gpu-final.log`.
+
+`./test-desktop-app.sh` passou com 87 testes comuns padrão, 67 no build mínimo
+e quatro checks FFmpeg, incluindo Clippy sem avisos, formatação, links e
+inventário. O build headless com IA e o release também passaram; o release levou
+1 min 03 s. Logs em `target/ar-gaze-quality/checks-final.log`, `headless-ai.log`
+e `release-final.log`. Os checks comuns não abrem a câmera.
+
+Os testes comuns de geometria exercitam ruído alternado de 0,75 pixel, movimento
+intencional, piscada por olho e reaquisição a 15/30/60 fps. A revisão estabiliza
+transformação e máscara, atenua confiança/pose gradualmente e preserva a piscada
+atual, sem misturar imagens anteriores. A composição transforma somente o
+residual do decoder e usa elipses menores para preservar mais textura original.
+O worker, sozinho e com fundo, passou em 10,71 s, com entrada completa,
+ausência de rosto e truncamento. Log: `target/ar-gaze-quality/worker-final.log`.
+
+O ensaio exploratório comparou 128 frames públicos 512×512, com aquecimento
+inicial, deslocamentos conhecidos de até um pixel e brilho/ruído de um nível.
+Entre os 80 frames medidos, a revisão anterior tinha correção não nula em 53;
+a nova manteve 80. A razão RMS temporal/RMS da correção na região ocular,
+compensando o deslocamento conhecido, passou de 0,8790 para 0,5243. O RMS
+temporal absoluto aumentou de 1,9633 para 3,2242 níveis por canal, enquanto o RMS
+da correção passou de 2,2336 para 6,1493: a revisão manteve o efeito onde antes
+ele desligava. Esses números não representam uma redução percentual de
+tremulação percebida nem comprovam naturalidade. Sem deslocamento, com a mesma
+perturbação fotométrica, o efeito anterior ficava desligado nos 80 frames medidos;
+a revisão manteve os 80, com razão RMS 0,0448.
+Procedimento e dados locais: `target/ar-gaze-quality/compare.cjs`,
+`baseline-final.jsonl`, `hysteresis.jsonl` e `hysteresis-static.jsonl`.
+
+Foi usada somente a fotografia pública com SHA fixado em
+[Testes](TESTES.md#correção-de-olhar), sem câmera ou imagens pessoais. O alinhamento
+continua frontal 2D; o pipeline 3D e a qualidade visual do Camera Hub não foram
+reproduzidos integralmente. A avaliação desta revisão na câmera do usuário,
+com movimentos, óculos e iluminação real, continua pendente.
