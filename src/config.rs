@@ -54,6 +54,7 @@ pub struct Config {
     pub ffmpeg_params: VideoConfig,
     pub ui: UiConfig,
     pub effects: crate::effects::Effects,
+    pub prompter: crate::prompter::Settings,
     pub saved_controls: BTreeMap<String, i64>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
@@ -69,6 +70,7 @@ impl Default for Config {
             ffmpeg_params: VideoConfig::default(),
             ui: UiConfig::default(),
             effects: crate::effects::Effects::default(),
+            prompter: crate::prompter::Settings::default(),
             saved_controls: BTreeMap::new(),
             extra: BTreeMap::new(),
         }
@@ -142,6 +144,7 @@ impl Config {
         }
         self.size()?;
         self.effects.validate()?;
+        self.prompter.validate()?;
         Ok(())
     }
 

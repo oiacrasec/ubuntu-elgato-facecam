@@ -928,3 +928,40 @@ em `target/i18n-work/`, fora do Git. Não houve gravação de câmera física.
 A validação não substitui revisão de tradutor nativo, leitor de tela, sessão
 Wayland ou comparação com telas Windows. Essas etapas permanecem explícitas no
 [plano autorizado](PLANO_DE_CONVERSAO.md) e no [roadmap](ROADMAP.md).
+
+## Roteiro e apresentação do Prompter — 26/10/2026
+
+O núcleo agora oferece roteiro local, velocidade, tamanho, espelho do texto,
+leitura/pausa, posição, início e apresentação em janela ou monitor selecionado.
+A operação usa o controlador e permanece compilável sem GUI. Isso não declara
+paridade completa com o Prompter Windows: Voice Sync, Twitch, múltiplos roteiros
+e transporte/controles físicos ainda estão pendentes.
+
+Checks comuns passaram com 74 testes nos recursos padrão, 62 sem recursos padrão
+e quatro verificações sintéticas FFmpeg. Incluíram posição negativa, zero,
+positiva, excessiva e não finita, limites de texto/aparência/velocidade,
+persistência, falha de salvamento e mudanças de monitores. Os testes não
+escreveram controles da câmera nem abriram hardware. Clippy sem avisos e
+formatação passaram; logs em `target/prompter-checks.log`.
+
+A janela debug foi inspecionada em X11, 960×640, nos dois idiomas, com roteiro
+sintético. Os controles de reprodução ficam fixos e os parâmetros rolam acima.
+A apresentação abriu em tela cheia em HDMI-0, 1920×1080, enquanto a raiz permaneceu
+em DP-0. Espaço, Home, seta para baixo e Esc exerceram leitura, pausa, início,
+posição e fechamento. O preview sintético continuou recebendo frames e os
+efeitos confirmados permaneceram idênticos. A leitura continuou com a raiz
+minimizada. Nenhum frame de câmera física foi gravado.
+
+A captura nativa da apresentação confirmou espelhamento horizontal do texto:
+a diferença média foi 0,0068 por canal de 8 bits contra a imagem refletida,
+excluindo a guia fixa; 140.190 canais tinham intensidade acima de 64, recusando
+um falso resultado de tela vazia. Logs, imagens sintéticas e estados estão em
+`target/prompter-acceptance/`, fora do Git. A exibição inicial foi conferida
+novamente após estabilizar a janela; não foi necessária alteração de fontes.
+
+Intervalos de controle superiores a dois segundos pausam sem pular o roteiro.
+Além do relógio monotônico, o controlador verifica o relógio de parede porque
+Linux não inclui suspensão no tempo monotônico. A simulação do intervalo é
+automática; suspensão física e teste com Elgato Prompter continuam pendentes.
+A conexão USB local não contém esse dispositivo. Monitor comum não comprova
+DisplayLink ou compatibilidade de comandos proprietários.

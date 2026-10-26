@@ -4,6 +4,12 @@ use eframe::egui;
 use std::path::PathBuf;
 
 pub fn capture(ctx: &egui::Context) {
+    let viewport = std::env::var("FACECAM_TEST_UI_VIEWPORT")
+        .map(egui::ViewportId::from_hash_of)
+        .unwrap_or(egui::ViewportId::ROOT);
+    if ctx.viewport_id() != viewport {
+        return;
+    }
     let Some(path) = std::env::var_os("FACECAM_TEST_UI_CAPTURE").map(PathBuf::from) else {
         return;
     };

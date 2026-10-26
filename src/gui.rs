@@ -164,7 +164,10 @@ struct App {
     texture: Option<egui::TextureHandle>,
     pending: HashMap<String, i64>,
     grid: bool,
-    effects: bool,
+    tab: u8,
+    prompter_draft: crate::prompter::Settings,
+    applied_prompter: crate::prompter::Settings,
+    monitors: Vec<String>,
     settings: bool,
     hidden: bool,
     show_revision: u64,
@@ -234,11 +237,14 @@ impl App {
         Self {
             controller,
             applied_effects: config.effects.clone(),
-            config,
             texture: None,
             pending: HashMap::new(),
             grid: false,
-            effects: false,
+            tab: 0,
+            prompter_draft: config.prompter.clone(),
+            applied_prompter: config.prompter.clone(),
+            config,
+            monitors: Vec::new(),
             settings: false,
             hidden,
             show_revision: 0,
@@ -388,14 +394,156 @@ impl App {
         ui.add_space(3.0);
     }
 
+    fn prompter_panel(&mut self, ui: &mut egui::Ui, state: &Snapshot) {
+        use crate::prompter::Action;
+        egui::ScrollArea::vertical()
+            .max_height((ui.available_height() - 154.0).max(80.0))
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                effect_card(ui, "Roteiro", true, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.prompter_draft.text)
+                            .id_salt("prompter-script")
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(9)
+                            .hint_text(t("Cole ou escreva seu roteiro aqui")),
+                    );
+                    ui.small(t(
+                        "Roteiro de até 8 KiB. O texto não aparece na câmera virtual.",
+                    ));
+                });
+                effect_card(ui, "Leitura", true, |ui| {
+                    ui.label(t("Velocidade (palavras/min)"));
+                    ui.add(egui::Slider::new(
+                        &mut self.prompter_draft.words_per_minute,
+                        30..=400,
+                    ));
+                    ui.label(t("Tamanho do texto (pt)"));
+                    ui.add(egui::Slider::new(
+                        &mut self.prompter_draft.font_size,
+                        16..=128,
+                    ));
+                    ui.checkbox(&mut self.prompter_draft.mirror, t("Espelhar texto"));
+                    ui.label(t("Tela de apresentação"));
+                    egui::ComboBox::from_id_salt("prompter-monitor")
+                        .width(ui.available_width())
+                        .truncate()
+                        .selected_text(
+                            self.prompter_draft
+                                .monitor
+                                .and_then(|i| self.monitors.get(i).cloned())
+                                .unwrap_or_else(|| t("Janela móvel")),
+                        )
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.prompter_draft.monitor,
+                                None,
+                                t("Janela móvel"),
+                            );
+                            for (index, name) in self.monitors.iter().enumerate() {
+                                ui.selectable_value(
+                                    &mut self.prompter_draft.monitor,
+                                    Some(index),
+                                    name,
+                                );
+                            }
+                        });
+                    let valid = self.prompter_draft.validate();
+                    if let Err(error) = &valid {
+                        ui.colored_label(Color32::LIGHT_RED, t(&error.to_string()));
+                    }
+                    if ui
+                        .add_enabled(
+                            valid.is_ok(),
+                            egui::Button::new(t("Salvar roteiro")).fill(ACCENT),
+                        )
+                        .clicked()
+                    {
+                        self.dispatch(Request::UpdatePrompter {
+                            settings: self.prompter_draft.clone(),
+                        });
+                    }
+                });
+            });
+        egui::Frame::new()
+            .fill(PANEL)
+            .corner_radius(3)
+            .inner_margin(10)
+            .show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            state.config.prompter.words() > 0,
+                            egui::Button::new(t(if state.prompter.playing {
+                                "Pausar leitura"
+                            } else {
+                                "Iniciar leitura"
+                            })),
+                        )
+                        .clicked()
+                    {
+                        self.dispatch(Request::ControlPrompter {
+                            action: if state.prompter.playing {
+                                Action::Pause
+                            } else {
+                                Action::Play
+                            },
+                        });
+                    }
+                    if ui.button(t("Voltar ao início")).clicked() {
+                        self.dispatch(Request::ControlPrompter {
+                            action: Action::Rewind,
+                        });
+                    }
+                });
+                let mut position = state.prompter.position * 100.0;
+                if ui
+                    .add(
+                        egui::Slider::new(&mut position, 0.0..=100.0)
+                            .suffix("%")
+                            .text(t("Posição")),
+                    )
+                    .changed()
+                {
+                    self.dispatch(Request::SeekPrompter {
+                        position: position / 100.0,
+                    });
+                }
+                if ui
+                    .button(t(if state.prompter.presenting {
+                        "Fechar apresentação"
+                    } else {
+                        "Abrir apresentação"
+                    }))
+                    .clicked()
+                {
+                    self.dispatch(Request::ControlPrompter {
+                        action: if state.prompter.presenting {
+                            Action::Hide
+                        } else {
+                            Action::Show
+                        },
+                    });
+                }
+                ui.small(t(
+                    "Espaço: ler/pausar · Home: início · Esc: fechar apresentação",
+                ));
+            });
+    }
+
     fn sidebar(&mut self, ui: &mut egui::Ui, state: &Snapshot) {
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.effects, false, t("Camera"));
-            ui.selectable_value(&mut self.effects, true, t("Effects"));
-            ui.add_enabled(false, egui::Button::new(t("Prompter")));
+            ui.selectable_value(&mut self.tab, 0, t("Camera"));
+            ui.selectable_value(&mut self.tab, 1, t("Effects"));
+            ui.selectable_value(&mut self.tab, 2, t("Prompter"));
         });
         ui.add_space(3.0);
-        if self.effects {
+        if self.tab == 2 {
+            self.prompter_panel(ui, state);
+            return;
+        }
+        if self.tab == 1 {
             self.effects_panel(ui, state);
             return;
         }
@@ -893,13 +1041,47 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn logic(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
         crate::gui_test::capture(ctx);
+        let presentation = self.state();
+        if presentation.prompter.presenting {
+            crate::prompter_gui::presentation(
+                ctx,
+                &self.controller.shared,
+                &self.controller.tx,
+                &presentation.config.prompter,
+            );
+        }
         self.poll_file_dialog();
         let state = self.state();
         self.config.virtual_device = state.config.virtual_device.clone();
         self.config.ui = state.config.ui.clone();
+        if self.applied_prompter != state.config.prompter {
+            self.prompter_draft = state.config.prompter.clone();
+            self.applied_prompter = state.config.prompter.clone();
+        }
+        self.config.prompter = state.config.prompter.clone();
+        if (self.tab == 2 || state.prompter.presenting)
+            && let Some(window) = frame.winit_window()
+        {
+            let monitors: Vec<String> = window
+                .available_monitors()
+                .enumerate()
+                .map(|(index, m)| {
+                    format!(
+                        "{} · {} × {}",
+                        m.name().unwrap_or_else(|| format!("Monitor {}", index + 1)),
+                        m.size().width,
+                        m.size().height
+                    )
+                })
+                .collect();
+            if monitors != self.monitors {
+                self.monitors = monitors.clone();
+                self.dispatch(Request::ReportPrompterDisplays { displays: monitors });
+            }
+        }
         if state.import_revision != self.import_revision {
             self.import_revision = state.import_revision;
             if let Some(resource) = &state.imported
@@ -955,7 +1137,7 @@ impl eframe::App for App {
             self.tray_streaming = state.streaming;
             self.tray_language = state.config.ui.language.clone();
         }
-        if !self.hidden {
+        if !self.hidden && self.tab != 2 {
             if let Some(frame) = self
                 .controller
                 .frames
@@ -1031,7 +1213,14 @@ impl eframe::App for App {
             .show(root, |ui| self.sidebar(ui, &state));
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(CANVAS).inner_margin(14))
-            .show(root, |ui| self.preview(ui, &state));
+            .show(root, |ui| {
+                if self.tab == 2 {
+                    crate::prompter_gui::reading(ui, &state.config.prompter, &state.prompter);
+                    crate::prompter_gui::keys(&ctx, &state.prompter, &self.controller.tx);
+                } else {
+                    self.preview(ui, &state);
+                }
+            });
         let mut open = self.settings;
         egui::Window::new(t("Configurações"))
             .id(egui::Id::new("settings-window"))

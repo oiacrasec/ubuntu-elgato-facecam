@@ -126,11 +126,14 @@ Os testes cobrem valores negativos, zero, positivos, extremos, persistência,
 recusas, comandos IPC e renderização sintética. A verificação de câmera física
 é optativa. Logs de vídeo ficam ao lado da configuração em `virtualcam.err.log`.
 
-Firmware, HDR proprietário, Prompter e persistência interna da câmera permanecem
+O [Prompter](docs/PROMPTER.md) oferece roteiro, rolagem e apresentação em monitor.
+A integração com o dispositivo físico permanece pendente.
+
+Firmware, HDR proprietário e persistência interna da câmera permanecem
 fora da implementação. A compilação suporta X11 e Wayland; a validação local
 inicial foi em X11. A integração com cada consumidor de câmera virtual precisa
 ser exercitada no ambiente de destino.
 
 Projeto independente, sem afiliação com Elgato ou Corsair. Código sob [MIT](LICENSE).
-O pacote macOS e evidências locais ficam em `package/`, ignorado pelo Git, e não
+O instalador Windows e evidências locais ficam em `package/`, ignorado pelo Git, e não
 integram a distribuição. Modelos e runtimes externos mantêm suas próprias licenças.

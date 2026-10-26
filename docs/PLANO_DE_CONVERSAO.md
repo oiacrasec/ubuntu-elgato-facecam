@@ -9,7 +9,9 @@ não substitui seus testes.
 - [x] Internacionalização: PT-BR padrão, EN-US, arquivos de texto para a comunidade,
   seleção persistida e troca sem interromper captura ou perder rascunhos.
 - [ ] Prompter: roteiro, leitura e rolagem, apresentação em monitor e controles
-  pelo controlador, sem inserir o texto na saída da câmera.
+  pelo controlador, sem inserir o texto na saída da câmera. Núcleo implementado e
+  validado em monitor comum; integração física e recursos avançados pendentes. Veja
+  [Prompter](PROMPTER.md).
 - [ ] IA: correção de olhar e enquadramento automático completos, com GPU e
   preparação validada dos componentes necessários.
 - [ ] HDR: descoberta e operação somente com contrato confirmado por modelo;

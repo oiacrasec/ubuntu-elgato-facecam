@@ -16,8 +16,9 @@ catálogo de tokens em crate separado ou biblioteca própria de widgets. Ao ampl
 a UI, centralize novos valores em vez de espalhar estilos em cada callback.
 
 **Câmera** reúne **Dispositivo**, **Enquadramento**, **Imagem**, **Exposição**, **Balanço de branco**
-e **Processamento**. **Efeitos** reúne processamento local e IA. **Prompter** aparece
-desabilitado; isso não comprova integração com o dispositivo.
+e **Processamento**. **Efeitos** reúne processamento local e IA. **Prompter** reúne
+roteiro, leitura e apresentação em monitor, com [contratos próprios](PROMPTER.md).
+Isso não comprova integração com o dispositivo Elgato.
 
 **Efeitos** usa a mesma geometria de cards de **Câmera**: margens de 10 pontos,
 cantos de 3 pontos, títulos de 13 pontos e intervalos compactos. **Visual** reúne o

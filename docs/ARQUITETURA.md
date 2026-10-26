@@ -226,6 +226,22 @@ compartilhado e teste de saída. Aceleração deve declarar dependências e falh
 forma visível. A compilação sem recursos padrão permanece útil sem bibliotecas
 gráficas ou IA. Não há download automático na inicialização.
 
-Firmware, controles USB proprietários, HDR proprietário, Prompter e persistência
+Firmware, controles USB proprietários, HDR proprietário e persistência
 na câmera exigem investigação própria. A presença de um recurso no pacote macOS
 não comprova seu protocolo nem sua disponibilidade em Linux.
+
+## Prompter
+
+`prompter.rs` contém parâmetros validados e avanço determinístico da leitura.
+`Config.prompter` persiste roteiro/aparência; `Snapshot.prompter` publica reprodução,
+posição e apresentação da sessão. `UpdatePrompter` salva antes de substituir os
+parâmetros; texto diferente pausa e reposiciona. `ControlPrompter` e `SeekPrompter`
+operam sem tocar no stream. O tick usa tempo monotônico e pausa após intervalos
+superiores a dois segundos, evitando saltos após suspensão ou travamento.
+
+`ReportPrompterDisplays` recebe a lista que o frontend nativo conhece. Mudanças
+pausam e fecham a apresentação; `Show` recusa índice indisponível ou headless.
+`prompter_gui.rs` somente desenha o texto e envia comandos. A janela egui deferred
+é registrada também na lógica, continuando ativa com a raiz minimizada. O espelho
+reflete a malha do nosso texto. Não existe ligação com os filtros da câmera.
+A GUI evita atualizar sua textura de preview enquanto a aba Prompter está aberta.

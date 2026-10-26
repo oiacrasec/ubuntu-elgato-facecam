@@ -163,3 +163,21 @@ transação distribuída, batch atômico ou identificador de idempotência.
 Autorização por cliente, diretórios de leitura/escrita por capability, rate limits,
 cancelamento de operações longas e auditoria estruturada são propostas, não
 proteções existentes. [Segurança](SEGURANCA.md) define as fronteiras atuais.
+
+## Roteiro e apresentação
+
+`update_prompter` recebe `settings` com `text`, `words_per_minute`, `font_size`,
+`mirror` e `monitor`. Os padrões e limites estão no [guia](PROMPTER.md).
+A troca salva antes de publicar; texto novo pausa e volta à posição zero.
+`control_prompter.action` aceita `play`, `pause`, `rewind`, `show` e `hide`.
+`seek_prompter.position` é um número finito entre 0 e 1. A CLI usa porcentagem em
+`--prompter-position`; `--prompter-settings` lê JSON e `--prompter-action` usa as
+mesmas ações. Nenhum desses comandos inicia ou reinicia a captura.
+
+`state.prompter` contém `playing`, `presenting` e `position`. `prompter_displays`
+lista os nomes e dimensões dos monitores, na ordem do backend nativo. A GUI envia
+`report_prompter_displays` quando essa lista muda; o controlador aceita até 32
+nomes de até 512 bytes e recusa o comando em headless. Índices indisponíveis
+impedem `show`; mudanças na lista fecham e pausam uma apresentação ativa.
+O IPC mantém o limite de 64 KiB por pedido; texto tem limite de 8 KiB para
+acomodar escapes JSON e os demais campos.

@@ -187,7 +187,7 @@ de execução concorrente à [arquitetura Rust](ARQUITETURA.md).
 | Correção de olhar | Integração AR e GazeRedirection | Não implementado; precisa de modelo/backend e teste de qualidade próprios |
 | Enquadramento automático | FaceTrack e parâmetros de transição | Não implementado; definir detecção, suavização, crop e interação com PTZ físico |
 | HDR e processamento proprietário | Imports/getters CCUVC | Investigação por família; não equiparar a contraste/denoise genéricos |
-| Prompter | XML, textos e componentes DisplayLink | Não implementado; separar monitor, texto, rolagem e transporte do dispositivo |
+| Prompter | XML, textos e componentes DisplayLink | Roteiro, rolagem, espelho e apresentação implementados; transporte DisplayLink, Voice Sync, Twitch e biblioteca de roteiros ainda pendentes |
 | NDI | Três DLLs distribuídas no MSI | Alcance funcional não confirmado; não anunciar transmissão NDI existente |
 | Automação externa | Nomes de métodos e bibliotecas WebSocket | CLI/IPC local já existe; protocolo de compatibilidade ainda não estabelecido |
 | Persistência na câmera e firmware | Arquivos, descritores e imports de atualização | Não implementado; requer protocolo confirmado e recuperação, sem escrita experimental |

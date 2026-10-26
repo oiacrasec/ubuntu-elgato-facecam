@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     path::PathBuf,
     sync::{Arc, RwLock},
-    time::Instant,
+    time::{Duration, Instant, SystemTime},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -39,6 +39,18 @@ pub enum Request {
     },
     SetEffects {
         effects: crate::effects::Effects,
+    },
+    ReportPrompterDisplays {
+        displays: Vec<String>,
+    },
+    UpdatePrompter {
+        settings: crate::prompter::Settings,
+    },
+    ControlPrompter {
+        action: crate::prompter::Action,
+    },
+    SeekPrompter {
+        position: f64,
     },
     SetAutostart {
         enabled: bool,
@@ -83,6 +95,10 @@ pub struct Snapshot {
     pub preview: bool,
     pub uptime_seconds: u64,
     pub preview_frames: u64,
+    #[serde(default)]
+    pub prompter: crate::prompter::State,
+    #[serde(default)]
+    pub prompter_displays: Vec<String>,
     pub message: String,
     pub error: Option<String>,
     pub show_revision: u64,
@@ -133,6 +149,8 @@ pub struct Engine {
     path: PathBuf,
     stream: Option<Stream>,
     last_refresh: Instant,
+    last_prompter_tick: Instant,
+    last_prompter_wall: SystemTime,
     write_failures: BTreeMap<String, String>,
     installation: Option<crate::dependencies::Installation>,
     installation_revision: u64,
@@ -168,6 +186,8 @@ impl Engine {
             preview: false,
             uptime_seconds: 0,
             preview_frames: 0,
+            prompter: Default::default(),
+            prompter_displays: Vec::new(),
             message: "Pronto".into(),
             error: language_error,
             show_revision: 0,
@@ -199,6 +219,8 @@ impl Engine {
             path,
             stream: None,
             last_refresh: Instant::now(),
+            last_prompter_tick: Instant::now(),
+            last_prompter_wall: SystemTime::now(),
             write_failures: BTreeMap::new(),
             installation: None,
             import: None,
@@ -480,6 +502,89 @@ impl Engine {
                     crate::i18n::activate(catalog);
                 }
                 return Ok("Configurações atualizadas".into());
+            }
+            Request::ReportPrompterDisplays { displays } => {
+                if !self.state.gui
+                    || displays.len() > 32
+                    || displays
+                        .iter()
+                        .any(|name| name.len() > 512 || name.chars().any(char::is_control))
+                {
+                    bail!("Lista de monitores inválida");
+                }
+                if displays != self.state.prompter_displays {
+                    self.state.prompter_displays = displays;
+                    if self.state.prompter.presenting {
+                        self.state.prompter.presenting = false;
+                        self.state.prompter.playing = false;
+                        return Ok("Monitores alterados; abra a apresentação novamente".into());
+                    }
+                }
+                return Ok("Monitores do Prompter atualizados".into());
+            }
+            Request::UpdatePrompter { settings } => {
+                settings.validate()?;
+                let mut config = self.state.config.clone();
+                let script_changed = config.prompter.text != settings.text;
+                config.prompter = settings;
+                config.save(&self.path)?;
+                self.advance_prompter();
+                self.state.config = config;
+                if script_changed {
+                    self.state.prompter.playing = false;
+                    self.state.prompter.position = 0.0;
+                }
+                return Ok("Roteiro e preferências salvos".into());
+            }
+            Request::ControlPrompter { action } => {
+                use crate::prompter::Action;
+                if matches!(action, Action::Play) && self.state.config.prompter.words() == 0 {
+                    bail!("Escreva um roteiro antes de iniciar a leitura");
+                }
+                if matches!(action, Action::Show) && !self.state.gui {
+                    bail!("Abra a interface para apresentar o Prompter");
+                }
+                if matches!(action, Action::Show)
+                    && self
+                        .state
+                        .config
+                        .prompter
+                        .monitor
+                        .is_some_and(|index| index >= self.state.prompter_displays.len())
+                {
+                    bail!("Monitor indisponível; escolha outra tela de apresentação");
+                }
+                self.advance_prompter();
+                match action {
+                    Action::Play => {
+                        if self.state.prompter.position >= 1.0 {
+                            self.state.prompter.position = 0.0;
+                        }
+                        self.state.prompter.playing = true;
+                    }
+                    Action::Pause => self.state.prompter.playing = false,
+                    Action::Rewind => {
+                        self.state.prompter.playing = false;
+                        self.state.prompter.position = 0.0;
+                    }
+                    Action::Show => self.state.prompter.presenting = true,
+                    Action::Hide => {
+                        self.state.prompter.presenting = false;
+                        self.state.prompter.playing = false;
+                    }
+                }
+                return Ok("Prompter atualizado".into());
+            }
+            Request::SeekPrompter { position } => {
+                if !position.is_finite() || !(0.0..=1.0).contains(&position) {
+                    bail!("Posição do roteiro deve estar entre 0 e 100%");
+                }
+                self.advance_prompter();
+                self.state.prompter.position = position;
+                if position >= 1.0 {
+                    self.state.prompter.playing = false;
+                }
+                return Ok("Posição do roteiro atualizada".into());
             }
             Request::SetAutostart { enabled } => {
                 let result = if enabled {
@@ -859,8 +964,25 @@ impl Engine {
         }
     }
 
+    fn advance_prompter(&mut self) -> bool {
+        let now = Instant::now();
+        let wall = SystemTime::now();
+        // Linux monotonic time excludes suspend. Wall time detects that gap too.
+        let elapsed = match wall.duration_since(self.last_prompter_wall) {
+            Ok(gap) if gap <= Duration::from_secs(2) => now.duration_since(self.last_prompter_tick),
+            _ => Duration::from_secs(3),
+        };
+        self.last_prompter_tick = now;
+        self.last_prompter_wall = wall;
+        crate::prompter::advance(
+            &mut self.state.prompter,
+            &self.state.config.prompter,
+            elapsed,
+        )
+    }
+
     pub fn tick(&mut self) -> bool {
-        let mut changed = false;
+        let mut changed = self.advance_prompter();
         #[cfg(feature = "ai")]
         while let Some(event) = self.nvidia_preparation.as_ref().and_then(|job| job.poll()) {
             changed = true;
@@ -1229,5 +1351,68 @@ mod tests {
         assert!(reply.message.contains("Nenhum ajuste aplicado"));
         assert!(reply.message.contains("backlight_compensation"));
         assert!(!reply.message.contains("v4l2-ctl"));
+    }
+    #[test]
+    fn prompter_display_changes_pause_and_close_without_modifying_video() {
+        use crate::prompter::Action;
+        let (_dir, mut engine) = engine();
+        engine.state.gui = true;
+        let effects = engine.state.config.effects.clone();
+        let initial = engine.handle(Request::ReportPrompterDisplays {
+            displays: vec!["Display A".into()],
+        });
+        assert!(initial.ok);
+        let mut settings = crate::prompter::Settings {
+            text: "one two three four".into(),
+            monitor: Some(1),
+            ..Default::default()
+        };
+        assert!(
+            engine
+                .handle(Request::UpdatePrompter {
+                    settings: settings.clone()
+                })
+                .ok
+        );
+        assert!(
+            !engine
+                .handle(Request::ControlPrompter {
+                    action: Action::Show
+                })
+                .ok
+        );
+        settings.monitor = Some(0);
+        assert!(engine.handle(Request::UpdatePrompter { settings }).ok);
+        assert!(
+            engine
+                .handle(Request::ControlPrompter {
+                    action: Action::Show
+                })
+                .ok
+        );
+        assert!(
+            engine
+                .handle(Request::ControlPrompter {
+                    action: Action::Play
+                })
+                .ok
+        );
+        let reply = engine.handle(Request::ReportPrompterDisplays { displays: vec![] });
+        assert!(reply.ok);
+        assert!(!reply.state.prompter.presenting);
+        assert!(!reply.state.prompter.playing);
+        assert_eq!(reply.state.config.effects, effects);
+        engine.state.prompter.playing = true;
+        engine.state.prompter.position = 0.25;
+        engine.last_prompter_tick = Instant::now();
+        engine.last_prompter_wall = SystemTime::now() - Duration::from_secs(8);
+        assert!(engine.advance_prompter());
+        assert!(!engine.state.prompter.playing);
+        assert_eq!(engine.state.prompter.position, 0.25);
+        for position in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1.0, 1.01] {
+            let before = engine.state.prompter.position;
+            assert!(!engine.handle(Request::SeekPrompter { position }).ok);
+            assert_eq!(engine.state.prompter.position, before);
+        }
     }
 }

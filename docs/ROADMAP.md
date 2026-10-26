@@ -26,7 +26,8 @@ local, lacunas e condições de aceitação.
 | Instalação no usuário | Implementado | Scripts e prefixos; falta matriz de upgrade entre releases publicadas |
 | Idiomas | Implementado | PT-BR padrão, EN-US, seletor persistido e catálogos JSON extensíveis sem recompilar; [guia](LOCALIZACAO.md) |
 | Segurança e distribuição verificável | Parcial | Controles locais presentes; lacunas em Segurança e Distribuição |
-| Prompter, HDR e firmware proprietário | Proposto para paridade completa | [Investigação Windows/macOS](REFERENCIA_WINDOWS.md); contratos por modelo ainda pendentes |
+| Prompter | Implementado, paridade parcial | Roteiro, leitura, espelho, atalhos, monitor e CLI; dispositivo físico e integrações avançadas pendentes; [guia](PROMPTER.md) |
+| HDR e firmware proprietário | Proposto para paridade completa | [Investigação Windows/macOS](REFERENCIA_WINDOWS.md); contratos por modelo ainda pendentes; firmware fora do escopo autorizado |
 | Relighting, eye contact | Proposto | Sem implementação ou estimativa validada |
 | Plugins, batch, MCP e web | Proposto | Não são recursos da entrega Linux atual |
 
@@ -59,7 +60,7 @@ completa ainda depende dos grupos abaixo; não há uma porcentagem global valida
 | IA da referência Windows | Correção de olhar e enquadramento automático, incluindo modelo, estado temporal, parâmetros e qualidade comparativa; AR 0.8.2 ainda não executa no produto |
 | Famílias RTX | Reconstruir e testar combinações para Turing, Ampere e Blackwell; o caminho temporal nativo atual só foi exercitado em Ada/RTX 4070 SUPER |
 | Controles e hardware proprietário | Confirmar transportes por modelo para HDR/tone mapping, processamento específico, persistência interna e firmware; controles V4L2 comuns não substituem esses protocolos |
-| Prompter e integrações | Implementar o fluxo de teleprompter e sua integração de dispositivo; confirmar o alcance de NDI e da automação da referência antes de prometer compatibilidade |
+| Prompter e integrações | Roteiro/rolagem/monitor/CLI implementados; faltam dispositivo físico, Voice Sync, Twitch e biblioteca de roteiros; confirmar o alcance de NDI e da automação antes de prometer compatibilidade |
 | Paridade visual e operação | Comparar telas e estados com Windows, completar idioma/acessibilidade e testar sessão Wayland, escalas e bandeja |
 | Aceitação e confiabilidade | OBS e navegador nas taxas/resoluções alvo, sessões prolongadas, desconexão/reconexão, suspensão e perda de GPU; conferir módulo e autostart após reiniciar |
 | Distribuição | Build reproduzível, pacote e dependências, atualização/remoção e matriz de suporte para Ubuntu 24.04+ |

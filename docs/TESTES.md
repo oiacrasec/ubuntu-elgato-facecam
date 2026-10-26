@@ -273,3 +273,18 @@ de screenshot de egui e grava o framebuffer em PPM. Ele não existe no release,
 não envia imagens e só atua com a variável definida. Espere o arquivo completo
 antes de abrir outra janela ou converter a imagem. Não use com imagem pessoal
 sem autorização. Essa captura evita artefatos de captura externa de janelas.
+
+## Roteiro e apresentação
+
+`tests/prompter.rs` usa controlador privado headless, texto sintético e CLI real.
+Confere reprodução/pausa, posição negativa, zero, positiva, acima de 100%, NaN e
+infinito, salvamento, falha de escrita, texto excessivo/inválido, preservação de
+efeitos e recusa de apresentação sem GUI. Testes unitários exercitam pausa após
+suspensão, final do roteiro, limites e mudança de monitores sem tocar no vídeo.
+
+Na inspeção gráfica, use somente roteiro sintético. Exercite apresentação em
+monitor, minimização da raiz, teclas, fechamento e retomada. O helper debug de
+captura aceita `FACECAM_TEST_UI_VIEWPORT=prompter-output` para capturar somente a
+janela de apresentação. Ausente essa variável, captura somente o viewport raiz.
+O teste de texto espelhado compara o framebuffer refletido horizontalmente,
+excluindo a guia fixa, e exige pixels de texto; uma janela vazia não passa.

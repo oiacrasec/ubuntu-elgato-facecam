@@ -22,6 +22,9 @@ mod nvidia;
 mod nvidia_model;
 #[cfg(feature = "ai")]
 mod nvidia_setup;
+mod prompter;
+#[cfg(feature = "gui")]
+mod prompter_gui;
 mod resources;
 mod stream;
 #[cfg(feature = "tray")]
@@ -69,6 +72,20 @@ struct Args {
         help = "Apply and save an effects JSON file through the running controller"
     )]
     set_effects: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "JSON_FILE",
+        help = "Save Prompter script and reading settings"
+    )]
+    prompter_settings: Option<PathBuf>,
+    #[arg(long, value_enum, help = "Control script playback and presentation")]
+    prompter_action: Option<prompter::Action>,
+    #[arg(
+        long,
+        value_name = "PERCENT",
+        help = "Seek the script from 0 to 100 percent"
+    )]
+    prompter_position: Option<f64>,
     #[arg(
         long,
         help = "Check the configured AI model and runtime, including a real inference"
@@ -365,6 +382,24 @@ fn run() -> Result<()> {
     if let (Some(kind), Some(file)) = (args.import_resource, args.import_file) {
         return print_reply(
             ipc::send(&Request::ImportResource { kind, path: file })?,
+            &path,
+        );
+    }
+    if let Some(file) = args.prompter_settings {
+        let settings = serde_json::from_slice(&std::fs::read(file)?)?;
+        return print_reply(ipc::send(&Request::UpdatePrompter { settings })?, &path);
+    }
+    if let Some(action) = args.prompter_action {
+        return print_reply(ipc::send(&Request::ControlPrompter { action })?, &path);
+    }
+    if let Some(percent) = args.prompter_position {
+        if !percent.is_finite() || !(0.0..=100.0).contains(&percent) {
+            bail!("Posição do roteiro deve estar entre 0 e 100%");
+        }
+        return print_reply(
+            ipc::send(&Request::SeekPrompter {
+                position: percent / 100.0,
+            })?,
             &path,
         );
     }
