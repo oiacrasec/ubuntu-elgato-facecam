@@ -4,6 +4,9 @@ O alvo é paridade funcional e visual com Camera Hub Windows 2.3.0.7295 em Rust
 para Ubuntu 24.04+. Esta página distingue código existente, evidência
 local, lacunas e condições de aceitação.
 
+O [ponto de retomada de 26/10/2026](PLANO_DE_CONVERSAO.md#ponto-de-retomada--26102026)
+registra commits, arquivos, validações e a sequência para continuar a integração AR.
+
 ## Matriz atual
 
 | Dimensão | Estado | Evidência ou próxima verificação |
