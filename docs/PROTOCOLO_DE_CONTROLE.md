@@ -38,6 +38,7 @@ A proteção atual depende do usuário e das permissões locais.
 | `confirm_install` | `id`, u64 | Confirma o plano atual e inicia instalação com autenticação do Ubuntu |
 | `cancel_install` | nenhum | Descarta o plano pendente; não interrompe uma transação APT iniciada |
 | `import_resource` | `kind`: `lut`, `image` ou `video`; `path`: arquivo local | Inicia validação e cópia para a biblioteca em segundo plano; não aplica efeitos |
+| `remove_image` | `path`: imagem da biblioteca gravável | Remove somente a cópia importada; se estiver aplicada, troca para desfoque e salva antes de excluir |
 | `save` | nenhum | Salva configuração e controles graváveis atuais |
 | `restore` | nenhum | Restaura controles locais disponíveis |
 | `show` | nenhum | Solicita visibilidade da janela |
@@ -81,7 +82,10 @@ sem estado confiável. Um plano inclui `action` (`install`/`remove`), `dependenc
 e `removals` (pacotes que a simulação removeria). O protocolo mantém os nomes
 `confirm_install`/`cancel_install` para os dois tipos de plano, com o mesmo ID.
 
-`resources` contém tipo, nome e caminho interno dos recursos descobertos.
+`resources` contém tipo, nome, caminho interno e `removable` dos recursos descobertos.
+Somente imagens regulares da biblioteca desta configuração são removíveis.
+`--remove-image ARQUIVO` envia `remove_image` pelo mesmo controlador. Caminhos
+externos, compartilhados e symlinks são recusados; o original é preservado.
 `importing`, `imported` e `import_revision` publicam progresso e última importação
 concluída. A revisão só aumenta no sucesso. Falhas aparecem em `state.error`, sem
 alterar a seleção salva. Caminhos existem no protocolo para automação; a GUI

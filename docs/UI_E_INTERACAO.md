@@ -62,6 +62,11 @@ miniatura do primeiro frame. **Adicionar LUT…**, **Adicionar imagem…** e
 diálogo não importa nem aplica. Modelo/runtime e saída virtual são detectados;
 não há campos de caminho na GUI. A seleção de provider fica em **Opções avançadas**.
 
+Em **Minha imagem**, **Adicionar imagem…** e **Remover imagem** ficam na mesma
+linha. A remoção usa o controlador, preserva o original e só permite cópias da
+biblioteca gravável. Seu tooltip informa a troca para desfoque se estiver aplicada.
+A seleção e a miniatura são limpas após a confirmação da remoção no catálogo.
+
 O botão **Mirror** abaixo do preview aplica e salva o espelho pelo controlador,
 afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Effects**.
 **Grid** desenha uma sobreposição de visualização. A

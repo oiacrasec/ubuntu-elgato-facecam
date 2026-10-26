@@ -163,6 +163,13 @@ faz uma inferência de aquecimento antes de trocar a captura. A descoberta dos
 arquivos não liga o desfoque e não comprova compatibilidade CUDA. Erros de provider
 aparecem em vez de usar CPU silenciosamente.
 
+Para corrigir uma importação errada, selecione a imagem em **Minha imagem** e
+clique em **Remover imagem**. A remoção é imediata e apaga somente a cópia da
+biblioteca; o original permanece intacto. Se a imagem estiver aplicada, o app
+troca para **Desfoque**, preserva a IA e salva a mudança antes de remover a cópia.
+Se a troca falhar, a imagem permanece disponível. Imagens externas e compartilhadas
+não podem ser apagadas por esse botão. Você pode adicionar outra imagem em seguida.
+
 **FPS da IA** limita preview e saída virtual a 30 fps por padrão, mantendo a
 resolução escolhida. Ambos recebem os mesmos quadros, inclusive com apenas
 preview ativo. O rodapé **Output** mostra resolução e taxa configuradas para a

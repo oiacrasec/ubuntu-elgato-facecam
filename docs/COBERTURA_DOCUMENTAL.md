@@ -51,6 +51,11 @@ CPU estão em [Desempenho](DESEMPENHO.md), [Arquitetura](ARQUITETURA.md) e
 [Testes](TESTES.md). As medições locais ficam em [Validação local](VALIDACAO_LOCAL.md).
 Os IDs e hashes históricos permanecem preservados.
 
+A remoção de imagens importadas está em [Uso](USO.md), com autorização e estado
+em [Arquitetura](ARQUITETURA.md) e [Protocolo](PROTOCOLO_DE_CONTROLE.md). A revisão
+das lacunas para conversão completa fica em [Roadmap](ROADMAP.md), sem acrescentar
+fontes ao inventário histórico.
+
 | ID | Assunto | Destino | Adaptação | SHA-256 (prefixo) |
 | --- | --- | --- | --- | --- |
 | D001 | Regras para manutenção e agentes | [CONTRIBUICAO.md](CONTRIBUICAO.md) | Comandos no núcleo, erros de entrada, recursos próprios e revisão verificável. | `2fcac6815bcd` |

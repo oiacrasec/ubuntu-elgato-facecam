@@ -52,6 +52,8 @@ pub struct Resource {
     pub kind: Kind,
     pub name: String,
     pub path: PathBuf,
+    #[serde(default)]
+    pub removable: bool,
 }
 
 const LOOKS: [(&str, &str); 3] = [
@@ -67,6 +69,7 @@ pub fn catalog(root: &Path, effects: &crate::effects::Effects) -> Vec<Resource> 
             kind: Kind::Lut,
             name: (*name).into(),
             path: root.join("builtins-v1").join(file),
+            removable: false,
         })
         .collect();
     // Keep explicitly selected resources visible even in a large library.
@@ -76,7 +79,7 @@ pub fn catalog(root: &Path, effects: &crate::effects::Effects) -> Vec<Resource> 
         (Kind::Video, &effects.background_video),
     ] {
         if !path.is_empty() {
-            add(&mut found, kind, path.into());
+            add(&mut found, root, kind, path.into());
         }
     }
     let mut roots = vec![root.to_owned()];
@@ -117,14 +120,14 @@ pub fn catalog(root: &Path, effects: &crate::effects::Effects) -> Vec<Resource> 
                 .collect();
             files.sort();
             for path in files {
-                add(&mut found, kind, path);
+                add(&mut found, root, kind, path);
             }
         }
     }
     found
 }
 
-fn add(found: &mut Vec<Resource>, kind: Kind, path: PathBuf) {
+fn add(found: &mut Vec<Resource>, root: &Path, kind: Kind, path: PathBuf) {
     let bytes: usize = found
         .iter()
         .map(|r| r.path.as_os_str().len() + r.name.len() + 128)
@@ -139,8 +142,39 @@ fn add(found: &mut Vec<Resource>, kind: Kind, path: PathBuf) {
             .unwrap_or_default()
             .to_string_lossy()
             .replace(['_', '-'], " ");
-        found.push(Resource { kind, name, path });
+        let removable = kind == Kind::Image && validate_owned_image(root, &path).is_ok();
+        found.push(Resource {
+            kind,
+            name,
+            path,
+            removable,
+        });
     }
+}
+
+/// Only imported copies in this controller's image directory can be removed.
+pub fn validate_owned_image(root: &Path, path: &Path) -> Result<()> {
+    let directory = root.join(Kind::Image.directory());
+    if path.parent() != Some(directory.as_path())
+        || !Kind::Image.accepts(path)
+        || path
+            .file_name()
+            .is_none_or(|n| n.to_string_lossy().starts_with('.'))
+        || !fs::symlink_metadata(&directory)
+            .context("Biblioteca de imagens indisponível")?
+            .is_dir()
+        || !fs::symlink_metadata(path)
+            .context("Imagem indisponível na biblioteca")?
+            .is_file()
+    {
+        bail!("Só é possível remover imagens importadas para a biblioteca deste aplicativo");
+    }
+    Ok(())
+}
+
+pub fn remove_image(root: &Path, path: &Path) -> Result<()> {
+    validate_owned_image(root, path)?;
+    fs::remove_file(path).context("Não foi possível remover a imagem da biblioteca")
 }
 
 /// Generate our own small color transforms only when a built-in is selected.
@@ -402,6 +436,7 @@ fn import(root: &Path, kind: Kind, source: &Path) -> Result<Resource> {
                 .to_string_lossy()
                 .replace(['_', '-'], " "),
             path: path.clone(),
+            removable: kind == Kind::Image && validate_owned_image(root, &path).is_ok(),
         })
     })();
     let _ = fs::remove_file(&staging);
@@ -411,6 +446,42 @@ fn import(root: &Path, kind: Kind, source: &Path) -> Result<Resource> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn image_removal_only_accepts_regular_imported_copies() {
+        use std::os::unix::fs::symlink;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("resources");
+        let images = root.join("images");
+        fs::create_dir_all(&images).unwrap();
+        let original = dir.path().join("original.png");
+        fs::write(&original, b"original remains untouched").unwrap();
+        let copy = images.join("copy.png");
+        fs::hard_link(&original, &copy).unwrap();
+        let link = images.join("link.png");
+        symlink(&original, &link).unwrap();
+        let folder = images.join("folder.png");
+        fs::create_dir(&folder).unwrap();
+        for path in [
+            &original,
+            &link,
+            &folder,
+            &images.join("../images/copy.png"),
+        ] {
+            assert!(remove_image(&root, path).is_err(), "accepted {path:?}");
+        }
+        let items = catalog(&root, &Default::default());
+        assert!(items.iter().any(|r| r.path == copy && r.removable));
+        assert!(!items.iter().any(|r| r.path == link && r.removable));
+        remove_image(&root, &copy).unwrap();
+        assert!(!copy.exists());
+        assert_eq!(fs::read(&original).unwrap(), b"original remains untouched");
+        assert!(remove_image(&root, &copy).is_err());
+        fs::rename(&images, root.join("saved-images")).unwrap();
+        symlink(dir.path(), &images).unwrap();
+        assert!(remove_image(&root, &images.join("original.png")).is_err());
+        assert!(original.exists());
+    }
+
     #[test]
     #[ignore = "requires FFmpeg; uses synthetic media, no camera"]
     fn ffmpeg_library_imports_images_and_videos_and_rejects_invalid_content() {

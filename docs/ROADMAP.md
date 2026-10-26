@@ -18,7 +18,7 @@ local, lacunas e condições de aceitação.
 | Processamento CUDA de fundo | Implementado, validação local | Resize, desfoque e composição na GPU; 1080p/60 com RTX 4070 SUPER, sem eliminar transferências RGB ou filtros CPU |
 | Substituição de fundo | Implementado | Cor sólida, três cenários ilustrados e PNG/JPEG/WebP/BMP próprio |
 | Fundo animado | Implementado, validação local | MP4/MOV/WebM/MKV próprio em loop; FPS sincronizado e decoder vinculado ao worker |
-| Biblioteca de Looks e fundos | Implementado nesta revisão | Nomes, miniatura de fundo, três LUTs próprias, importação validada e descoberta sem campos de caminho |
+| Biblioteca de Looks e fundos | Implementado nesta revisão | Nomes, miniatura, LUTs próprias, importação e remoção de imagens gerenciadas, sem campos de caminho |
 | Instalação de dependências por APT | Implementado, aceitação parcial | Estado dpkg e logs reais de FFmpeg/V4L2; SDK Manager instalado; remoção administrativa pendente |
 | Descoberta de arquivos de IA | Implementado nesta revisão | Diretórios conhecidos, registro do preparador e testes sem `--config` |
 | Interface | Implementado, paridade parcial | Layout Camera Hub e validação X11; comparação completa com Windows, Wayland e acessibilidade pendentes |
@@ -48,6 +48,27 @@ Cada nova evidência precisa indicar versão-alvo, plataforma, hardware, cenári
 resultado e limitações. Comparações com Camera Hub podem usar observação pública
 e especificações; recursos proprietários não são copiados. Comportamento observado
 no macOS não comprova comportamento no Windows ou suporte Linux.
+
+## Pendências para a conversão completa
+
+O fluxo de captura, fundo RTX e saída virtual já funciona localmente. A conversão
+completa ainda depende dos grupos abaixo; não há uma porcentagem global validada.
+
+| Grupo | Trabalho restante |
+| --- | --- |
+| IA da referência Windows | Correção de olhar e enquadramento automático, incluindo modelo, estado temporal, parâmetros e qualidade comparativa; AR 0.8.2 ainda não executa no produto |
+| Famílias RTX | Reconstruir e testar combinações para Turing, Ampere e Blackwell; o caminho temporal nativo atual só foi exercitado em Ada/RTX 4070 SUPER |
+| Controles e hardware proprietário | Confirmar transportes por modelo para HDR/tone mapping, processamento específico, persistência interna e firmware; controles V4L2 comuns não substituem esses protocolos |
+| Prompter e integrações | Implementar o fluxo de teleprompter e sua integração de dispositivo; confirmar o alcance de NDI e da automação da referência antes de prometer compatibilidade |
+| Paridade visual e operação | Comparar telas e estados com Windows, completar idioma/acessibilidade e testar sessão Wayland, escalas e bandeja |
+| Aceitação e confiabilidade | OBS e navegador nas taxas/resoluções alvo, sessões prolongadas, desconexão/reconexão, suspensão e perda de GPU; conferir módulo e autostart após reiniciar |
+| Distribuição | Build reproduzível, pacote e dependências, atualização/remoção e matriz de suporte para Ubuntu 24.04+ |
+
+Para avançar na paridade de IA desta RTX, a próxima implementação é a correção
+de olhar, seguida do enquadramento automático. Cada uma exige contrato e
+aceitação próprios. Recursos específicos de outro modelo de câmera ou Prompter
+precisam de hardware correspondente para validação. Relighting continua uma
+proposta; sua presença e alcance no alvo Windows ainda precisam de confirmação.
 
 ## Próximas entregas e gates
 

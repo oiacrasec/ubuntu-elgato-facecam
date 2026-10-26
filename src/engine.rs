@@ -60,6 +60,9 @@ pub enum Request {
         kind: crate::resources::Kind,
         path: PathBuf,
     },
+    RemoveImage {
+        path: PathBuf,
+    },
     Save,
     Restore,
     Show,
@@ -420,6 +423,22 @@ impl Engine {
         Ok(())
     }
 
+    fn update_image_effects(
+        &mut self,
+        effects: crate::effects::Effects,
+        reconfigure: bool,
+    ) -> Result<()> {
+        if reconfigure {
+            self.execute(Request::SetEffects { effects })?;
+        } else {
+            let mut config = self.state.config.clone();
+            config.effects = effects;
+            config.save(&self.path)?;
+            self.state.config = config;
+        }
+        Ok(())
+    }
+
     fn execute(&mut self, request: Request) -> Result<String> {
         match request {
             Request::Status => return Ok(self.state.message.clone()),
@@ -475,6 +494,45 @@ impl Engine {
                 )?);
                 self.state.importing = true;
                 return Ok("Adicionando arquivo à biblioteca…".into());
+            }
+            Request::RemoveImage { path } => {
+                if self.import.is_some() {
+                    bail!("Aguarde a importação atual terminar antes de remover uma imagem");
+                }
+                crate::resources::validate_owned_image(&self.resource_root, &path)?;
+                let previous = self.state.config.effects.clone();
+                let selected = std::path::Path::new(&previous.background_image) == path;
+                let using_image =
+                    selected && previous.background_mode == crate::effects::BackgroundMode::Image;
+                let reconfigure = using_image && previous.background_blur;
+                if selected {
+                    let mut effects = previous.clone();
+                    effects.background_image.clear();
+                    if using_image {
+                        effects.background_mode = crate::effects::BackgroundMode::Blur;
+                    }
+                    self.update_image_effects(effects, reconfigure)?;
+                }
+                if let Err(error) = crate::resources::remove_image(&self.resource_root, &path) {
+                    if selected
+                        && let Err(restore) = self.update_image_effects(previous, reconfigure)
+                    {
+                        bail!(
+                            "Imagem não removida: {error:#}. Não foi possível restaurar os efeitos anteriores: {restore:#}"
+                        );
+                    }
+                    return Err(error);
+                }
+                if self.state.imported.as_ref().is_some_and(|r| r.path == path) {
+                    self.state.imported = None;
+                }
+                self.state.resources =
+                    crate::resources::catalog(&self.resource_root, &self.state.config.effects);
+                return Ok(if using_image {
+                    "Imagem removida da biblioteca; fundo alterado para desfoque. O arquivo original foi preservado"
+                } else {
+                    "Imagem removida da biblioteca. O arquivo original foi preservado"
+                }.into());
             }
             Request::PrepareNvidia => {
                 #[cfg(not(feature = "ai"))]
@@ -883,6 +941,91 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn library_image(engine: &Engine) -> PathBuf {
+        let image = engine.resource_root.join("images/wrong.png");
+        std::fs::create_dir_all(image.parent().unwrap()).unwrap();
+        std::fs::write(&image, b"synthetic image placeholder").unwrap();
+        image
+    }
+
+    #[test]
+    fn image_removal_clears_saved_selection_and_preserves_other_settings() {
+        let (dir, mut engine) = engine();
+        let image = library_image(&engine);
+        engine.state.config.effects.background_image = image.to_str().unwrap().into();
+        engine.state.config.effects.background_mode = crate::effects::BackgroundMode::Image;
+        engine.state.config.effects.brightness = -0.25;
+        engine.state.config.save(&engine.path).unwrap();
+        let reply = engine.handle(Request::RemoveImage {
+            path: image.clone(),
+        });
+        assert!(reply.ok, "{}", reply.message);
+        assert!(!image.exists());
+        assert!(reply.state.config.effects.background_image.is_empty());
+        assert_eq!(
+            reply.state.config.effects.background_mode,
+            crate::effects::BackgroundMode::Blur
+        );
+        assert_eq!(reply.state.config.effects.brightness, -0.25);
+        assert!(!reply.state.resources.iter().any(|r| r.path == image));
+        let saved = Config::load(&dir.path().join("config.json")).unwrap();
+        assert_eq!(saved.effects, reply.state.config.effects);
+        assert!(!engine.handle(Request::RemoveImage { path: image }).ok);
+    }
+
+    #[test]
+    fn removing_unapplied_image_does_not_save_or_replace_effects() {
+        let (_dir, mut engine) = engine();
+        let image = library_image(&engine);
+        let effects = engine.state.config.effects.clone();
+        let reply = engine.handle(Request::RemoveImage {
+            path: image.clone(),
+        });
+        assert!(reply.ok, "{}", reply.message);
+        assert!(!image.exists());
+        assert!(!engine.path.exists());
+        assert_eq!(reply.state.config.effects, effects);
+    }
+
+    #[test]
+    fn image_removal_preserves_file_and_selection_when_saving_fails() {
+        let (_dir, mut engine) = engine();
+        let image = library_image(&engine);
+        engine.state.config.effects.background_image = image.to_str().unwrap().into();
+        let previous = engine.state.config.effects.clone();
+        std::fs::create_dir(&engine.path).unwrap();
+        let reply = engine.handle(Request::RemoveImage {
+            path: image.clone(),
+        });
+        assert!(!reply.ok);
+        assert!(image.is_file());
+        assert_eq!(reply.state.config.effects, previous);
+    }
+
+    #[test]
+    fn image_removal_restores_configuration_when_unlink_fails() {
+        use std::os::unix::fs::PermissionsExt;
+        if nix::unistd::Uid::effective().is_root() {
+            return;
+        }
+        let (_dir, mut engine) = engine();
+        let image = library_image(&engine);
+        engine.state.config.effects.background_image = image.to_str().unwrap().into();
+        engine.state.config.save(&engine.path).unwrap();
+        let previous = engine.state.config.effects.clone();
+        let saved = std::fs::read(&engine.path).unwrap();
+        let directory = image.parent().unwrap();
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let reply = engine.handle(Request::RemoveImage {
+            path: image.clone(),
+        });
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(!reply.ok);
+        assert!(image.is_file());
+        assert_eq!(reply.state.config.effects, previous);
+        assert_eq!(std::fs::read(&engine.path).unwrap(), saved);
+    }
 
     #[test]
     fn nvidia_preparation_blocks_capture_and_quit_without_touching_configuration() {

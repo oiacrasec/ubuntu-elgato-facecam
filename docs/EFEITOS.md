@@ -86,6 +86,12 @@ do desktop, sem bloquear a captura. A interface mostra nomes e miniatura do fund
 sem campos de caminho. A importação valida e copia o recurso para a biblioteca
 do app em segundo plano; um arquivo recusado não altera a configuração salva.
 O arquivo importado fica selecionado no rascunho até **Aplicar e salvar**.
+Em **Minha imagem**, **Remover imagem** exclui imediatamente a cópia selecionada
+da biblioteca gravável, preservando o original. O botão só fica disponível para
+imagens gerenciadas por esta instância. Remover uma imagem aplicada troca o fundo
+para desfoque pelo controlador, valida a troca e salva antes da exclusão. Falha
+de exclusão tenta restaurar a seleção anterior; falha da troca preserva o arquivo.
+Remover uma imagem não aplicada não confirma os outros efeitos do rascunho.
 Para vídeo, escolha **Meu vídeo** e um MP4, MOV, WebM ou MKV local. A reprodução é em
 loop, sem áudio, com recorte central para preencher o quadro. Um decoder FFmpeg
 por worker fornece RGB na taxa efetiva de processamento, igual para preview e

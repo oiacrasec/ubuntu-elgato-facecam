@@ -862,3 +862,40 @@ pausado e configuração privada: os três botões ficaram alinhados e com o mes
 tamanho, sem sobrepor o título. Formatação, Clippy com avisos como erro e build
 release passaram. A captura sem imagem de câmera está em
 `target/device-buttons-acceptance/minimum.png`, fora do Git.
+
+## Remoção de imagem importada — 25/10/2026
+
+**Minha imagem** agora oferece **Remover imagem**, ao lado da importação. O
+controlador restringe a ação a arquivos regulares da biblioteca gravável e
+preserva o original. Se a imagem estiver aplicada com IA, valida e salva a troca
+para desfoque antes de remover a cópia. Imagem não aplicada não confirma outros
+ajustes do rascunho nem reinicia a captura.
+
+`./test-desktop-app.sh` passou com 64 testes comuns nos recursos padrão, 52 sem
+recursos padrão e quatro verificações sintéticas FFmpeg. Incluiu recusa de
+arquivo externo, symlink, diretório e segunda remoção; original preservado,
+limpeza da seleção persistida, falha de salvamento sem excluir e falha de unlink
+com restauração dos efeitos salvos. O contrato CLI/IPC `--remove-image` também
+passou. Formatação, Clippy sem avisos e build release concluíram.
+
+A revisão X11 usou GUI release, configuração/socket/manifesto privados e captura
+FFmpeg substituída por vídeo sintético, preservando o worker e os filtros reais.
+Com IA NVIDIA ativa, foi clicado **Remover imagem**: a cópia desapareceu, o
+original permaneceu, a configuração passou para desfoque e o preview retomou
+com backend NVIDIA, brilho -0,1 e Mirror preservados. Antes disso, um manifesto
+privado inválido forçou falha de aquecimento: a remoção foi recusada e a imagem,
+a seleção e a captura anterior permaneceram disponíveis. Os componentes ativos
+do usuário não foram modificados.
+
+Uma segunda imagem foi importada e removida pela janela antes de aplicar: os
+efeitos confirmados e a contagem crescente do preview foram preservados. A seleção
+voltou a **Escolha um fundo**, sem miniatura e com remoção desabilitada. A janela
+960×640 foi inspecionada com cards recolhidos; os dois botões ficaram na mesma
+linha. O cenário foi repetido após a última alteração da GUI e passou.
+
+A sessão de teste foi encerrada, sem capturar a câmera física nem escrever
+controles. Evidências locais: `target/image-removal-acceptance/`, com capturas
+sintéticas, resposta da falha, resultados de remoção aplicada/não aplicada e logs.
+Os checks e build estão em `target/image-removal-checks.log` e
+`target/image-removal-release.log`. O inventário mantém as 152 fontes históricas.
+As pendências para conversão completa foram revistas no [Roadmap](ROADMAP.md).

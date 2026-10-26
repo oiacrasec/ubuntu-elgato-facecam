@@ -225,6 +225,58 @@ fn autostart_toggle_tracks_disk_reopens_and_preserves_state_on_failure() {
 }
 
 #[test]
+fn image_removal_cli_preserves_external_files_and_persists_selection_cleanup() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.json");
+    let image = dir.path().join("resources/images/wrong.png");
+    let original = dir.path().join("original.png");
+    std::fs::create_dir_all(image.parent().unwrap()).unwrap();
+    std::fs::write(&original, b"synthetic image fixture").unwrap();
+    std::fs::copy(&original, &image).unwrap();
+    std::fs::write(&config, serde_json::json!({"effects":{"background_mode":"image","background_image":image,"brightness":-0.2}}).to_string()).unwrap();
+    let mut process = Process(
+        Command::new(BIN)
+            .args(["--headless", "--config"])
+            .arg(&config)
+            .env("XDG_RUNTIME_DIR", dir.path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !cli(dir.path(), &["--status"]).status.success() {
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(25));
+    }
+    let rejected = cli(dir.path(), &["--remove-image", original.to_str().unwrap()]);
+    assert!(!rejected.status.success());
+    assert!(image.exists());
+    let out = cli(dir.path(), &["--remove-image", image.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let reply: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(reply["state"]["config"]["effects"]["background_image"], "");
+    assert_eq!(
+        reply["state"]["config"]["effects"]["background_mode"],
+        "blur"
+    );
+    assert_eq!(reply["state"]["config"]["effects"]["brightness"], -0.2);
+    assert!(!image.exists());
+    assert_eq!(
+        std::fs::read(&original).unwrap(),
+        b"synthetic image fixture"
+    );
+    let saved: Value = serde_json::from_slice(&std::fs::read(&config).unwrap()).unwrap();
+    assert_eq!(saved["effects"]["background_image"], "");
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(process.0.wait().unwrap().success());
+}
+
+#[test]
 fn library_import_is_async_persistent_and_does_not_apply_or_save_effects() {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("config.json");

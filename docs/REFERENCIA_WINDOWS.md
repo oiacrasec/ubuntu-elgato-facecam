@@ -191,7 +191,7 @@ de execução concorrente à [arquitetura Rust](ARQUITETURA.md).
 | NDI | Três DLLs distribuídas no MSI | Alcance funcional não confirmado; não anunciar transmissão NDI existente |
 | Automação externa | Nomes de métodos e bibliotecas WebSocket | CLI/IPC local já existe; protocolo de compatibilidade ainda não estabelecido |
 | Persistência na câmera e firmware | Arquivos, descritores e imports de atualização | Não implementado; requer protocolo confirmado e recuperação, sem escrita experimental |
-| Câmera virtual | INF/SYS Windows e extensão macOS | Implementação Linux própria com v4l2loopback; consumo ponta a ponta ainda pendente |
+| Câmera virtual | INF/SYS Windows e extensão macOS | Linux com v4l2loopback; FFmpeg em 1080p/60 e Chrome em 720p/30 validados localmente, OBS e sessão prolongada pendentes |
 
 A ordem prática é validar a câmera virtual em um consumidor, suportar fundos
 animados próprios, definir um backend GPU residente e tratar olhar/enquadramento

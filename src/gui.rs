@@ -155,6 +155,7 @@ struct App {
     file_dialog: Option<std::sync::mpsc::Receiver<FileSelection>>,
     file_dialog_error: Option<String>,
     import_revision: u64,
+    removing_image: Option<PathBuf>,
     thumbnail: Option<Thumbnail>,
     virtual_camera_persistent: bool,
     #[cfg(feature = "tray")]
@@ -226,6 +227,7 @@ impl App {
             file_dialog: None,
             file_dialog_error: None,
             import_revision: 0,
+            removing_image: None,
             thumbnail: None,
             virtual_camera_persistent: true,
             #[cfg(feature = "tray")]
@@ -444,7 +446,19 @@ impl App {
             }
             self.applied_effects = state.config.effects.clone();
         }
+        if let Some(path) = &self.removing_image
+            && !state.resources.iter().any(|r| r.path == *path)
+        {
+            if std::path::Path::new(&self.config.effects.background_image) == path {
+                self.config.effects.background_image.clear();
+            }
+            if self.thumbnail.as_ref().is_some_and(|t| t.path == *path) {
+                self.thumbnail = None;
+            }
+            self.removing_image = None;
+        }
         let mut choose_file = None;
+        let mut remove_image = None;
         let mut refresh_ai = false;
         let dialog_available = self.file_dialog.is_none() && !state.importing;
         let controls_height = (ui.available_height() - 82.0).max(80.0);
@@ -502,9 +516,18 @@ impl App {
                         crate::effects::BackgroundMode::Solid => effect_row(ui, "Cor de fundo", |ui| { ui.color_edit_button_srgb(&mut effects.background_color); }),
                         crate::effects::BackgroundMode::Image => {
                             effect_row(ui, "Imagem", |ui| { resource_selector(ui, state, FileTarget::Image, &mut effects.background_image); });
-                            if ui.add_enabled(dialog_available, egui::Button::new("Adicionar imagem…")).clicked() {
-                                choose_file = Some(FileTarget::Image);
-                            }
+                            ui.horizontal(|ui| {
+                                if ui.add_enabled(dialog_available, egui::Button::new("Adicionar imagem…")).clicked() {
+                                    choose_file = Some(FileTarget::Image);
+                                }
+                                let removable = state.resources.iter().any(|r| r.kind == FileTarget::Image && r.removable && r.path == std::path::Path::new(&effects.background_image));
+                                if ui.add_enabled(dialog_available && removable, egui::Button::new("Remover imagem"))
+                                    .on_hover_text("Remove a cópia da biblioteca e preserva o original. Se estiver aplicada, troca o fundo para desfoque.")
+                                    .on_disabled_hover_text("Selecione uma imagem importada para a biblioteca deste aplicativo.")
+                                    .clicked() {
+                                    remove_image = Some(PathBuf::from(&effects.background_image));
+                                }
+                            });
                             if !effects.background_image.is_empty() { Self::resource_thumbnail(ui, std::path::Path::new(&effects.background_image), &mut self.thumbnail); }
                         }
                         crate::effects::BackgroundMode::Video => {
@@ -576,6 +599,10 @@ impl App {
         }
         if refresh_ai {
             self.dispatch(Request::Refresh);
+        }
+        if let Some(path) = remove_image {
+            self.removing_image = Some(path.clone());
+            self.dispatch(Request::RemoveImage { path });
         }
     }
 

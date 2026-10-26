@@ -33,7 +33,7 @@ existente; reconstruir todo o SDK não é pré-requisito.
 - `video_background.rs`: fundo animado com decoder FFmpeg em loop, FPS de processamento e morte junto do worker.
 - `dependencies.rs`: estado dpkg, planos APT de instalação/remoção, confirmação explícita, autenticação Ubuntu e execução em segundo plano.
 - `virtual_camera.rs`: descoberta do módulo, plano de preparação e helper administrativo de etapas fixas com autorização única.
-- `resources.rs`: biblioteca, descoberta de Looks/fundos, importação validada e LUTs próprias; GUI exibe nomes, sem paths editáveis de recursos ou IA.
+- `resources.rs`: biblioteca, descoberta de Looks/fundos, importação, remoção restrita de cópias de imagens e LUTs próprias; GUI exibe nomes, sem paths editáveis de recursos ou IA.
 - `stream.rs`: processos pertencentes ao aplicativo e último frame do preview.
 - `engine.rs`: comandos, transições e estado; uma implementação para GUI e CLI.
 - `ipc.rs`: instância única, socket Unix e thread do controlador.

@@ -36,6 +36,12 @@ removem o original e redescobrem a cópia após reiniciar o controlador. Uma LUT
 inválida deve falhar sem publicar arquivo parcial, aplicar efeitos ou salvar JSON.
 Os três Looks próprios são gerados e validados em diretório temporário.
 
+A remoção de imagens verifica cópia gerenciada, original preservado, recusa de
+symlinks/arquivos externos/diretórios, limpeza da seleção salva e ausência no
+catálogo. Falhas de salvamento mantêm o arquivo e a seleção; falha de exclusão
+restaura os efeitos salvos. Remover imagem não aplicada não grava configuração.
+O teste CLI/IPC usa arquivos sintéticos temporários, sem câmera ou runtime de IA.
+
 Com FFmpeg disponível, o script também executa:
 
 ```bash

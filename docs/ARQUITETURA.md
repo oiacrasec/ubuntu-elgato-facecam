@@ -128,6 +128,16 @@ derivadas visuais, lidas em segundo plano pela GUI, sem alterar a biblioteca.
 LUTs próprias são materializadas pelo controlador quando selecionadas. O build
 headless mantém catálogo, importação e validação sem depender de egui ou ONNX.
 
+`RemoveImage` remove apenas um arquivo regular diretamente em `resources/images`
+da configuração deste controlador. Recusa symlinks, diretórios, caminhos externos
+e remoção durante importação. O catálogo publica `removable`; a GUI usa esse estado
+para habilitar a ação, mas a autorização é revalidada no núcleo. Se o arquivo
+está na configuração, a referência é limpa e persistida antes da exclusão.
+Com IA de imagem aplicada, `SetEffects` valida a troca para desfoque e retoma as
+mesmas saídas. Falha de exclusão restaura os efeitos anteriores ou informa também
+a falha de restauração. Uma imagem sem referência confirmada é removida sem salvar
+configuração ou reiniciar a captura. O original da importação nunca é removido.
+
 ## Instalação de dependências
 
 `PrepareNvidia` inicia `nvidia_setup` em segundo plano, com captura parada.

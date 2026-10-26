@@ -116,6 +116,12 @@ struct Args {
     import_resource: Option<resources::Kind>,
     #[arg(long, requires = "import_resource", value_name = "FILE")]
     import_file: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Remove an imported image from the application library"
+    )]
+    remove_image: Option<PathBuf>,
     #[arg(long, hide = true)]
     ai_worker: Option<String>,
     #[arg(long, hide = true)]
@@ -265,6 +271,9 @@ fn run() -> Result<()> {
     }
     if args.cancel_install {
         return print_reply(ipc::send(&Request::CancelInstall)?);
+    }
+    if let Some(path) = args.remove_image {
+        return print_reply(ipc::send(&Request::RemoveImage { path })?);
     }
     if let (Some(kind), Some(path)) = (args.import_resource, args.import_file) {
         return print_reply(ipc::send(&Request::ImportResource { kind, path })?);
