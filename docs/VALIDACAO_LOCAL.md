@@ -853,3 +853,12 @@ sem interface. Os sete cenários CLI de seleção/fallback passaram novamente:
 NVIDIA disponível, ausente, corrompido, seleção forçada inválida, recusa de
 fallback CPU, CPU explícita e combinação NVIDIA/CPU inválida. Os testes
 documentais e `git diff --check` também passaram após atualizar os guias.
+
+## Botões do card Device — 25/10/2026
+
+Os botões **R** e **⟳** passaram a usar a largura e a altura efetivas de **SAVE**.
+A janela release foi inspecionada em X11, no tamanho mínimo 960×640, com preview
+pausado e configuração privada: os três botões ficaram alinhados e com o mesmo
+tamanho, sem sobrepor o título. Formatação, Clippy com avisos como erro e build
+release passaram. A captura sem imagem de câmera está em
+`target/device-buttons-acceptance/minimum.png`, fora do Git.

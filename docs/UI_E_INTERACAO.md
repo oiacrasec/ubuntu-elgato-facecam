@@ -33,6 +33,10 @@ truncados no controle, sem mudar a geometria das linhas. Listas precisam permiti
 identificar a opção completa ao escolher. Não altere a largura de um campo em
 função do texto selecionado.
 
+No cabeçalho de **Device**, **R** e **⟳** usam a mesma largura e altura de
+**SAVE**. Os tooltips identificam restauração dos ajustes salvos e atualização
+dos dispositivos e ajustes.
+
 Em novos componentes, prever foco visível, uso por teclado, unidades legíveis e
 alvos clicáveis adequados. Cores não devem ser a única indicação de erro ou de
 estado. O frontend compila com AccessKit; isso não equivale a uma auditoria de

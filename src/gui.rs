@@ -377,9 +377,11 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.strong("Device");
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(egui::Button::new("SAVE").fill(ACCENT)).on_hover_text("Salvar configuração e ajustes neste computador").clicked() { self.dispatch(Request::Save); }
-                        if ui.small_button("R").on_hover_text("Restaurar ajustes salvos neste computador").clicked() { self.dispatch(Request::Restore); }
-                        if ui.small_button("⟳").on_hover_text("Atualizar dispositivos e ajustes").clicked() { self.dispatch(Request::Refresh); }
+                        let save = ui.add(egui::Button::new("SAVE").fill(ACCENT)).on_hover_text("Salvar configuração e ajustes neste computador");
+                        let action_size = save.rect.size();
+                        if save.clicked() { self.dispatch(Request::Save); }
+                        if ui.add_sized(action_size, egui::Button::new("R")).on_hover_text("Restaurar ajustes salvos neste computador").clicked() { self.dispatch(Request::Restore); }
+                        if ui.add_sized(action_size, egui::Button::new("⟳")).on_hover_text("Atualizar dispositivos e ajustes").clicked() { self.dispatch(Request::Refresh); }
                     });
                 });
                 ui.separator();
