@@ -42,8 +42,9 @@ pode precisar de acesso específico a dispositivos e bibliotecas NVIDIA.
 DMG, assinatura/notarização macOS, MSI/assinatura Windows e pacotes FreeBSD não
 são entregas Linux. Caso o escopo seja ampliado, documentar assinatura de dentro
 para fora, validação do arquivo baixado, reputação do executável, targets mínimos
-e atualizações. Layout e recursos visuais de um instalador precisam ser próprios,
-legíveis e livres de colisão com ícones e rótulos do sistema.
+e atualizações. Layout e recursos visuais de um instalador precisam ser legíveis
+e livres de colisão com ícones e rótulos do sistema. Os ícones originais do Camera
+Hub autorizados pelo usuário têm [proveniência própria](../assets/README.md).
 
 A integração web é apenas um estudo em [Extensões](EXTENSOES.md). Não há Docker,
 loader wasm, endpoint de atualização ou site hospedado para instalar. Empacotar
@@ -73,7 +74,7 @@ pré-compilado nesse fluxo. O padrão de interação foi inspirado no
 [Arctis Sound Manager](https://github.com/loteran/Arctis-Sound-Manager);
 a implementação é própria em Rust.
 
-O pacote inclui binário, catálogos, ícones próprios e registro de versão, commit,
+O pacote inclui binário, catálogos, ícones originais do Camera Hub e registro de versão, commit,
 features e SHA-256. Fica em `PREFIX/lib/facecam-hub/versions/`. O link `current`
 só muda após preparar todos os arquivos; `PREFIX/bin/elgato-virtualcam`, o menu
 e o autostart usam esse link estável. Arquivos alterados são restaurados se a
@@ -91,6 +92,15 @@ O instalador aceita `--autostart`, `--no-build`, `--prefix` e respeita
 `CARGO_TARGET_DIR`. O desinstalador usa o registro do prefixo e remove os atalhos
 e ícones pertencentes a ele, mesmo sem o executável. Entradas de outro prefixo,
 backups, bibliotecas do usuário e pacotes do sistema são preservados.
+
+O aplicativo usa o PNG original de 256×256 do ícone Windows. A bandeja usa
+os ícones originais de 64×64, com a variante amarela para atualização disponível
+ou reinício pendente. O tema hicolor recebe PNGs coloridos em `256x256/apps`
+e `64x64/status`; os links simbólicos antigos são removidos apenas quando
+pertencem ao mesmo prefixo, com restauração em caso de falha da instalação.
+O bundle inclui proveniência e atribuição; as imagens de terceiros ficam fora
+da licença MIT do código. A atualização dos caches de ícones e menu é opcional
+e usa ferramentas locais, sem dependência gráfica adicional no executável Rust.
 
 Para recuperação manual, com o aplicativo fechado, aponte `current` para um
 bundle anterior em `versions`, ou execute novamente o instalador a partir de uma

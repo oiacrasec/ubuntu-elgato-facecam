@@ -29,9 +29,6 @@ BINARY="$TARGET_DIR/release/elgato-virtualcam"
 ARGS=(--install-desktop "$INSTALL_PREFIX")
 if "$AUTOSTART"; then ARGS+=(--desktop-autostart); fi
 "$BINARY" "${ARGS[@]}"
-if command -v update-desktop-database >/dev/null; then
-    update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" >/dev/null 2>&1 || true
-fi
 echo "Instalado: $INSTALL_PREFIX/bin/elgato-virtualcam"
 echo 'Abra Facecam Hub no menu de aplicativos. Atualizações ficam em Configurações.'
 echo 'Dependências de vídeo e módulos do sistema são preparados separadamente; consulte README.md.'

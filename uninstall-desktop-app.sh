@@ -51,8 +51,8 @@ remove_entry() {
 if "$OWNED"; then
     remove_entry "$DATA_HOME/applications/elgato-virtualcam.desktop"
     remove_entry "$AUTOSTART"
-    for RELATIVE in apps/facecam-hub.svg status/facecam-hub-symbolic.svg status/facecam-hub-active-symbolic.svg; do
-        LINK="$DATA_HOME/icons/hicolor/scalable/$RELATIVE"
+    for RELATIVE in 256x256/apps/facecam-hub.png 64x64/status/facecam-hub-tray.png 64x64/status/facecam-hub-tray-update.png scalable/apps/facecam-hub.svg scalable/status/facecam-hub-symbolic.svg scalable/status/facecam-hub-active-symbolic.svg; do
+        LINK="$DATA_HOME/icons/hicolor/$RELATIVE"
         if [[ -L "$LINK" && "$(readlink -- "$LINK")" == "$ROOT/current/icons/${RELATIVE##*/}" ]]; then rm -f -- "$LINK"; fi
     done
     if [[ -L "$BINARY" && "$(readlink -- "$BINARY")" == "$ROOT/current/elgato-virtualcam" ]]; then rm -f -- "$BINARY"; fi
@@ -65,4 +65,10 @@ else
     if [[ -f "$BINARY" && ! -L "$BINARY" ]]; then rm -f -- "$BINARY"; fi
 fi
 rm -f -- "$INSTALL_PREFIX/share/facecam-hub/locales/pt-BR.json" "$INSTALL_PREFIX/share/facecam-hub/locales/en-US.json"
+if command -v gtk-update-icon-cache >/dev/null && [[ -d "$DATA_HOME/icons/hicolor" ]]; then
+    gtk-update-icon-cache --force --ignore-theme-index "$DATA_HOME/icons/hicolor" >/dev/null 2>&1 || true
+fi
+if command -v update-desktop-database >/dev/null && [[ -d "$DATA_HOME/applications" ]]; then
+    update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
+fi
 echo 'Aplicativo removido. Configurações, modelos, recursos, backups e pacotes do sistema foram preservados.'

@@ -189,6 +189,8 @@ struct App {
     #[cfg(feature = "tray")]
     tray_streaming: bool,
     #[cfg(feature = "tray")]
+    tray_update_available: bool,
+    #[cfg(feature = "tray")]
     tray_language: String,
 }
 
@@ -274,6 +276,8 @@ impl App {
             tray,
             #[cfg(feature = "tray")]
             tray_streaming: false,
+            #[cfg(feature = "tray")]
+            tray_update_available: false,
             #[cfg(feature = "tray")]
             tray_language: String::new(),
         }
@@ -1190,12 +1194,23 @@ impl eframe::App for App {
             }
         }
         #[cfg(feature = "tray")]
-        if self.tray_streaming != state.streaming || self.tray_language != state.config.ui.language
+        let update_available = matches!(
+            state.update.phase,
+            crate::updater::Phase::Available | crate::updater::Phase::RestartRequired
+        );
+        #[cfg(feature = "tray")]
+        if self.tray_streaming != state.streaming
+            || self.tray_language != state.config.ui.language
+            || self.tray_update_available != update_available
         {
             if let Some(tray) = &self.tray {
-                tray.update(|tray| tray.streaming = state.streaming);
+                tray.update(|tray| {
+                    tray.streaming = state.streaming;
+                    tray.update_available = update_available;
+                });
             }
             self.tray_streaming = state.streaming;
+            self.tray_update_available = update_available;
             self.tray_language = state.config.ui.language.clone();
         }
         if !self.hidden && self.tab != 2 {

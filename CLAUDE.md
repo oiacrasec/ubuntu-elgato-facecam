@@ -69,6 +69,8 @@ de arquivos ou strings de menu com execução e suporte no dispositivo.
 Não alterar firmware nem descarregar módulos automaticamente. Respeitar controles
 inativos e recusas observadas; não inventar conversões de ganho para ISO.
 Não copiar recursos proprietários do Camera Hub para a distribuição.
+Exceção expressamente autorizada pelo usuário em 26/10/2026: ícones originais
+do aplicativo e da bandeja, com proveniência em [Recursos visuais](assets/README.md).
 Dependências de sistema usam APT. Mostrar comandos e mudanças de repositório
 antes da confirmação; não iniciar instalação ao abrir o app. Não usar instaladores
 `.deb` locais. Não armazenar senhas ou encerrar uma transação APT em andamento.

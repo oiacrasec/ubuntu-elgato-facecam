@@ -420,3 +420,11 @@ o limiar de continuação não pode adquirir o rosto novamente.
 O teste não substitui aceitação de movimento real, óculos, oclusão, iluminação,
 comparação com Windows ou consumo em OBS/navegador. Inspeções GUI usam preview
 pausado; imagens pessoais de testes físicos não podem ser gravadas.
+
+## Ícones e migração do tema
+
+O contrato de instalação confere os PNGs no tema hicolor e testa remoção dos
+links simbólicos dos ícones antigos. Uma publicação que falha restaura esses
+links. A remoção continua verificando a posse pelo prefixo, incluindo os caminhos
+antigos e os novos. As imagens de terceiros têm hashes e proveniência em
+[Recursos visuais](../assets/README.md); não exigem Qt nem a execução do Windows.

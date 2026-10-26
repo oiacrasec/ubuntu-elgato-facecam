@@ -26,7 +26,7 @@ registra commits, arquivos, validações e a sequência para continuar a integra
 | Descoberta de arquivos de IA | Implementado nesta revisão | Diretórios conhecidos, registro do preparador e testes sem `--config` |
 | Interface | Implementado, paridade parcial | Layout Camera Hub e validação X11; comparação completa com Windows, Wayland e acessibilidade pendentes |
 | CLI/IPC e instância única | Implementado | Contratos em testes de processo |
-| Instalação no usuário | Implementado | Bundles versionados, atalhos e ícones próprios, upgrade com processo aberto, remoção sem binário e preservação de dados em prefixos isolados; falta matriz entre releases publicadas |
+| Instalação no usuário | Implementado | Bundles versionados, atalhos e ícones originais autorizados do Camera Hub, upgrade com processo aberto, remoção sem binário e preservação de dados em prefixos isolados; falta matriz entre releases publicadas |
 | Atualização do aplicativo | Implementado | Versão junto de Idioma, consulta em segundo plano e instalação pela branch de produção; [requisitos e recuperação](DISTRIBUICAO.md) |
 | Idiomas | Implementado | PT-BR padrão, EN-US, seletor persistido e catálogos JSON extensíveis sem recompilar; [guia](LOCALIZACAO.md) |
 | Segurança e distribuição verificável | Parcial | Controles locais presentes; lacunas em Segurança e Distribuição |
@@ -54,7 +54,8 @@ uma porcentagem global de paridade calculada neste projeto.
 
 Cada nova evidência precisa indicar versão-alvo, plataforma, hardware, cenário,
 resultado e limitações. Comparações com Camera Hub podem usar observação pública
-e especificações; recursos proprietários não são copiados. Comportamento observado
+e especificações; os ícones autorizados têm [proveniência](../assets/README.md),
+sem ampliar a exceção a outros recursos proprietários. Comportamento observado
 no macOS não comprova comportamento no Windows ou suporte Linux.
 
 ## Pendências para a conversão completa

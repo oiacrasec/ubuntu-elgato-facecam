@@ -40,6 +40,12 @@ shaders, perfis, ícones ou imagens proprietárias extraídos de outro aplicativ
 Registre origem e licença dos recursos efetivamente usados. Dados reais de testes
 precisam de autorização ou licença adequada; imagens pessoais não são fixtures.
 
+O usuário autorizou em 26/10/2026 a incorporação dos ícones originais do aplicativo
+e da bandeja do Camera Hub Windows. A exceção se limita aos recursos registrados
+em [Recursos visuais](../assets/README.md), com proveniência e hashes. Essas imagens
+de terceiros ficam fora da licença MIT do código; a exceção não se estende a
+modelos, firmware, shaders ou outros recursos do Camera Hub.
+
 Uma linha de menu ou um controle desenhado não comprova paridade. Documente
 recurso, cenário, evidência e limitação em [Roadmap](ROADMAP.md). Não transfira
 porcentagens, números de testes ou resultados de outro hardware para este projeto.

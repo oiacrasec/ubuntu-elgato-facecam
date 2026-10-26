@@ -5,6 +5,7 @@ use std::sync::mpsc::Sender;
 pub struct Tray {
     pub tx: Sender<Request>,
     pub streaming: bool,
+    pub update_available: bool,
 }
 
 impl ksni::Tray for Tray {
@@ -19,18 +20,18 @@ impl ksni::Tray for Tray {
         })
     }
     fn icon_name(&self) -> String {
-        if self.streaming {
-            "facecam-hub-active-symbolic"
+        if self.update_available {
+            "facecam-hub-tray-update"
         } else {
-            "facecam-hub-symbolic"
+            "facecam-hub-tray"
         }
         .into()
     }
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
-        let bytes: &[u8] = if self.streaming {
-            include_bytes!("../assets/icons/facecam-hub-active-symbolic.png")
+        let bytes: &[u8] = if self.update_available {
+            include_bytes!("../assets/icons/facecam-hub-tray-update.png")
         } else {
-            include_bytes!("../assets/icons/facecam-hub-symbolic.png")
+            include_bytes!("../assets/icons/facecam-hub-tray.png")
         };
         let Ok(icon) = eframe::icon_data::from_png_bytes(bytes) else {
             return Vec::new();
@@ -96,6 +97,7 @@ pub fn spawn(tx: Sender<Request>) -> Result<ksni::blocking::Handle<Tray>, ksni::
     Tray {
         tx,
         streaming: false,
+        update_available: false,
     }
     .spawn()
 }

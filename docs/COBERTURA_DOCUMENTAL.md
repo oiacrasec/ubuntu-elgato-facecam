@@ -19,7 +19,9 @@ estudos e decisões de escopo. Os números, nomes de comandos, garantias, licen�
 e infraestrutura de outro produto não são atribuídos a este aplicativo. Licenças
 não concedem direitos sobre marcas ou recursos não usados.
 
-Imagens de referência e marcas não são incorporadas; a UI tem capturas próprias.
+A UI tem capturas próprias. A exceção autorizada em 26/10/2026 para os ícones
+originais do aplicativo e da bandeja está em [Recursos visuais](../assets/README.md),
+com origem e hashes separados do inventário histórico.
 Links a processos privados não disponíveis no acervo não são tratados como regras
 conhecidas ou como dependências existentes. Esse é o limite da revisão, sem
 inventar conteúdo que não está nos arquivos examinados.
@@ -65,7 +67,7 @@ que relaciona configuração, modelos, normalização, controle temporal e compo
 
 ## Registros por arquivo documental
 
-Instalador, atualização pela produção e ícones próprios são descritos em
+Instalador, atualização pela produção e ícones são descritos em
 [Distribuição](DISTRIBUICAO.md), com comandos em [Protocolo](PROTOCOLO_DE_CONTROLE.md)
 e checks isolados em [Testes](TESTES.md). Não alteram as 152 fontes históricas.
 
@@ -95,7 +97,7 @@ fontes ao inventário histórico.
 | D007 | Roadmap resumido e prontidão | [ROADMAP.md](ROADMAP.md) | Matriz por dimensão sem importar porcentagens ou estimativas externas. | `8ff8c3dae3f1` |
 | D008 | Política de segurança | [SEGURANCA.md](SEGURANCA.md) | Escopo, relato mínimo e ausência de canal privado ou SLA definido. | `34988a5b1c09` |
 | D009 | Licença de ícone | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Adoção de ícone requer proveniência e licença próprias. | `a5cf25f3f3c2` |
-| D010 | Geometria, paleta e geração de ícone | [DISTRIBUICAO.md](DISTRIBUICAO.md) | Identidade e legibilidade de artefatos próprios; nenhum ícone externo incorporado. | `25a24e441942` |
+| D010 | Geometria, paleta e geração de ícone | [DISTRIBUICAO.md](DISTRIBUICAO.md) | Identidade e legibilidade de artefatos; ícones originais autorizados têm proveniência separada. | `25a24e441942` |
 | D011 | Dicionários e licenciamento | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Dicionários não fazem parte do runtime da câmera. | `e2a852424fe4` |
 | D012 | Licenciamento de fontes de UI | [LOCALIZACAO.md](LOCALIZACAO.md) | Fontes externas exigem licença e orçamento; uso atual de default_fonts. | `262481e84452` |
 | D013 | Licenciamento de fontes numéricas | [LOCALIZACAO.md](LOCALIZACAO.md) | Números, fallback e legibilidade sem incorporar arquivos de fonte externos. | `a76abf002c49` |

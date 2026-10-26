@@ -165,7 +165,7 @@ fn desktop_installation_preserves_data_and_removes_orphaned_autostart() {
     assert!(!prefix.join("lib/facecam-hub").exists());
     assert!(
         !root
-            .join("data/icons/hicolor/scalable/apps/facecam-hub.svg")
+            .join("data/icons/hicolor/256x256/apps/facecam-hub.png")
             .symlink_metadata()
             .is_ok()
     );
@@ -217,7 +217,7 @@ fn uninstall_does_not_remove_another_prefix_desktop_entries() {
     );
     assert!(
         dir.path()
-            .join("data/icons/hicolor/scalable/apps/facecam-hub.svg")
+            .join("data/icons/hicolor/256x256/apps/facecam-hub.png")
             .exists()
     );
     assert!(second.join("bin/elgato-virtualcam").exists());

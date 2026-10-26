@@ -1,0 +1,42 @@
+{
+  "supplier": "Elgato / Corsair",
+  "product": "Camera Hub",
+  "version": "2.3.0.7295",
+  "source": "package/camerahub-2.3.0.7295-windows/ExeFile",
+  "source_sha256": "c66fde57de800dccd539ee5f42a52624124ef0769765aadc7320ab43d5f96d88",
+  "license": "Third-party Elgato resources; excluded from the project MIT license.",
+  "scope": "Application and tray icons, requested by the user on 2026-10-26.",
+  "assets": [
+    {
+      "file": "windows/app-icon.ico",
+      "sha256": "93994eab28f92df63365b8ffaf1f4a0692713f2d2b4dba134c7e6e2f170d6f4e",
+      "source": ":/images/app-icon.ico"
+    },
+    {
+      "file": "windows/tray-icon.ico",
+      "sha256": "1e50b4b7aa1640419ff1b88bd7b9d348fbcba9e165f2434760ff35bbf4044c5b",
+      "source": ":/images/tray-icon.ico"
+    },
+    {
+      "file": "windows/tray-icon-update.ico",
+      "sha256": "2b21fdcf758e809a323cb6ce52947a15e35c426dfc0e4d135fced21c327821f2",
+      "source": ":/images/tray-icon-update.ico"
+    },
+    {
+      "file": "facecam-hub.png",
+      "sha256": "59b0d38450c4e3928cdaae2038cfc184c47dc31f570dd475cdbbd63959c187f6",
+      "source": "windows/app-icon.ico, original 256×256 PNG frame"
+    },
+    {
+      "file": "facecam-hub-tray.png",
+      "sha256": "178e3481cdec825c18ca73f7d830bfba5cead7a213bb3bb3c6d4d3dfea253404",
+      "source": "windows/tray-icon.ico, original 64×64 frame, PNG conversion"
+    },
+    {
+      "file": "facecam-hub-tray-update.png",
+      "sha256": "cddb47668bfabdd4336ada9c2956bdb53df38ea322672f2f21324fd2c131b04d",
+      "source": "windows/tray-icon-update.ico, original 64×64 frame, PNG conversion"
+    }
+  ],
+  "vendor_download_page": "https://www.elgato.com/us/en/s/downloads"
+}

@@ -280,20 +280,24 @@ pub fn install(
     fs::create_dir(bundle.path().join("icons"))?;
     for (name, bytes) in [
         (
-            "facecam-hub.svg",
-            include_bytes!("../assets/icons/facecam-hub.svg").as_slice(),
-        ),
-        (
             "facecam-hub.png",
             include_bytes!("../assets/icons/facecam-hub.png").as_slice(),
         ),
         (
-            "facecam-hub-symbolic.svg",
-            include_bytes!("../assets/icons/facecam-hub-symbolic.svg").as_slice(),
+            "facecam-hub-tray.png",
+            include_bytes!("../assets/icons/facecam-hub-tray.png").as_slice(),
         ),
         (
-            "facecam-hub-active-symbolic.svg",
-            include_bytes!("../assets/icons/facecam-hub-active-symbolic.svg").as_slice(),
+            "facecam-hub-tray-update.png",
+            include_bytes!("../assets/icons/facecam-hub-tray-update.png").as_slice(),
+        ),
+        (
+            "README.md",
+            include_bytes!("../assets/README.md").as_slice(),
+        ),
+        (
+            "provenance.json",
+            include_bytes!("../assets/icons/provenance.json").as_slice(),
         ),
     ] {
         fs::write(bundle.path().join("icons").join(name), bytes)?;
@@ -318,18 +322,36 @@ pub fn install(
             .as_bytes(),
     )?;
     changes.link(&launcher, &root.join("current/elgato-virtualcam"))?;
+    for (size, category, name) in [
+        ("256x256", "apps", "facecam-hub.png"),
+        ("64x64", "status", "facecam-hub-tray.png"),
+        ("64x64", "status", "facecam-hub-tray-update.png"),
+    ] {
+        changes.link(
+            &data
+                .join("icons/hicolor")
+                .join(size)
+                .join(category)
+                .join(name),
+            &root.join("current/icons").join(name),
+        )?;
+    }
+    // Remove only links from the previous installer: a stale scalable icon
+    // otherwise takes priority over the original PNG in theme lookup.
     for (category, name) in [
         ("apps", "facecam-hub.svg"),
         ("status", "facecam-hub-symbolic.svg"),
         ("status", "facecam-hub-active-symbolic.svg"),
     ] {
-        changes.link(
-            &data
-                .join("icons/hicolor/scalable")
-                .join(category)
-                .join(name),
-            &root.join("current/icons").join(name),
-        )?;
+        let link = data
+            .join("icons/hicolor/scalable")
+            .join(category)
+            .join(name);
+        if fs::read_link(&link).is_ok_and(|target| target == root.join("current/icons").join(name))
+        {
+            changes.remember(&link)?;
+            fs::remove_file(&link)?;
+        }
     }
     changes.file(
         &data.join("applications/elgato-virtualcam.desktop"),
@@ -349,6 +371,27 @@ pub fn install(
     changes.link(&root.join("current"), bundle.path())?;
     let _ = bundle.keep();
     changes.committed = true;
+    // Integration caches are optional. Publication is already complete; a
+    // missing desktop utility does not invalidate an installed package.
+    for (tool, arguments, directory) in [
+        (
+            "gtk-update-icon-cache",
+            &["--force", "--ignore-theme-index"][..],
+            data.join("icons/hicolor"),
+        ),
+        (
+            "update-desktop-database",
+            &[][..],
+            data.join("applications"),
+        ),
+    ] {
+        let _ = std::process::Command::new(tool)
+            .args(arguments)
+            .arg(directory)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
     Ok(installed)
 }
 
@@ -372,8 +415,17 @@ mod tests {
         fs::write(&source, b"old executable").unwrap();
         let installed = install(&source, &build(), &prefix, &data, false).unwrap();
         let first = installed.launcher().canonicalize().unwrap();
+        let legacy = data.join("icons/hicolor/scalable/apps/facecam-hub.svg");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        let legacy_target = installed.root().join("current/icons/facecam-hub.svg");
+        symlink(&legacy_target, &legacy).unwrap();
         fs::write(&source, b"new executable").unwrap();
         install(&source, &build(), &prefix, &data, false).unwrap();
+        assert!(legacy.symlink_metadata().is_err());
+        assert!(
+            data.join("icons/hicolor/256x256/apps/facecam-hub.png")
+                .is_file()
+        );
         assert_eq!(fs::read(&first).unwrap(), b"old executable");
         assert_eq!(fs::read(installed.launcher()).unwrap(), b"new executable");
         let second = installed.launcher().canonicalize().unwrap();
@@ -397,8 +449,10 @@ mod tests {
         fs::remove_file(installed.root().join("current")).unwrap();
         fs::create_dir(installed.root().join("current")).unwrap();
         let original_entry = fs::read(&entry).unwrap();
+        symlink(&legacy_target, &legacy).unwrap();
         fs::write(&source, b"failed upgrade").unwrap();
         assert!(install(&source, &build(), &prefix, &data, false).is_err());
+        assert_eq!(fs::read_link(&legacy).unwrap(), legacy_target);
         assert_eq!(fs::read(&entry).unwrap(), original_entry);
         assert_eq!(fs::read(&second).unwrap(), b"new executable");
         fs::remove_dir(installed.root().join("current")).unwrap();

@@ -1295,3 +1295,23 @@ launcher estável e confirmou estado `current`, sem captura. O cenário também
 verificou recusa de Preview e Quit durante a instalação. O clone local isolou o
 ensaio de escritas no remoto; não foi uma instalação pessoal pelo GitHub.
 Resultado e logs estão em `target/desktop-update-smoke/`, ignorado pelo Git.
+
+## Ícones originais do Camera Hub — 26/10/2026
+
+Após autorização específica do usuário, os ícones anteriores foram substituídos
+pelos recursos originais do executável Windows 2.3.0.7295. A extração estática
+preservou os três ICOs; os hashes e as conversões estão em
+[Recursos visuais](../assets/README.md). Nenhum código Windows foi executado.
+
+A janela X11 publicou `_NET_WM_ICON` de 256×256: os 65.536 pixels ARGB foram
+comparados com o PNG original, com igualdade completa. A consulta D-Bus da
+bandeja confirmou `facecam-hub-tray` inicialmente e `facecam-hub-tray-update`
+após a consulta encontrar uma atualização. A captura permaneceu parada.
+Evidências locais: `target/windows-icons/ui-result.json` e `ui.png`.
+
+`./test-desktop-app.sh` passou nas variantes padrão e headless, incluindo
+migração dos links de ícones antigos, rollback de falha, instalação e remoção
+isoladas, preservação de arquivos de outro prefixo, Clippy e documentação.
+O instalador publica os PNGs no hicolor e inclui atribuição e proveniência no
+bundle. Atualização de cache usa ferramentas locais opcionais, sem adicionar
+Qt ou GTK como backend gráfico do executável.

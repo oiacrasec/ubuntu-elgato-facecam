@@ -59,6 +59,13 @@ documental. O pacote macOS em `package/` é evidência local ignorada; não inte
 os artefatos distribuídos. Gerar uma ilustração própria não concede direitos
 sobre uma marca de terceiros que ela reproduza.
 
+Por solicitação expressa do usuário em 26/10/2026, aplicativo e bandeja usam
+três ícones originais do Camera Hub Windows 2.3.0.7295, de Elgato/Corsair.
+[Recursos visuais](../assets/README.md) registra escopo, conversões, origem e
+SHA-256; os ICOs são preservados e os PNGs usados no Linux têm proveniência.
+Essas imagens de terceiros ficam excluídas da licença MIT do código, e não
+receberam uma licença permissiva. O instalador inclui a atribuição no bundle.
+
 O modelo de segmentação possui origem e licença descritas em [Efeitos](EFEITOS.md).
 O preparador mantém o texto da licença do modelo, os arquivos de licença do
 runtime extraído e os notices dos pacotes CUDA. Mudança de modelo exige conferir

@@ -11,7 +11,7 @@ resolve. **Proposto** identifica um desenho técnico sem implementação. **Fora
 escopo atual** mantém registrado um tema sem prometer sua entrega.
 
 Um contrato proposto não cria comandos, recursos ou garantias no binário atual.
-A versão declarada é 3.0.0 em desenvolvimento. As medições datadas pertencem à
+A versão declarada é 3.1.0. As medições datadas pertencem à
 revisão em que foram executadas; o perfil Cargo `release` não comprova publicação.
 
 ## Uso e referência

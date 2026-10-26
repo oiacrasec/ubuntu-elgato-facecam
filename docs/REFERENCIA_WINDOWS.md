@@ -248,3 +248,16 @@ integral. Strings, DLLs e arquivos presentes são evidências de distribuição;
 chamadas recuperadas acrescentam evidência estática de código. Disponibilidade
 real, qualidade, comportamento temporal e protocolos completos continuam exigindo
 validação específica.
+
+## Ícones originais incorporados — 26/10/2026
+
+O usuário autorizou especificamente logo do aplicativo e ícones da bandeja.
+Do executável Windows com SHA-256 registrado acima foram extraídos os recursos
+Qt `:/images/app-icon.ico`, `:/images/tray-icon.ico` e
+`:/images/tray-icon-update.ico`, sem executar o código Windows.
+
+Os ICOs originais, hashes e conversões usadas no Linux estão em
+[Recursos visuais](../assets/README.md). A janela e o menu usam o frame PNG
+original de 256×256; a bandeja usa frames de 64×64, incluindo o indicador amarelo
+de atualização. A exceção se limita a esses recursos e não inclui firmware,
+modelos, shaders ou outros assets do Camera Hub.
