@@ -50,6 +50,15 @@ pub struct Preparation {
 }
 impl Preparation {
     pub fn start(effects: Effects, log: PathBuf) -> Result<Self> {
+        Self::spawn(log, move |work| prepare(&effects, work))
+    }
+    pub fn start_ar(log: PathBuf) -> Result<Self> {
+        Self::spawn(log, crate::nvidia_ar_setup::prepare)
+    }
+    fn spawn(
+        log: PathBuf,
+        prepare: impl FnOnce(&mut Work<'_>) -> Result<String> + Send + 'static,
+    ) -> Result<Self> {
         if let Some(parent) = log.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -64,7 +73,7 @@ impl Preparation {
                 log: file,
                 events: &tx,
             };
-            let result = prepare(&effects, &mut work).map_err(|e| format!("{e:#}"));
+            let result = prepare(&mut work).map_err(|e| format!("{e:#}"));
             let _ = tx.send(Update::Finished(result));
         });
         Ok(Self { events })
@@ -79,17 +88,17 @@ impl Preparation {
         }
     }
 }
-struct Work<'a> {
+pub(crate) struct Work<'a> {
     log: File,
     events: &'a Sender<Update>,
 }
 impl Work<'_> {
-    fn phase(&mut self, text: &str) -> Result<()> {
+    pub(crate) fn phase(&mut self, text: &str) -> Result<()> {
         writeln!(self.log, "{text}")?;
         let _ = self.events.send(Update::Progress(text.into()));
         Ok(())
     }
-    fn command(&self, program: &str) -> Result<Command> {
+    pub(crate) fn command(&self, program: &str) -> Result<Command> {
         let mut command = Command::new("/usr/bin/setpriv");
         command.args(["--pdeathsig", "KILL", "--", program]);
         command
@@ -98,7 +107,7 @@ impl Work<'_> {
             .stderr(self.log.try_clone()?);
         Ok(command)
     }
-    fn run(&self, program: &str, args: &[OsString]) -> Result<()> {
+    pub(crate) fn run(&self, program: &str, args: &[OsString]) -> Result<()> {
         let status = self
             .command(program)?
             .args(args)
@@ -110,7 +119,7 @@ impl Work<'_> {
         Ok(())
     }
 }
-fn user_root(var: &str, suffix: &str) -> Result<PathBuf> {
+pub(crate) fn user_root(var: &str, suffix: &str) -> Result<PathBuf> {
     std::env::var_os(var)
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(suffix)))
@@ -120,7 +129,7 @@ pub fn root() -> Result<PathBuf> {
     Ok(user_root("XDG_DATA_HOME", ".local/share")?
         .join("facecam-hub/runtimes/linux-x86_64/vfx/0.7.6/ada"))
 }
-fn checksum(path: &Path) -> Result<String> {
+pub(crate) fn checksum(path: &Path) -> Result<String> {
     let mut file = File::open(path)?;
     let mut hash = Sha256::new();
     let mut buffer = [0; 65536];
@@ -133,7 +142,7 @@ fn checksum(path: &Path) -> Result<String> {
     }
     Ok(format!("{:x}", hash.finalize()))
 }
-fn fetch(work: &Work<'_>, url: &str, path: &Path, sha: &str, apt: bool) -> Result<()> {
+pub(crate) fn fetch(work: &Work<'_>, url: &str, path: &Path, sha: &str, apt: bool) -> Result<()> {
     if checksum(path).is_ok_and(|s| s == sha) {
         return Ok(());
     }
@@ -473,23 +482,37 @@ fn prepare(effects: &Effects, work: &mut Work<'_>) -> Result<String> {
     if !status.success() {
         bail!("A inferência RTX falhou; a instalação anterior foi preservada");
     }
+    publish(stage_path, &root, ".facecam-hub-nvidia")?;
+    work.phase("Segmentação RTX preparada e inferência validada")?;
+    Ok("IA RTX preparada: segmentação temporal, desfoque e troca de fundo disponíveis".into())
+}
+
+/// Publish a validated sibling stage, preserving unowned destinations and rolling back rename failures.
+pub(crate) fn publish(stage: &Path, root: &Path, marker: &str) -> Result<()> {
+    let parent = root.parent().context("Destino RTX inválido")?;
     let previous = tempfile::Builder::new()
         .prefix(".ada-previous-")
         .tempdir_in(parent)?;
     let had_previous = root.exists();
     if had_previous {
-        if !root.join(".facecam-hub-nvidia").is_file() {
+        if fs::symlink_metadata(root)?.file_type().is_symlink()
+            || !fs::symlink_metadata(root.join(marker)).is_ok_and(|m| m.file_type().is_file())
+        {
             bail!("O destino RTX já existe sem identificação do aplicativo; arquivos preservados");
         }
-        fs::rename(&root, previous.path())?;
+        fs::rename(root, previous.path())?;
     }
-    if let Err(error) = fs::rename(stage_path, &root) {
-        if had_previous {
-            fs::rename(previous.path(), &root)
-                .context("Não foi possível restaurar os componentes RTX anteriores")?;
+    if let Err(error) = fs::rename(stage, root) {
+        if had_previous && let Err(restore) = fs::rename(previous.path(), root) {
+            let preserved = previous.keep();
+            return Err(restore).with_context(|| {
+                format!(
+                    "Não foi possível restaurar os componentes RTX anteriores; arquivos preservados em {}",
+                    preserved.display()
+                )
+            });
         }
         return Err(error.into());
     }
-    work.phase("Segmentação RTX preparada e inferência validada")?;
-    Ok("IA RTX preparada: segmentação temporal, desfoque e troca de fundo disponíveis".into())
+    Ok(())
 }

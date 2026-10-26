@@ -112,6 +112,7 @@ fn nvidia_preparation_offers_apt_for_missing_tools_without_downloading_or_instal
             .env("XDG_RUNTIME_DIR", dir.path())
             .env("XDG_DATA_HOME", &data)
             .env("PATH", &tools)
+            .env("FACECAM_NVIDIA_MANIFEST", data.join("absent.json"))
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
@@ -122,44 +123,140 @@ fn nvidia_preparation_offers_apt_for_missing_tools_without_downloading_or_instal
         assert!(Instant::now() < deadline);
         thread::sleep(Duration::from_millis(25));
     }
-    let output = cli(dir.path(), &["--prepare-nvidia"]);
+    for action in ["--prepare-nvidia", "--prepare-ar"] {
+        let output = cli(dir.path(), &[action]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(reply["state"]["preparing_nvidia"], false);
+        let plan = &reply["state"]["installation_plan"];
+        assert_eq!(plan["dependency"], "nvidia_tools");
+        assert_eq!(
+            plan["commands"],
+            serde_json::json!([
+                [
+                    "/usr/bin/pkexec",
+                    "--disable-internal-agent",
+                    "/usr/bin/apt-get",
+                    "update"
+                ],
+                [
+                    "/usr/bin/pkexec",
+                    "--disable-internal-agent",
+                    "/usr/bin/apt-get",
+                    "install",
+                    "--yes",
+                    "--no-install-recommends",
+                    "--",
+                    "curl",
+                    "p7zip-full",
+                    "unzip"
+                ]
+            ])
+        );
+        assert!(!data.exists());
+        assert!(!config.exists());
+        assert!(cli(dir.path(), &["--cancel-install"]).status.success());
+    }
+    for name in ["7z", "curl", "unzip"] {
+        let tool = tools.join(name);
+        std::fs::write(&tool, "#!/bin/sh\nexit 1\n").unwrap();
+        std::fs::set_permissions(tool, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let output = cli(dir.path(), &["--prepare-ar"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Prepare a IA RTX"));
+    assert!(!data.exists());
+    assert!(!config.exists());
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(process.0.wait().unwrap().success());
+}
+
+#[test]
+#[cfg(feature = "ai")]
+#[ignore = "requires Ada GPU, FACECAM_NVIDIA_MANIFEST and local AR installer; no camera"]
+fn ar_preparation_persists_validates_and_reopens_without_the_installer() {
+    let manifest = std::env::var_os("FACECAM_NVIDIA_MANIFEST")
+        .expect("set FACECAM_NVIDIA_MANIFEST to the prepared VFX manifest");
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("data");
+    let config = dir.path().join("config.json");
+    let launch = || {
+        let process = Process(
+            Command::new(BIN)
+                .args(["--headless", "--config"])
+                .arg(&config)
+                .env("XDG_RUNTIME_DIR", dir.path())
+                .env("XDG_DATA_HOME", &data)
+                .env("FACECAM_NVIDIA_MANIFEST", &manifest)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !cli(dir.path(), &["--status"]).status.success() {
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(25));
+        }
+        process
+    };
+    let mut process = launch();
+    let output = cli(dir.path(), &["--prepare-ar"]);
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(reply["state"]["preparing_nvidia"], false);
-    let plan = &reply["state"]["installation_plan"];
-    assert_eq!(plan["dependency"], "nvidia_tools");
-    assert_eq!(
-        plan["commands"],
-        serde_json::json!([
-            [
-                "/usr/bin/pkexec",
-                "--disable-internal-agent",
-                "/usr/bin/apt-get",
-                "update"
-            ],
-            [
-                "/usr/bin/pkexec",
-                "--disable-internal-agent",
-                "/usr/bin/apt-get",
-                "install",
-                "--yes",
-                "--no-install-recommends",
-                "--",
-                "curl",
-                "p7zip-full",
-                "unzip"
-            ]
-        ])
-    );
-    assert!(!data.exists());
+    let deadline = Instant::now() + Duration::from_secs(180);
+    loop {
+        let output = cli(dir.path(), &["--status"]);
+        let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+        if reply["state"]["preparing_nvidia"] == false {
+            assert_eq!(reply["state"]["error"], Value::Null, "{reply}");
+            assert_eq!(reply["state"]["ar_prepared"], true, "{reply}");
+            break;
+        }
+        assert!(Instant::now() < deadline, "{reply}");
+        thread::sleep(Duration::from_millis(100));
+    }
     assert!(!config.exists());
-    assert!(cli(dir.path(), &["--cancel-install"]).status.success());
     assert!(cli(dir.path(), &["--quit"]).status.success());
     assert!(process.0.wait().unwrap().success());
+    let ar = data.join("facecam-hub/runtimes/linux-x86_64/ar/0.8.7/ada");
+    let bytes = std::fs::read(ar.join("manifest.json")).unwrap();
+    assert!(!ar.join("sdk").exists());
+    let mut reopened = launch();
+    let output = cli(dir.path(), &["--status"]);
+    let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(reply["state"]["ar_prepared"], true);
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(reopened.0.wait().unwrap().success());
+    let check = || {
+        Command::new(BIN)
+            .arg("--check-ar")
+            .env("XDG_DATA_HOME", &data)
+            .env("XDG_CACHE_HOME", dir.path().join("empty-cache"))
+            .env("HOME", dir.path())
+            .env_remove("FACECAM_NVIDIA_MANIFEST")
+            .output()
+            .unwrap()
+    };
+    let output = check();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(std::fs::read(ar.join("manifest.json")).unwrap(), bytes);
+    std::fs::write(ar.join("decoder.engine"), b"corrupt").unwrap();
+    let output = check();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Componentes AR incompatíveis"));
+    assert!(!config.exists());
 }
 
 #[test]

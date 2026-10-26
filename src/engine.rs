@@ -68,6 +68,7 @@ pub enum Request {
         persistent: bool,
     },
     PrepareNvidia,
+    PrepareAr,
     ConfirmInstall {
         id: u64,
     },
@@ -114,6 +115,8 @@ pub struct Snapshot {
     pub ai_backend: Option<crate::ai::BackendStatus>,
     #[serde(default)]
     pub nvidia_prepared: bool,
+    #[serde(default)]
+    pub ar_prepared: bool,
     #[serde(default)]
     pub preparing_nvidia: bool,
     #[serde(default)]
@@ -203,6 +206,7 @@ impl Engine {
             ai_compiled: cfg!(feature = "ai"),
             ai_backend: None,
             nvidia_prepared: false,
+            ar_prepared: false,
             preparing_nvidia: false,
             nvidia_progress: String::new(),
             nvidia_log: None,
@@ -389,6 +393,10 @@ impl Engine {
         self.last_refresh = Instant::now();
         self.state.nvidia_prepared =
             crate::ai::native_available(&crate::effects::Effects::default());
+        #[cfg(feature = "ai")]
+        {
+            self.state.ar_prepared = crate::nvidia_ar_setup::available();
+        }
         self.refresh_dependencies();
         self.state.resources =
             crate::resources::catalog(&self.resource_root, &self.state.config.effects);
@@ -697,7 +705,7 @@ impl Engine {
                     "Imagem removida da biblioteca. O arquivo original foi preservado"
                 }.into());
             }
-            Request::PrepareNvidia => {
+            Request::PrepareNvidia | Request::PrepareAr => {
                 #[cfg(not(feature = "ai"))]
                 bail!("Esta compilação não inclui IA; use uma compilação com o recurso ai");
                 #[cfg(feature = "ai")]
@@ -717,15 +725,27 @@ impl Engine {
                             crate::dependencies::Action::Install,
                         );
                     }
+                    let ar = matches!(request, Request::PrepareAr);
+                    if ar && crate::nvidia::Installation::discover().is_none() {
+                        bail!("Prepare a IA RTX antes de preparar ou verificar os componentes AR");
+                    }
                     let log = self
                         .path
                         .parent()
                         .context("Configuração sem diretório")?
-                        .join("nvidia-prepare.log");
-                    self.nvidia_preparation = Some(crate::nvidia_setup::Preparation::start(
-                        self.state.config.effects.clone(),
-                        log.clone(),
-                    )?);
+                        .join(if ar {
+                            "ar-prepare.log"
+                        } else {
+                            "nvidia-prepare.log"
+                        });
+                    self.nvidia_preparation = Some(if ar {
+                        crate::nvidia_setup::Preparation::start_ar(log.clone())?
+                    } else {
+                        crate::nvidia_setup::Preparation::start(
+                            self.state.config.effects.clone(),
+                            log.clone(),
+                        )?
+                    });
                     self.state.preparing_nvidia = true;
                     self.state.nvidia_log = Some(log);
                     self.state.nvidia_progress = "Iniciando preparação da IA RTX…".into();
@@ -1070,6 +1090,7 @@ impl Engine {
                     self.state.preparing_nvidia = false;
                     self.state.nvidia_prepared =
                         crate::ai::native_available(&crate::effects::Effects::default());
+                    self.state.ar_prepared = crate::nvidia_ar_setup::available();
                     match result {
                         Ok(message) => {
                             self.state.nvidia_progress = message.clone();
@@ -1252,10 +1273,12 @@ mod tests {
             Request::Preview,
             Request::Start { preview: false },
             Request::Quit,
+            Request::PrepareNvidia,
+            Request::PrepareAr,
         ] {
             let reply = engine.handle(request);
             assert!(!reply.ok);
-            assert!(reply.message.contains("preparação da IA RTX"));
+            assert!(reply.message.contains("prepara") || reply.message.contains("não inclui IA"));
             assert!(!reply.state.quit);
         }
         assert!(!dir.path().join("config.json").exists());

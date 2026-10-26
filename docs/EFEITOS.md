@@ -272,6 +272,9 @@ embutem SDK, modelos da NVIDIA ou recursos do Camera Hub. A preparação importa
 o modelo local e conserva as licenças externas no diretório do usuário.
 Desfoque, cor sólida, cenários locais e troca por imagem estão implementados.
 Correção de olhar, reenquadramento automático e relighting não estão implementados.
+Os quatro contratos AR Ada podem ser preparados persistentemente pela CLI,
+conforme [Análise RTX](ANALISE_RTX.md#preparar-os-contratos-ar-no-usuário),
+para diagnóstico sintético; o preparo não ativa esses efeitos.
 Denoise comum é um filtro convencional e não usa IA.
 
 Os efeitos de IA acrescentam transferência RGB e inferência por frame. O modelo

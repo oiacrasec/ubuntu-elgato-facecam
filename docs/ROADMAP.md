@@ -32,7 +32,7 @@ registra commits, arquivos, validações e a sequência para continuar a integra
 | Prompter | Implementado, paridade parcial | Roteiro, leitura, espelho, atalhos, monitor e CLI; dispositivo físico e integrações avançadas pendentes; [guia](PROMPTER.md) |
 | HDR da Facecam MK.2 | Implementado, validação local | Unidade e seletor confirmados; escrita/retorno, APT e persistência local; ensaio USB 2 em 1080p30/60; [guia](HDR.md) |
 | Firmware e demais controles proprietários | Fora do escopo autorizado | Persistência interna e atualização de firmware adiadas pelo usuário |
-| Correção de olhar e enquadramento automático | Em implementação, indisponível no vídeo | Quatro contratos AR 0.8.7 Ada executados em diagnóstico Rust; recorte, transições e composição pendentes |
+| Correção de olhar e enquadramento automático | Em implementação, indisponível no vídeo | Quatro contratos AR 0.8.7 Ada com preparação persistente e diagnóstico Rust; detecção, recorte, transições e composição pendentes |
 | Relighting | Proposto, fora do escopo atual | Presença e alcance na referência ainda precisam de confirmação |
 | Plugins, batch, MCP e web | Proposto | Não são recursos da entrega Linux atual |
 

@@ -598,6 +598,18 @@
     "Tensor AR ausente": "Missing AR tensor",
     "Saída AR inválida: {}": "Invalid AR output: {}",
     "Tipo ou forma do tensor AR incompatível": "Incompatible AR tensor type or shape",
-    "Validação AR recusada: {error}": "AR validation failed: {error}"
+    "Validação AR recusada: {error}": "AR validation failed: {error}",
+    "A validação AR falhou; os componentes anteriores foram preservados": "AR validation failed; previous components were preserved",
+    "Componentes AR excedem o limite de leitura": "AR components exceed the read limit",
+    "Componentes AR incompatíveis; prepare os componentes AR novamente": "Incompatible AR components; prepare AR components again",
+    "Conferindo o pacote AR 0.8.7 Ada": "Checking the AR 0.8.7 Ada package",
+    "Contratos AR preparados e validados; efeitos no vídeo ainda em implementação": "AR contracts prepared and validated; video effects are still in development",
+    "Importando os quatro contratos AR para o usuário": "Importing the four AR contracts into the user directory",
+    "Licenças AR incompletas; prepare os componentes AR novamente": "Incomplete AR licenses; prepare AR components again",
+    "Manifesto AR incompatível; prepare os componentes AR novamente": "Incompatible AR manifest; prepare AR components again",
+    "Prepare a IA RTX antes de preparar ou verificar os componentes AR": "Prepare RTX AI before preparing or checking AR components",
+    "Prepare experimental AR Ada contracts in the user directory": "Prepare experimental AR Ada contracts in the user directory",
+    "Validando os quatro contratos AR na GPU": "Validating the four AR contracts on the GPU",
+    "Não foi possível restaurar os componentes RTX anteriores; arquivos preservados em {}": "Could not restore the previous RTX components; files preserved at {}"
   }
 }

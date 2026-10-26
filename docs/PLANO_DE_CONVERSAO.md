@@ -30,12 +30,13 @@ APT do aplicativo. Hardware ausente limita a aceitação, não autoriza declarar
 um recurso como validado. Commits devem conter código, documentação e resultados
 coerentes, preservando o inventário histórico de cobertura.
 
-## Ponto de retomada — 26/10/2026
+## Registro inicial da retomada — 26/10/2026
 
 Trabalho interrompido a pedido do usuário para preservar o contexto. A última
 entrega de código é `3c9226c`; a árvore estava limpa antes deste registro.
-O próximo trabalho é integrar AR ao vídeo, começando pela preparação persistente
-e pelos contratos de detecção. Não reiniciar a investigação dos SDKs do zero.
+Nesse ponto, o próximo trabalho era integrar AR ao vídeo, começando pela preparação
+persistente e pelos contratos de detecção. A continuação está registrada ao final
+desta página. Não reiniciar a investigação dos SDKs do zero.
 
 | Commit | Entrega e limite |
 | --- | --- |
@@ -49,7 +50,7 @@ existiam antes dessas entregas. Os resultados e limites estão em
 [Validação local](VALIDACAO_LOCAL.md). Não confundir esses recursos com correção
 de olhar ou enquadramento automático, que continuam indisponíveis na captura.
 
-## Estado técnico de AR para a próxima sessão
+## Estado técnico registrado antes da continuação
 
 O pacote Windows AR 0.8.7 Ada foi baixado adicionalmente, preservando o 0.8.2
 da referência Camera Hub. Seus quatro engines usam TensorRT 10.4.0.26,
@@ -73,10 +74,10 @@ Arquivos que concentram a implementação atual:
   a preservar na integração.
 - [`tests/ai.rs`](../tests/ai.rs): teste AR optativo, sem câmera.
 
-`--check-ar` já funciona, mas extrai os modelos em diretório temporário a cada
-invocação e remove esse diretório ao terminar. Não há manifesto AR persistente,
-comando de preparação AR no Engine ou controles de AR funcionais na GUI.
-O diagnóstico ainda traz saídas para CPU para conferir contratos; isso não é
+Naquele registro, `--check-ar` extraía os modelos em diretório temporário a cada
+invocação e removia esse diretório ao terminar. Ainda não havia manifesto AR
+persistente, comando de preparação AR no Engine ou controles de AR funcionais
+na GUI. Esse diagnóstico traz saídas para CPU para conferir contratos; isso não é
 o desenho final do processamento de imagens.
 
 ### Recursos locais e análise que já estão disponíveis
@@ -116,7 +117,7 @@ Usar `-loader-loadLibraries false -loader-ordinalLookup false
 -loader-libraryLoadDepth 0 -noanalysis` e apagar o projeto temporário ao concluir.
 Desabilitar apenas `loadLibraries` ainda provoca trabalho de resolução de DLLs.
 
-## Sequência proposta para retomar
+## Sequência proposta no registro inicial
 
 1. Ler os dois helpers de caixas já gerados e fechar o contrato de detecção.
 2. Implementar preparação AR persistente pelo Engine, reutilizando progresso,
@@ -167,3 +168,32 @@ HDR foi restaurado ao valor original após os ensaios. A ferramenta HDR foi
 extraída localmente para validação; sua instalação APT no sistema não ocorreu.
 Novas instalações administrativas seguem o plano e a confirmação no app.
 O inventário documental permanece com 152 fontes, sem alterar IDs ou hashes.
+
+## Continuação: preparação persistente AR — 26/10/2026
+
+Implementado `PrepareAr`/`--prepare-ar` pelo controlador, reutilizando fila,
+progresso, logs e bloqueios de captura/Quit da preparação RTX. O módulo
+`src/nvidia_ar_setup.rs` importa os quatro modelos AR para staging, preserva as
+licenças, registra o runtime VFX existente e valida as quatro inferências em
+worker isolado antes de publicar em `runtimes/linux-x86_64/ar/0.8.7/ada/`.
+Não ativa efeito de olhar ou enquadramento, não instala SDK Linux e não grava
+configuração. `ar_prepared` informa presença dos componentes; o worker confere
+hashes dos engines antes da execução. O diagnóstico reutiliza a preparação,
+mantendo a extração temporária quando ela ainda não existe.
+
+Os dois helpers de caixas foram lidos. O despacho GPU leva a `0x1800a8090`;
+a montagem em CPU confirma coordenadas e confiança, mas não fecha a constante
+de normalização. O próximo trabalho é fechar essa rotina e integrar detecção e
+geometria GPU ao worker de vídeo. Alinhamento dos olhos, enquadramento suavizado,
+transições e composição continuam pendentes. Não reconstruir todo o SDK.
+
+O teste optativo de preparação persistente passou na RTX 4070 SUPER com dados
+temporários, reabertura do controlador, diagnóstico sem instalador e recusa de
+engine corrompido. Resultados e checks desta continuação ficam em
+[Validação local](VALIDACAO_LOCAL.md). A comparação visual com Windows, aceitação
+física de Prompter e as demais lacunas anteriores permanecem pendentes.
+
+Os componentes AR também foram preparados no diretório real do usuário,
+`~/.local/share/facecam-hub/runtimes/linux-x86_64/ar/0.8.7/ada/`, e passaram
+no diagnóstico release persistente. A próxima sessão pode reutilizar esse
+manifesto sem extrair o instalador. Nenhum efeito AR está ligado à captura.

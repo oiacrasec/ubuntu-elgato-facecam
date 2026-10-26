@@ -35,6 +35,7 @@ A proteção atual depende do usuário e das permissões locais.
 | `prepare_install` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools`, `hdr_tools` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
 | `prepare_virtual_camera` | `persistent`, bool obrigatório | Prepara módulo e persistência opcional, com captura parada |
 | `prepare_nvidia` | nenhum | Prepara componentes Ada no usuário e testa a GPU em segundo plano; exige captura parada |
+| `prepare_ar` | nenhum | Prepara os quatro contratos AR 0.8.7 Ada, reutilizando o runtime RTX; exige captura parada e não ativa efeitos no vídeo |
 | `prepare_uninstall` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools` ou `hdr_tools` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
 | `confirm_install` | `id`, u64 | Confirma o plano atual e inicia instalação com autenticação do Ubuntu |
 | `cancel_install` | nenhum | Descarta o plano pendente; não interrompe uma transação APT iniciada |
@@ -63,6 +64,13 @@ ativo; aguarde `preparing_nvidia: false` e confira `error` e o resultado. Quit e
 captura são recusados durante a preparação; falhas não substituem o bundle anterior.
 Sem as ferramentas de extração/download, `prepare_nvidia` retorna um plano APT
 `nvidia_tools` antes de começar. Confirme-o e repita o pedido após a conclusão.
+`--prepare-ar` envia `prepare_ar` e compartilha os campos `preparing_nvidia`,
+`nvidia_progress` e `nvidia_log`; seu log é `ar-prepare.log`, ao lado da configuração.
+`ar_prepared` indica presença de manifesto, descritores, engines e licenças AR,
+com runtime disponível; hashes e inferências são conferidos ao executar o worker.
+A preparação AR requer IA RTX previamente preparada. Ela não grava configuração
+nem instala dependências administrativas. Veja [Análise RTX](ANALISE_RTX.md)
+para cache, publicação e diagnóstico `--check-ar`.
 `autostart_enabled` informa a presença de um cadastro ativo, ou null se a consulta
 falhou. A abertura, atualização, consulta periódica e conclusão de `set_autostart`
 releem o arquivo. `--install-autostart` e `--remove-autostart` usam esse comando

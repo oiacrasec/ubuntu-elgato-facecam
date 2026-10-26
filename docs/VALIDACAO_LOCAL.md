@@ -1040,3 +1040,39 @@ mensagem EN-US, em 54,54 s no perfil debug. O diagnóstico release passou em
 9,83 s incluindo hash do instalador de aproximadamente 1,3 GB, extração e quatro sessões.
 Esses tempos não são startup normal nem inferência por frame. Formatação,
 Clippy sem avisos e links/inventário documental passaram; build release concluiu.
+
+## Preparação persistente AR pelo controlador — 26/10/2026
+
+Na árvore baseada em `82b75ca`, a preparação AR passou pelo controlador privado
+em headless com RTX 4070 SUPER, ONNX Runtime 1.20.1 e TensorRT 10.4.0.26 do VFX
+existente. O teste usou diretórios temporários e tensores sintéticos. Importou
+os quatro modelos AR 0.8.7 Ada, executou os contratos antes da publicação,
+reabriu o controlador e descobriu o manifesto persistente. `--check-ar` passou
+com HOME/cache vazios e sem a variável de manifesto VFX: usou a raiz de runtime
+registrada. Um engine adulterado foi recusado. Não houve gravação de configuração,
+captura de câmera ou instalação APT.
+
+O teste optativo `ar_preparation_persists` passou em 112,21 s no debug, incluindo
+hashes do pacote de aproximadamente 1,3 GB, importação, publicação e diagnóstico.
+Esse tempo não mede inferência por frame. Log: `target/ar-persistent-native-test.log`.
+
+`./test-desktop-app.sh` passou com 81 testes comuns nos recursos padrão, 66 no
+build mínimo e quatro verificações sintéticas FFmpeg. Formatação, Clippy com
+avisos como erro nos dois builds e links/inventário documental passaram.
+Log: `target/ar-persistent-checks.log`. Os checks comuns não carregam CUDA nem
+escrevem controles reais. O inventário histórico conserva 152 fontes.
+
+O build final `cargo build --release --locked` passou; log em
+`target/ar-persistent-release.log`. Depois, um controlador release privado
+preparou o destino real do usuário em
+`~/.local/share/facecam-hub/runtimes/linux-x86_64/ar/0.8.7/ada/` em 11,698 s,
+incluindo hash do instalador em cache, importação e validação dos quatro contratos.
+O diagnóstico persistente `--check-ar` também passou. Não houve captura ou escrita
+de configuração. Logs em `target/ar-persistent-local-prepare.log` e
+`target/ar-persistent-local-worker.log`. Esse tempo não mede inferência por frame.
+
+O preparo usa staging irmão e só publica após validação nativa. Os checks de
+filesystem exercitaram destino sem marcador, falha de rename com restauração,
+manifesto truncado/incompatível, descritor alterado e licenças ausentes. Isso
+não demonstra durabilidade após queda de energia, qualidade em rostos reais ou
+integração AR ao vídeo; detecção, alinhamento e composição continuam pendentes.

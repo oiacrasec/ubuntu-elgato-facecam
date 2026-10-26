@@ -324,3 +324,22 @@ de descoberta descritos em [Análise RTX](ANALISE_RTX.md). O comando verifica ha
 e usa staging temporário; pode demorar mais no perfil debug. As entradas são
 sintéticas, sem captura de câmera. O resultado não equivale a um efeito de olhar
 ou enquadramento implementado.
+
+A preparação persistente tem um teste separado, também optativo e sem câmera:
+
+```bash
+FACECAM_NVIDIA_MANIFEST="${XDG_DATA_HOME:-$HOME/.local/share}/facecam-hub/runtimes/linux-x86_64/vfx/0.7.6/ada/manifest.json" cargo test --locked --test controller ar_preparation_persists -- --ignored --nocapture
+```
+
+Ele inicia controlador privado, prepara AR em dados temporários, aguarda resultado,
+reabre e verifica descoberta sem escrita de configuração. Executa `--check-ar`
+com HOME/cache vazios, usando o runtime registrado, e recusa engine corrompido.
+Requer o instalador local ou permite seu download validado para o cache do usuário.
+Os dados temporários são removidos ao terminar; não instala pacotes APT.
+
+Checks comuns conferem manifesto truncado, versão/família/hash incompatíveis,
+limite de leitura, descritor alterado, licenças ausentes e hash de engine inválido.
+A publicação testa destino sem marcador, restauração após rename recusado e troca
+de uma versão identificada. A CLI verifica plano APT e falta de runtime RTX sem
+downloads, usando ferramentas simuladas; captura, Quit e novo preparo são recusados
+enquanto o job está ativo. Esses checks não carregam CUDA nem abrem a câmera.

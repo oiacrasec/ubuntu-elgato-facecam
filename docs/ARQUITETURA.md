@@ -157,6 +157,16 @@ publica presença, progresso, execução e log. Iniciar captura ou sair durante
 essa preparação é recusado. A GUI não executa downloads diretamente.
 [Análise RTX](ANALISE_RTX.md) detalha arquivos, versões e limites.
 
+`PrepareAr` usa a mesma fila, progresso e bloqueios de `PrepareNvidia`. O módulo
+`nvidia_ar_setup` reutiliza o runtime VFX preparado e publica os quatro contratos
+AR 0.8.7 Ada em diretório separado. O manifesto fixa versão, família, hash do pacote
+e raiz do runtime. Descoberta limitada não carrega bibliotecas; o worker confere
+os hashes dos engines normalizados e executa as quatro inferências antes da
+publicação. Licenças acompanham os arquivos no usuário. Falha mantém o diretório
+anterior; rename recusado tenta restaurá-lo. `Snapshot.ar_prepared` representa
+presença, sem afirmar efeito AR integrado ao vídeo. O diagnóstico usa a preparação
+persistente quando existe e conserva a alternativa temporária sem instalação.
+
 `dependencies` prepara um plano APT sem modificar o sistema. `PrepareInstall`, `PrepareUninstall`,
 `ConfirmInstall` e `CancelInstall` passam pelo mesmo controlador em GUI/CLI.
 Somente um ID de plano atual pode ser confirmado, uma vez. A instalação roda

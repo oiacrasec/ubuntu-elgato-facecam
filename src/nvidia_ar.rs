@@ -9,26 +9,11 @@ use ort::{
 };
 use std::{
     collections::BTreeMap,
-    io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
-fn digest_file(path: &Path) -> Result<String> {
-    use sha2::{Digest, Sha256};
-    let mut file = std::fs::File::open(path)?;
-    let mut digest = Sha256::new();
-    let mut buffer = [0; 65536];
-    loop {
-        let n = file.read(&mut buffer)?;
-        if n == 0 {
-            break;
-        }
-        digest.update(&buffer[..n]);
-    }
-    Ok(format!("{:x}", digest.finalize()))
-}
-fn installer() -> Result<PathBuf> {
+pub(crate) fn installer() -> Result<PathBuf> {
     let name = "nvidia_ar_sdk_installer_v0.8.7_ada.exe";
     let mut candidates = Vec::new();
     if let Some(cache) = std::env::var_os("XDG_CACHE_HOME") {
@@ -49,7 +34,7 @@ fn installer() -> Result<PathBuf> {
         }
     }
     for file in candidates {
-        if file.is_file() && digest_file(&file)? == SDK_SHA {
+        if file.is_file() && crate::nvidia_setup::checksum(&file)? == SDK_SHA {
             return Ok(file);
         }
     }
@@ -58,6 +43,11 @@ fn installer() -> Result<PathBuf> {
 
 pub fn check() -> Result<()> {
     crate::nvidia::ada_device()?;
+    let prepared = crate::nvidia_ar_setup::root()?;
+    if prepared.exists() {
+        let installation = crate::nvidia_ar_setup::Installation::load(&prepared)?;
+        return check_worker(&prepared, &installation.runtime()?);
+    }
     let installation = crate::nvidia::Installation::discover()
         .context("Prepare os componentes RTX antes de verificar os modelos AR")?;
     let installer = installer()?;
@@ -82,6 +72,11 @@ pub fn check() -> Result<()> {
     if !output.status.success() {
         bail!("A extração dos modelos AR falhou");
     }
+    import_models(&sdk, stage.path())?;
+    check_worker(stage.path(), &installation)
+}
+
+pub(crate) fn import_models(sdk: &Path, destination: &Path) -> Result<()> {
     let dll_path = sdk.join("nvARPose.dll");
     if std::fs::metadata(&dll_path)?.len() > 8 * 1024 * 1024 {
         bail!("Runtime AR excede o limite");
@@ -96,17 +91,21 @@ pub fn check() -> Result<()> {
             bail!("Modelo AR excede o limite");
         }
         let engine = model.import(&dll, &std::fs::read(path)?)?;
-        std::fs::write(stage.path().join(format!("{}.engine", model.id)), engine)?;
+        std::fs::write(destination.join(format!("{}.engine", model.id)), engine)?;
         std::fs::write(
-            stage.path().join(format!("{}.onnx", model.id)),
+            destination.join(format!("{}.onnx", model.id)),
             model.descriptor(),
         )?;
     }
+    Ok(())
+}
+
+fn check_worker(root: &Path, installation: &crate::nvidia::Installation) -> Result<()> {
     // Match the already validated ORT/TensorRT/CUDA combination in an isolated child.
     let mut child = Command::new(std::env::current_exe()?);
     let output = child
         .arg("--ar-worker")
-        .arg(stage.path())
+        .arg(root)
         .env(
             "LD_LIBRARY_PATH",
             std::env::join_paths(&installation.libraries)?,
@@ -123,8 +122,13 @@ pub fn check() -> Result<()> {
 
 pub fn worker(root: &Path) -> Result<()> {
     let device = crate::nvidia::ada_device()?;
-    let install =
-        crate::nvidia::Installation::discover().context("Componentes RTX indisponíveis")?;
+    let install = if root.join("manifest.json").exists() {
+        let installation = crate::nvidia_ar_setup::Installation::load(root)?;
+        installation.verify_engines(root)?;
+        installation.runtime()?
+    } else {
+        crate::nvidia::Installation::discover().context("Componentes RTX indisponíveis")?
+    };
     ort::init_from(install.runtime.to_string_lossy())
         .with_name("Facecam Hub AR")
         .commit()?;

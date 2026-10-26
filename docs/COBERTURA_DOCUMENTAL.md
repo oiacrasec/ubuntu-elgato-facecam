@@ -50,6 +50,11 @@ do vídeo; os limites e evidências atualizam a matriz sem alterar as fontes his
 O [HDR MK.2](HDR.md) registra contrato USB confirmado, controle e limites. A
 validação e os catálogos evoluem sem alterar IDs ou hashes das 152 fontes históricas.
 
+A preparação persistente dos contratos AR fica em [Análise RTX](ANALISE_RTX.md),
+com comando e estado em [Protocolo](PROTOCOLO_DE_CONTROLE.md), ciclo de publicação
+em [Arquitetura](ARQUITETURA.md) e verificações em [Testes](TESTES.md). Essa entrega
+não representa efeito AR no vídeo nem altera o inventário histórico.
+
 ## Registros por arquivo documental
 
 Preview fiel à saída, espelhamento compartilhado e limites de apresentação estão

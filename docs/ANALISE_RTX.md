@@ -186,7 +186,7 @@ limitada aos hashes e cabeçalho esperados, preservando os originais.
 | Gaze encoder | `input_image`: 1×3×64×256 | `pseudo_labels_flat`: 1×12; `embeddings_flat`: 1×1344 |
 | Gaze decoder | `embeddings_flat`: 1×1344; `pseudo_labels_flat`: 1×12; `gaze_por`: 1×2 | `gaze_redirected_image`: 1×3×64×256; `gaze_landmarks`: 1×2×12×1 |
 
-`--check-ar` procura o instalador local, verifica SHA-256, extrai somente os
+Sem preparação persistente, `--check-ar` procura o instalador local, verifica SHA-256, extrai somente os
 arquivos necessários em um diretório temporário e importa cópias. O runtime vem
 da instalação RTX existente, sem download ou instalação de dependências nesse
 comando. Um worker isolado carrega descritores EPContext próprios e usa TensorRT/
@@ -206,3 +206,46 @@ Os próximos contratos são recorte/normalização, decodificação de detecçã
 alinhamento dos olhos, transições e composição GPU compartilhada com o fundo.
 A análise estática foi limitada às etapas e helpers correspondentes, com RTTI e
 Ghidra sem análise global; as DLLs Windows não foram executadas.
+
+## Preparar os contratos AR no usuário
+
+Com o controlador ativo e captura parada, execute `--prepare-ar` depois de
+preparar a IA RTX. O pedido importa os quatro contratos e testa a GPU antes de
+publicar os componentes; não disponibiliza correção de olhar ou enquadramento.
+
+```bash
+./target/release/elgato-virtualcam --prepare-ar
+./target/release/elgato-virtualcam --status
+```
+
+Acompanhe `preparing_nvidia`, `nvidia_progress`, `nvidia_log` e `error` até terminar.
+As ferramentas ausentes geram o plano APT `nvidia_tools`, sujeito à confirmação
+normal; repita o pedido após instalá-las. O preparo AR reutiliza ONNX Runtime,
+TensorRT e CUDA da instalação VFX, sem buscar outro SDK Linux. O instalador AR
+vem do cache validado, das pastas Downloads já documentadas ou da URL fixada no
+importador, sempre com SHA-256 conferido. O cache fica em
+`${XDG_CACHE_HOME:-$HOME/.cache}/facecam-hub/nvidia-ar-0.8.7-ada/`.
+
+O destino é
+`${XDG_DATA_HOME:-$HOME/.local/share}/facecam-hub/runtimes/linux-x86_64/ar/0.8.7/ada/`.
+Contém `manifest.json`, quatro engines adaptados, quatro descritores próprios,
+marcador do aplicativo e as duas licenças extraídas. Não contém a DLL Windows.
+O manifesto registra o hash do instalador e a raiz absoluta do runtime VFX
+reutilizado; mover ou remover esse runtime exige novo preparo. Engines e
+descritores usam nomes e hashes fixados no código. O staging irmão é publicado
+somente após o worker isolado executar os quatro contratos com fallback CPU
+recusado. O destino anterior é preservado em falhas anteriores à publicação;
+erro de rename tenta restaurá-lo. Não há garantia adicional de durabilidade por fsync.
+
+Após o preparo, `--check-ar` usa esses arquivos sem extrair ou procurar o instalador.
+Reconfere SHA-256 dos engines e executa os quatro contratos, inclusive
+encoder→decoder. Uma preparação existente inválida gera erro e precisa de reparo;
+não aciona silenciosamente o caminho temporário. `ar_prepared` no snapshot
+confere presença e metadados, sem inferência ou hash dos engines em cada consulta.
+Downloads e preparo nunca ocorrem na abertura da aplicação.
+
+A leitura dos helpers `0x1800a81b0` e `0x1800304b0` confirmou a seleção por
+confiança e montagem de caixas pelas diferenças entre coordenadas. O primeiro
+helper apenas despacha a rotina GPU `0x1800a8090`; sua normalização de coordenadas
+ainda não foi fechada. Essa constante permanece pendente antes da integração
+da detecção ao vídeo.

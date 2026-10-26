@@ -24,6 +24,8 @@ mod nvidia_ar;
 #[cfg(feature = "ai")]
 mod nvidia_ar_model;
 #[cfg(feature = "ai")]
+mod nvidia_ar_setup;
+#[cfg(feature = "ai")]
 mod nvidia_model;
 #[cfg(feature = "ai")]
 mod nvidia_setup;
@@ -107,6 +109,11 @@ struct Args {
         help = "Download and validate user-local NVIDIA RTX segmentation components"
     )]
     prepare_nvidia: bool,
+    #[arg(
+        long,
+        help = "Prepare experimental AR Ada contracts in the user directory"
+    )]
+    prepare_ar: bool,
     #[arg(
         long,
         value_enum,
@@ -393,6 +400,9 @@ fn run() -> Result<()> {
     }
     if args.prepare_nvidia {
         return print_reply(ipc::send(&Request::PrepareNvidia)?, &path);
+    }
+    if args.prepare_ar {
+        return print_reply(ipc::send(&Request::PrepareAr)?, &path);
     }
     if let Some(dependency) = args.prepare_install {
         return print_reply(ipc::send(&Request::PrepareInstall { dependency })?, &path);

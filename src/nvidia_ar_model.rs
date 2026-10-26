@@ -18,6 +18,7 @@ pub struct Model {
     pub source: &'static str,
     pub package_sha: &'static str,
     pub engine_sha: &'static str,
+    pub native_sha: &'static str,
     pub inputs: &'static [TensorSpec],
     pub outputs: &'static [TensorSpec],
 }
@@ -28,6 +29,7 @@ pub const MODELS: [Model; 4] = [
         source: "face_detection_89.engine.trtpkg",
         package_sha: "1e5fbb250e06095f4a3726bb9d1ce1cd8d52a475cba1f405cb1a3af728c95eee",
         engine_sha: "b2e9a3add120a67ebfc63ec0b413a9ef95d33589af992606bf53ba5f3f18cc5c",
+        native_sha: "62d1a17e945cd942b5f7c5522088f010384a81c504344f22dc40dad4d7fb17fa",
         inputs: &[TensorSpec {
             name: "input",
             shape: &[1, 3, 208, 368],
@@ -48,6 +50,7 @@ pub const MODELS: [Model; 4] = [
         source: "faceland_126_maxbatch1_mode0_89.engine.trtpkg",
         package_sha: "41a116dcb86135323180f42fe808bea15dfa631c00115a181222f3f4ef9d0674",
         engine_sha: "d60a8f81aedca36101830d869ec3455074f836938fad6251db215278375da7b9",
+        native_sha: "15172af0e0038142c0f61c761ce6b0d0334f767f6be0bf2adf186d86c0406124",
         inputs: &[TensorSpec {
             name: "input",
             shape: &[1, 1, 80, 80],
@@ -72,6 +75,7 @@ pub const MODELS: [Model; 4] = [
         source: "gazeredir_encoder_fp16_89.engine.trtpkg",
         package_sha: "8a1224b1a2f97a46d89a984177b6a3d43e65812a9b84f0e4701d003ac3d87a7c",
         engine_sha: "579a448be4a4aecf03660dabe02646804c66ce16d7b97d0632c41b81fa9bbbfa",
+        native_sha: "309c508a5f0c3524e2c56b1de415d136d6afe31a9c3f4510bb3f77766a700e40",
         inputs: &[TensorSpec {
             name: "input_image",
             shape: &[1, 3, 64, 256],
@@ -92,6 +96,7 @@ pub const MODELS: [Model; 4] = [
         source: "gazeredir_decoder_fp16_89.engine.trtpkg",
         package_sha: "ef3b4bbd06d27052edd458317248c933d0ec1ddb8a05a48c4ae47bca24cb824a",
         engine_sha: "6c6334f415c56dcdb5baeeceb48440e8239e339db897eebf5a7014bb837c5a70",
+        native_sha: "a35a6e347c6edb091e1e0bc13e94d65f0876a6fabb69bc21be14856a4cbae2e2",
         inputs: &[
             TensorSpec {
                 name: "embeddings_flat",
@@ -148,6 +153,9 @@ impl Model {
             bail!("Engine AR não corresponde ao modelo validado");
         }
         crate::nvidia_model::normalize_platform(&mut engine)?;
+        if crate::nvidia_model::digest(&engine) != self.native_sha {
+            bail!("Engine AR não corresponde ao modelo validado");
+        }
         Ok(engine)
     }
 

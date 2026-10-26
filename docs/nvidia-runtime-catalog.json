@@ -175,23 +175,28 @@
       {
         "source": "face_detection_89.engine.trtpkg",
         "package_sha256": "1e5fbb250e06095f4a3726bb9d1ce1cd8d52a475cba1f405cb1a3af728c95eee",
-        "engine_sha256": "b2e9a3add120a67ebfc63ec0b413a9ef95d33589af992606bf53ba5f3f18cc5c"
+        "engine_sha256": "b2e9a3add120a67ebfc63ec0b413a9ef95d33589af992606bf53ba5f3f18cc5c",
+        "native_engine_sha256": "62d1a17e945cd942b5f7c5522088f010384a81c504344f22dc40dad4d7fb17fa"
       },
       {
         "source": "faceland_126_maxbatch1_mode0_89.engine.trtpkg",
         "package_sha256": "41a116dcb86135323180f42fe808bea15dfa631c00115a181222f3f4ef9d0674",
-        "engine_sha256": "d60a8f81aedca36101830d869ec3455074f836938fad6251db215278375da7b9"
+        "engine_sha256": "d60a8f81aedca36101830d869ec3455074f836938fad6251db215278375da7b9",
+        "native_engine_sha256": "15172af0e0038142c0f61c761ce6b0d0334f767f6be0bf2adf186d86c0406124"
       },
       {
         "source": "gazeredir_encoder_fp16_89.engine.trtpkg",
         "package_sha256": "8a1224b1a2f97a46d89a984177b6a3d43e65812a9b84f0e4701d003ac3d87a7c",
-        "engine_sha256": "579a448be4a4aecf03660dabe02646804c66ce16d7b97d0632c41b81fa9bbbfa"
+        "engine_sha256": "579a448be4a4aecf03660dabe02646804c66ce16d7b97d0632c41b81fa9bbbfa",
+        "native_engine_sha256": "309c508a5f0c3524e2c56b1de415d136d6afe31a9c3f4510bb3f77766a700e40"
       },
       {
         "source": "gazeredir_decoder_fp16_89.engine.trtpkg",
         "package_sha256": "ef3b4bbd06d27052edd458317248c933d0ec1ddb8a05a48c4ae47bca24cb824a",
-        "engine_sha256": "6c6334f415c56dcdb5baeeceb48440e8239e339db897eebf5a7014bb837c5a70"
+        "engine_sha256": "6c6334f415c56dcdb5baeeceb48440e8239e339db897eebf5a7014bb837c5a70",
+        "native_engine_sha256": "a35a6e347c6edb091e1e0bc13e94d65f0876a6fabb69bc21be14856a4cbae2e2"
       }
-    ]
+    ],
+    "persistent_preparation_implemented": true
   }
 }
