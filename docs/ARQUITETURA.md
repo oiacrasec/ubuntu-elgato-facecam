@@ -226,7 +226,7 @@ compartilhado e teste de saída. Aceleração deve declarar dependências e falh
 forma visível. A compilação sem recursos padrão permanece útil sem bibliotecas
 gráficas ou IA. Não há download automático na inicialização.
 
-Firmware, controles USB proprietários, HDR proprietário e persistência
+Firmware, outros controles USB proprietários e persistência
 na câmera exigem investigação própria. A presença de um recurso no pacote macOS
 não comprova seu protocolo nem sua disponibilidade em Linux.
 
@@ -245,3 +245,18 @@ pausam e fecham a apresentação; `Show` recusa índice indisponível ou headles
 é registrada também na lógica, continuando ativa com a raiz minimizada. O espelho
 reflete a malha do nosso texto. Não existe ligação com os filtros da câmera.
 A GUI evita atualizar sua textura de preview enquanto a aba Prompter está aberta.
+
+## HDR da câmera
+
+`hdr.rs` descobre a unidade pelo GUID em sysfs, restringe VID/PID e seletor e
+valida metadados antes de escrever com uvcdynctrl. O código Rust não faz ioctl
+inseguro. `Snapshot.hdr` representa leitura confirmada, pendência e ferramenta
+ausente. `SetHdr` exige stream ativo, recusa ativar acima de 60 fps e espera o
+valor solicitado; `0xff` provoca espera limitada, nunca sucesso como booleano.
+A GUI só envia pedidos e prepara `HdrTools` pelo mesmo fluxo APT existente.
+
+`Config.saved_hdr` nasce como null. Save lê e salva somente HDR confirmado;
+falha de gravação não substitui os ajustes locais em memória. Restore aplica
+HDR antes dos controles comuns quando a mudança é possível e informa um HDR
+indisponível como item pulado. A GUI acompanha o valor salvo para não perdê-lo
+ao alterar o formato. [HDR](HDR.md) mantém os parâmetros e a evidência do protocolo.

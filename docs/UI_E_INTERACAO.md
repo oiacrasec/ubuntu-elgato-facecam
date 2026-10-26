@@ -78,6 +78,13 @@ afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Efeitos**
 **Grade** desenha uma sobreposição de visualização. A
 saída para outro aplicativo não deve receber acidentalmente grade ou controles.
 
+Em **Câmera** › **Processamento**, **Ativar HDR** aparece somente para contrato
+USB confirmado. Usa estado indeterminado quando a leitura não está disponível.
+A escrita exige vídeo ativo e permite ativar até 60 fps; tooltips explicam os
+pré-requisitos. **Instalar suporte HDR…** prepara o plano APT e não instala
+sozinho. As configurações oferecem instalar/desinstalar suporte HDR em uma
+segunda linha, mantendo meia largura por botão. [HDR](HDR.md) descreve o contrato.
+
 ## Diálogos, confirmação e cancelamento
 
 A janela de **Configurações** aplica e persiste as preferências a cada alteração,

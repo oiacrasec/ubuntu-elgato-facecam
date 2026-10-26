@@ -362,16 +362,49 @@ impl App {
         }
     }
 
-    fn section(
-        &mut self,
-        ui: &mut egui::Ui,
-        title: &str,
-        controls: &[Control],
-        rows: &[(&str, &str)],
-    ) {
-        if !rows
-            .iter()
-            .any(|(name, _)| controls.iter().any(|c| c.name == *name))
+    fn hdr_controls(&self, ui: &mut egui::Ui, state: &Snapshot) {
+        let mut enabled = state.hdr.enabled.unwrap_or_default();
+        let within_rate = state.mode.as_ref().is_some_and(|m| m.fps <= 60.0);
+        let editable = state.hdr.available && (state.streaming || state.preview) && within_rate;
+        effect_row(ui, "HDR", |ui| {
+            let response = ui.add_enabled(
+                editable,
+                egui::Checkbox::new(&mut enabled, t("Ativar HDR"))
+                    .indeterminate(state.hdr.enabled.is_none()),
+            );
+            response.clone().on_hover_text(t("HDR é aplicado na câmera. Mantenha o preview ou a câmera virtual ativo durante a alteração. Disponível até 60 fps na Facecam MK.2."));
+            response
+                .clone()
+                .on_disabled_hover_text(t(state.hdr.error.as_deref().unwrap_or(
+                    "Inicie o preview para alterar o HDR. A Facecam MK.2 aceita HDR até 60 fps.",
+                )));
+            if response.changed() {
+                self.dispatch(Request::SetHdr { enabled });
+            }
+        });
+        if state.hdr.needs_tool {
+            if ui
+                .add_enabled(
+                    !state.installation_running,
+                    egui::Button::new(t("Instalar suporte HDR…")),
+                )
+                .clicked()
+            {
+                self.dispatch(Request::PrepareInstall {
+                    dependency: crate::dependencies::Dependency::HdrTools,
+                });
+            }
+        } else if let Some(error) = &state.hdr.error {
+            ui.small(t(error));
+        }
+    }
+
+    fn section(&mut self, ui: &mut egui::Ui, title: &str, state: &Snapshot, rows: &[(&str, &str)]) {
+        let controls = &state.controls;
+        if !(title == "Processing" && state.hdr.supported)
+            && !rows
+                .iter()
+                .any(|(name, _)| controls.iter().any(|c| c.name == *name))
         {
             return;
         }
@@ -388,6 +421,9 @@ impl App {
                         ui.add_space(5.0);
                         for (name, label) in rows {
                             self.control(ui, controls, name, label);
+                        }
+                        if title == "Processing" && state.hdr.supported {
+                            self.hdr_controls(ui, state);
                         }
                     });
             });
@@ -592,11 +628,11 @@ impl App {
                 });
             });
             ui.add_space(5.0);
-            self.section(ui, "Frame", &state.controls, &[("zoom_absolute", "Zoom / FOV"), ("pan_absolute", "Pan"), ("tilt_absolute", "Tilt")]);
-            self.section(ui, "Picture", &state.controls, &[("contrast", "Contrast"), ("saturation", "Saturation"), ("sharpness", "Sharpness"), ("brightness", "Brightness")]);
-            self.section(ui, "Exposure", &state.controls, &[("auto_exposure", "Automatic"), ("exposure_time_absolute", "Exposure¹"), ("gain", "Gain²"), ("backlight_compensation", "Backlight"), ("exposure_dynamic_framerate", "Dynamic FPS")]);
-            self.section(ui, "White Balance", &state.controls, &[("white_balance_automatic", "Automatic"), ("white_balance_temperature", "Temperature K")]);
-            self.section(ui, "Processing", &state.controls, &[("power_line_frequency", "Anti-flicker"), ("privacy", "Privacy")]);
+            self.section(ui, "Frame", state, &[("zoom_absolute", "Zoom / FOV"), ("pan_absolute", "Pan"), ("tilt_absolute", "Tilt")]);
+            self.section(ui, "Picture", state, &[("contrast", "Contrast"), ("saturation", "Saturation"), ("sharpness", "Sharpness"), ("brightness", "Brightness")]);
+            self.section(ui, "Exposure", state, &[("auto_exposure", "Automatic"), ("exposure_time_absolute", "Exposure¹"), ("gain", "Gain²"), ("backlight_compensation", "Backlight"), ("exposure_dynamic_framerate", "Dynamic FPS")]);
+            self.section(ui, "White Balance", state, &[("white_balance_automatic", "Automatic"), ("white_balance_temperature", "Temperature K")]);
+            self.section(ui, "Processing", state, &[("power_line_frequency", "Anti-flicker"), ("privacy", "Privacy")]);
             ui.add_space(8.0);
             ui.label(RichText::new(t("¹ Exposição em unidades de 100 µs.\n² Ganho do driver; não representa ISO.")).size(10.0).color(MUTED));
         });
@@ -1101,6 +1137,7 @@ impl eframe::App for App {
             }
         }
         self.config.saved_controls = state.config.saved_controls.clone();
+        self.config.saved_hdr = state.config.saved_hdr;
         if state.quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
@@ -1340,13 +1377,11 @@ impl eframe::App for App {
                 if let Some(log) = &state.nvidia_log { ui.small(format!("Log: {}", log.display())); }
                 ui.separator();
                 ui.strong(t("Dependências do Ubuntu"));
+                for row in [crate::dependencies::Dependency::VideoTools, crate::dependencies::Dependency::SdkManager, crate::dependencies::Dependency::HdrTools].chunks(2) {
                 ui.horizontal(|ui| {
                     let width =
                         ((ui.available_width() - ui.spacing().item_spacing.x) / 2.0).max(0.0);
-                    for dependency in [
-                        crate::dependencies::Dependency::VideoTools,
-                        crate::dependencies::Dependency::SdkManager,
-                    ] {
+                    for &dependency in row {
                         let status = state
                             .dependencies
                             .iter()
@@ -1388,6 +1423,7 @@ impl eframe::App for App {
                         }
                     }
                 });
+                }
                 if let Some(error) = &state.dependency_error {
                     ui.colored_label(Color32::LIGHT_RED, t(error));
                 }

@@ -47,6 +47,9 @@ acompanha as entregas; IDs, contagens e hashes históricos permanecem iguais.
 O [Prompter](PROMPTER.md) implementa texto, reprodução e apresentação separados
 do vídeo; os limites e evidências atualizam a matriz sem alterar as fontes históricas.
 
+O [HDR MK.2](HDR.md) registra contrato USB confirmado, controle e limites. A
+validação e os catálogos evoluem sem alterar IDs ou hashes das 152 fontes históricas.
+
 ## Registros por arquivo documental
 
 Preview fiel à saída, espelhamento compartilhado e limites de apresentação estão

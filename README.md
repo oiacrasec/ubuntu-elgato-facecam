@@ -129,7 +129,10 @@ recusas, comandos IPC e renderização sintética. A verificação de câmera f�
 O [Prompter](docs/PROMPTER.md) oferece roteiro, rolagem e apresentação em monitor.
 A integração com o dispositivo físico permanece pendente.
 
-Firmware, HDR proprietário e persistência interna da câmera permanecem
+O [HDR da Facecam MK.2](docs/HDR.md) tem controle e leitura de retorno,
+com suporte opcional instalado por APT.
+
+Firmware e persistência interna da câmera permanecem
 fora da implementação. A compilação suporta X11 e Wayland; a validação local
 inicial foi em X11. A integração com cada consumidor de câmera virtual precisa
 ser exercitada no ambiente de destino.

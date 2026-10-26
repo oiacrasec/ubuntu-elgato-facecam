@@ -187,6 +187,14 @@ de projeto gráfico para usar a câmera.
 Para ocultar detalhes do ambiente, prefira uma substituição opaca ao desfoque.
 A segmentação pode errar; confira o vídeo antes de compartilhar.
 
+## Ativar HDR na Facecam MK.2
+
+Com preview ou câmera virtual ativo, abra **Câmera** › **Processamento** e use
+**Ativar HDR**. Se faltar suporte, a aplicação oferece **Instalar suporte HDR…**
+pelo APT, com confirmação. **Salvar** guarda o valor neste computador e **R**
+restaura, sem gravar presets na câmera. HDR da MK.2 aceita até 60 fps; a mudança
+aguarda confirmação do dispositivo. Consulte [HDR](HDR.md) para limites e modelos.
+
 ## Visualizar e enviar a outro aplicativo
 
 **Espelhar**, abaixo do preview, espelha preview e câmera virtual imediatamente,

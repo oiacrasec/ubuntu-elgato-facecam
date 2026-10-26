@@ -19,6 +19,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Instalação e execução](../README.md)
 - [Operação da câmera, presets e visualização](USO.md)
 - [Efeitos e IA, incluindo descoberta automática](EFEITOS.md)
+- [HDR da Facecam MK.2](HDR.md)
 - [Roteiro, leitura e apresentação do Prompter](PROMPTER.md)
 - [Runtimes NVIDIA Broadcast de referência e migração Linux](NVIDIA_MAXINE.md)
 - [Falhas e recuperação](SOLUCAO_DE_PROBLEMAS.md)

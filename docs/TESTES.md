@@ -288,3 +288,24 @@ captura aceita `FACECAM_TEST_UI_VIEWPORT=prompter-output` para capturar somente 
 janela de apresentação. Ausente essa variável, captura somente o viewport raiz.
 O teste de texto espelhado compara o framebuffer refletido horizontalmente,
 excluindo a guia fixa, e exige pixels de texto; uma janela vazia não passa.
+
+## HDR
+
+Checks comuns exercitam descritores truncados, GUID/seletor incorreto, unidade
+ambígua, metadados incompatíveis, estados 0/1/pendente/inválido, saída não UTF-8,
+timeout da ferramenta e recusa sem câmera. O contrato CLI prepara e cancela um
+plano `hdr_tools`, sem instalar nem alterar a configuração.
+
+O teste físico abaixo escreve somente HDR, lê o retorno, restaura o valor
+original, confere outros controles e recebe preview apenas em memória. Feche
+outros produtores e execute conscientemente; ele não faz parte do check comum:
+
+```bash
+FACECAM_HDR_DEVICE=/dev/video0 FACECAM_HDR_RATE=30 cargo test --locked --test hdr hardware_hdr -- --ignored --nocapture
+FACECAM_HDR_DEVICE=/dev/video0 FACECAM_HDR_RATE=60 cargo test --locked --test hdr hardware_hdr -- --ignored --nocapture
+```
+
+Requer `uvcdynctrl` instalado, ou `FACECAM_UVC_TOOL` para uma ferramenta local de
+validação e suas bibliotecas. O teste usa 1920×1080, recusa escrita sem captura,
+confere retomada dos frames após alteração, Save/Restore local e restauração no
+encerramento, inclusive após uma asserção. Não salva imagens da câmera.

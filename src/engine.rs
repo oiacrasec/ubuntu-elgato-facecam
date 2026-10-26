@@ -33,6 +33,9 @@ pub enum Request {
         start_minimized: Option<bool>,
         language: Option<String>,
     },
+    SetHdr {
+        enabled: bool,
+    },
     SetControl {
         name: String,
         value: i64,
@@ -91,6 +94,8 @@ pub struct Snapshot {
     pub modes: Vec<Mode>,
     pub mode: Option<Mode>,
     pub controls: Vec<Control>,
+    #[serde(default)]
+    pub hdr: crate::hdr::Status,
     pub streaming: bool,
     pub preview: bool,
     pub uptime_seconds: u64,
@@ -151,6 +156,7 @@ pub struct Engine {
     last_refresh: Instant,
     last_prompter_tick: Instant,
     last_prompter_wall: SystemTime,
+    last_hdr_refresh: Instant,
     write_failures: BTreeMap<String, String>,
     installation: Option<crate::dependencies::Installation>,
     installation_revision: u64,
@@ -182,6 +188,7 @@ impl Engine {
             modes: Vec::new(),
             mode: None,
             controls: Vec::new(),
+            hdr: Default::default(),
             streaming: false,
             preview: false,
             uptime_seconds: 0,
@@ -221,6 +228,7 @@ impl Engine {
             last_refresh: Instant::now(),
             last_prompter_tick: Instant::now(),
             last_prompter_wall: SystemTime::now(),
+            last_hdr_refresh: Instant::now(),
             write_failures: BTreeMap::new(),
             installation: None,
             import: None,
@@ -293,6 +301,36 @@ impl Engine {
             return Err(error);
         }
         self.query_controls()
+    }
+
+    fn refresh_hdr(&mut self) {
+        self.last_hdr_refresh = Instant::now();
+        self.state.hdr = self
+            .state
+            .camera
+            .as_ref()
+            .map(|camera| crate::hdr::discover(&camera.path))
+            .unwrap_or_default();
+    }
+
+    fn write_hdr(&mut self, enabled: bool) -> Result<()> {
+        if self.stream.is_none() {
+            bail!("Inicie o preview ou a câmera virtual antes de alterar o HDR");
+        }
+        if self.state.mode.as_ref().is_some_and(|mode| mode.fps > 60.0) {
+            bail!("HDR da Facecam MK.2 está disponível até 60 fps");
+        }
+        let device = self
+            .state
+            .camera
+            .as_ref()
+            .context("Câmera não encontrada")?
+            .path
+            .clone();
+        let result = crate::hdr::set(&device, enabled);
+        self.refresh_hdr();
+        result?;
+        Ok(())
     }
 
     fn refresh_dependencies(&mut self) {
@@ -383,11 +421,13 @@ impl Engine {
         self.state.controls.clear();
         self.state.modes.clear();
         self.state.mode = None;
+        self.state.hdr = Default::default();
         if let Some(camera) = &self.state.camera {
             self.state.modes =
                 camera::parse_modes(&camera::v4l2(&camera.path, &["--list-formats-ext"])?);
             self.state.mode = Some(camera::choose_mode(&self.state.modes, &self.state.config)?);
             self.query_controls()?;
+            self.refresh_hdr();
         }
         Ok(())
     }
@@ -794,6 +834,10 @@ impl Engine {
                     self.state.config.save(&self.path)?;
                 }
             }
+            Request::SetHdr { enabled } => {
+                self.write_hdr(enabled)?;
+                return Ok("HDR atualizado e confirmado na câmera".into());
+            }
             Request::SetControl { name, value } => {
                 self.write_control(&name, value)?;
                 let actual = self
@@ -857,9 +901,10 @@ impl Engine {
                 });
             }
             Request::Save => {
+                let mut config = self.state.config.clone();
                 if self.state.camera.is_some() {
                     self.query_controls()?;
-                    self.state.config.saved_controls = self
+                    config.saved_controls = self
                         .state
                         .controls
                         .iter()
@@ -867,7 +912,12 @@ impl Engine {
                         .map(|c| (c.name.clone(), c.value))
                         .collect();
                 }
-                self.state.config.save(&self.path)?;
+                self.refresh_hdr();
+                if self.state.hdr.available {
+                    config.saved_hdr = self.state.hdr.enabled;
+                }
+                config.save(&self.path)?;
+                self.state.config = config;
                 return Ok("Configuração e ajustes salvos neste computador".into());
             }
             Request::Restore => {
@@ -875,11 +925,24 @@ impl Engine {
                     .camera
                     .as_ref()
                     .context("Câmera não encontrada")?;
-                if self.state.config.saved_controls.is_empty() {
+                if self.state.config.saved_controls.is_empty()
+                    && self.state.config.saved_hdr.is_none()
+                {
                     bail!("Nenhum ajuste salvo neste computador");
                 }
                 let mut skipped = Vec::new();
                 let mut applied = 0;
+                if let Some(enabled) = self.state.config.saved_hdr {
+                    self.refresh_hdr();
+                    if !self.state.hdr.available {
+                        skipped.push("HDR".into());
+                    } else {
+                        if self.state.hdr.enabled != Some(enabled) {
+                            self.write_hdr(enabled)?;
+                        }
+                        applied += 1;
+                    }
+                }
                 for (name, value) in self.state.config.saved_controls.clone() {
                     if self.write_failures.contains_key(&name) {
                         skipped.push(name);
@@ -983,6 +1046,18 @@ impl Engine {
 
     pub fn tick(&mut self) -> bool {
         let mut changed = self.advance_prompter();
+        let hdr_after_start = self.stream.as_ref().is_some_and(|stream| {
+            self.last_hdr_refresh < stream.started
+                && stream.started.elapsed() >= Duration::from_millis(600)
+        });
+        if hdr_after_start
+            || (self.state.hdr.pending
+                && self.stream.is_some()
+                && self.last_hdr_refresh.elapsed() >= Duration::from_secs(1))
+        {
+            self.refresh_hdr();
+            changed = true;
+        }
         #[cfg(feature = "ai")]
         while let Some(event) = self.nvidia_preparation.as_ref().and_then(|job| job.poll()) {
             changed = true;
@@ -1041,6 +1116,7 @@ impl Engine {
                 let _ = self.refresh();
             } else {
                 self.refresh_dependencies();
+                self.refresh_hdr();
             }
             match result {
                 Ok(message) => {

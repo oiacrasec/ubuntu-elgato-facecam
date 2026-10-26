@@ -17,6 +17,7 @@ não inclui LUTs, fundos, ícones ou shaders extraídos do Camera Hub.
 | ksni | Bandeja StatusNotifierItem por D-Bus, opcional |
 | FFmpeg | Captura, conversão, filtros e saída de vídeo |
 | v4l-utils / `v4l2-ctl` | Consulta e escrita de controles e formatos |
+| `uvcdynctrl` / libwebcam | HDR opcional via subprocesso; pacote Ubuntu com executável GPL-3+ e biblioteca LGPL-3+, sem incorporar seu binário ao produto |
 | v4l2loopback | Nó virtual preparado no sistema pelo usuário |
 | `ort` | Bindings Rust opcionais para ONNX Runtime carregado dinamicamente |
 | `aes` 0.8 / `cbc` 0.1 / `sha2` 0.10 | RustCrypto, MIT ou Apache-2.0; leitura e conferência do modelo local, sem chaves embutidas |

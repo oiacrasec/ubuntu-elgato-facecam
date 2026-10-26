@@ -22,6 +22,7 @@ pub enum Dependency {
     VideoTools,
     SdkManager,
     NvidiaTools,
+    HdrTools,
     VirtualCamera,
 }
 
@@ -32,6 +33,7 @@ impl Dependency {
             Self::SdkManager => "NVIDIA SDK Manager",
             Self::NvidiaTools => "Ferramentas de IA RTX",
             Self::VirtualCamera => "Câmera virtual",
+            Self::HdrTools => "Suporte HDR",
         }
     }
     fn packages(self) -> &'static [&'static str] {
@@ -40,6 +42,7 @@ impl Dependency {
             Self::SdkManager => &["sdkmanager"],
             Self::NvidiaTools => &["curl", "p7zip-full", "unzip"],
             Self::VirtualCamera => &[],
+            Self::HdrTools => &["uvcdynctrl"],
         }
     }
 }
@@ -81,6 +84,7 @@ pub fn discover() -> Result<Vec<DependencyState>> {
             "ffmpeg",
             "v4l-utils",
             "sdkmanager",
+            "uvcdynctrl",
             "curl",
             "p7zip-full",
             "unzip",
@@ -103,6 +107,7 @@ fn parse_packages(text: &str) -> Vec<DependencyState> {
         Dependency::VideoTools,
         Dependency::SdkManager,
         Dependency::NvidiaTools,
+        Dependency::HdrTools,
     ]
     .into_iter()
     .map(|dependency| DependencyState {
@@ -221,6 +226,17 @@ pub fn prepare(dependency: Dependency, id: u64, directory: &Path) -> Result<Inst
                 "--",
                 "ffmpeg",
                 "v4l-utils",
+            ]));
+        }
+        Dependency::HdrTools => {
+            plan.title = "Instalar suporte HDR".into();
+            plan.explanation = "Instala uvcdynctrl pelos repositórios do Ubuntu para controlar o HDR da Facecam MK.2.".into();
+            plan.commands.push(apt(&[
+                "install",
+                "--yes",
+                "--no-install-recommends",
+                "--",
+                "uvcdynctrl",
             ]));
         }
         Dependency::NvidiaTools => {

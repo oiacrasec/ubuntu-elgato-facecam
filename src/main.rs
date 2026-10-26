@@ -14,6 +14,7 @@ mod gpu;
 mod gui;
 #[cfg(all(feature = "gui", debug_assertions))]
 mod gui_test;
+mod hdr;
 mod i18n;
 mod ipc;
 #[cfg(feature = "ai")]
@@ -66,6 +67,8 @@ struct Args {
     list_controls: bool,
     #[arg(long, value_name = "NAME=VALUE")]
     set_control: Option<String>,
+    #[arg(long, value_parser = clap::value_parser!(bool), help = "Set verified camera HDR (true or false), with capture active")]
+    set_hdr: Option<bool>,
     #[arg(
         long,
         value_name = "JSON_FILE",
@@ -402,6 +405,9 @@ fn run() -> Result<()> {
             })?,
             &path,
         );
+    }
+    if let Some(enabled) = args.set_hdr {
+        return print_reply(ipc::send(&Request::SetHdr { enabled })?, &path);
     }
     if args.check_ai {
         let config = config::Config::load(&path)?;

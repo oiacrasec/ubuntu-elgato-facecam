@@ -56,6 +56,7 @@ pub struct Config {
     pub effects: crate::effects::Effects,
     pub prompter: crate::prompter::Settings,
     pub saved_controls: BTreeMap<String, i64>,
+    pub saved_hdr: Option<bool>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
@@ -72,6 +73,7 @@ impl Default for Config {
             effects: crate::effects::Effects::default(),
             prompter: crate::prompter::Settings::default(),
             saved_controls: BTreeMap::new(),
+            saved_hdr: None,
             extra: BTreeMap::new(),
         }
     }

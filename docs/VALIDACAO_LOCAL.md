@@ -965,3 +965,48 @@ Linux não inclui suspensão no tempo monotônico. A simulação do intervalo é
 automática; suspensão física e teste com Elgato Prompter continuam pendentes.
 A conexão USB local não contém esse dispositivo. Monitor comum não comprova
 DisplayLink ou compatibilidade de comandos proprietários.
+
+## HDR físico da Facecam MK.2 — 26/10/2026
+
+O contrato específico da webcam foi fechado no Windows 2.3.0.7295: o ID interno
+`0x02060000` resolve para o GUID `23e49ed0-1178-4f31-ae52-d2fb8a8d3001`, seletor
+21 de um byte. Os descritores da MK.2 USB 2 local, `0fd9:0093`, expõem esse
+controle na unidade 7, com GET/SET, mínimo 0, máximo 1 e passo 1. Não foi usado
+um getter CCUVC de tone mapping de capturadoras. A análise e hashes ficam em
+[HDR](HDR.md); nenhum código ou binário proprietário foi incorporado ao Git.
+
+O primeiro ensaio revelou que o firmware retorna `0xff` durante uma alteração.
+A leitura imediata não confirmou a escrita. A investigação foi repetida com
+vídeo ativo e polling: desligar confirmou 0 após aproximadamente 504 ms; ligar
+confirmou 1 após aproximadamente 750 ms. O código foi corrigido para exigir vídeo
+ativo, tratar `0xff` como pendência e aguardar confirmação. A orientação anterior
+de parar a captura não corresponde a esse dispositivo. O estado original, HDR
+ligado, foi restabelecido e confirmado.
+
+O teste físico optativo passou em 1920×1080/30 e 1920×1080/60: recusa sem vídeo,
+escrita inversa, leitura de retorno, restauração do valor salvo, Save local e
+frames crescendo após a mudança. Brilho, contraste, saturação, nitidez,
+contraluz, zoom, pan e tilt mantiveram seus valores. Não houve escrita desses
+controles ou de firmware; exposição automática pode variar por conta da câmera.
+As imagens existiram somente nos buffers de preview em memória.
+
+A GUI debug foi exercitada em X11, 960×640. Sem a ferramenta, mostrou estado
+indeterminado e **Instalar suporte HDR…**; clicar preparou um plano APT sem iniciar
+instalação, e cancelar preservou a configuração. Com ferramenta local de teste,
+os cliques no checkbox desligaram e religaram HDR, com confirmação e frames
+continuando. O preview foi parado antes de qualquer captura de tela. As imagens
+em `target/hdr-acceptance/` mostram somente estados pausados, sem imagem da câmera.
+
+Os checks comuns passaram com 78 testes nos recursos padrão, 66 sem recursos
+padrão e quatro verificações sintéticas FFmpeg. Incluem descritores e metadados
+inválidos, estados 0/1/pendente, timeout, texto não UTF-8, plano/cancelamento APT e
+recusa sem câmera. Logs em `target/hdr-checks-final.log`,
+`target/hdr-hardware-tests.log` e `target/hdr-hardware-60-tests.log`.
+Formatação, Clippy sem avisos e build release passaram. A suíte comum não escreve
+na câmera. O inventário continua com as mesmas 152 fontes documentais.
+
+O pacote APT não foi instalado no sistema: a ferramenta de validação foi extraída
+localmente para os testes. A instalação/remoção administrativa real ainda exige
+confirmação no app. USB 3, MK.2 Rev.2, outras Facecams e comparação de qualidade
+com Windows não foram validados. Outros controles proprietários e firmware
+continuam fora do escopo autorizado.

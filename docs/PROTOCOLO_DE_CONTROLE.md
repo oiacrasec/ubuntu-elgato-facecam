@@ -28,13 +28,14 @@ A proteção atual depende do usuário e das permissões locais.
 | `stop` | nenhum | Encerra captura e filhos de vídeo |
 | `configure` | `config`, `save`, bool, padrão false | Valida formato/configuração com captura parada; salvamento opcional |
 | `update_settings` | `virtual_device`, string opcional; `start_minimized`, bool opcional; `language`, tag opcional | Aplica e salva apenas os campos enviados; troca de saída exige captura parada; idioma pode mudar durante captura |
+| `set_hdr` | `enabled`, bool | Altera HDR MK.2 confirmado, com vídeo ativo e leitura de retorno |
 | `set_control` | `name`, string; `value`, i64 | Valida e escreve um controle V4L2, com leitura de retorno |
 | `set_effects` | `effects`, objeto | Detecta campos de IA vazios, valida, aplica e salva efeitos |
 | `set_autostart` | `enabled`, bool | Ativa ou remove a inicialização automática do usuário imediatamente |
-| `prepare_install` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
+| `prepare_install` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools`, `hdr_tools` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
 | `prepare_virtual_camera` | `persistent`, bool obrigatório | Prepara módulo e persistência opcional, com captura parada |
 | `prepare_nvidia` | nenhum | Prepara componentes Ada no usuário e testa a GPU em segundo plano; exige captura parada |
-| `prepare_uninstall` | `dependency`: `video_tools`, `sdk_manager` ou `nvidia_tools` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
+| `prepare_uninstall` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools` ou `hdr_tools` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
 | `confirm_install` | `id`, u64 | Confirma o plano atual e inicia instalação com autenticação do Ubuntu |
 | `cancel_install` | nenhum | Descarta o plano pendente; não interrompe uma transação APT iniciada |
 | `import_resource` | `kind`: `lut`, `image` ou `video`; `path`: arquivo local | Inicia validação e cópia para a biblioteca em segundo plano; não aplica efeitos |
@@ -181,3 +182,14 @@ nomes de até 512 bytes e recusa o comando em headless. Índices indisponíveis
 impedem `show`; mudanças na lista fecham e pausam uma apresentação ativa.
 O IPC mantém o limite de 64 KiB por pedido; texto tem limite de 8 KiB para
 acomodar escapes JSON e os demais campos.
+
+## HDR
+
+`--set-hdr true` e `--set-hdr false` enviam `set_hdr` ao controlador ativo.
+`state.hdr` contém `supported`, `available`, `pending`, `needs_tool`, `enabled`,
+`unit` e `error`. Estado desconhecido mantém `enabled: null`. `saved_hdr` pertence
+à configuração local e só é atualizado por Save ou Configure explícito.
+
+O grupo APT `hdr_tools` usa `uvcdynctrl` dos repositórios Ubuntu, sem cadastro de
+fonte adicional. Preparar não instala; a confirmação e autenticação seguem o
+fluxo geral. [HDR](HDR.md) detalha o controle restrito por modelo e os limites.

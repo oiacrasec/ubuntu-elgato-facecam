@@ -186,7 +186,7 @@ de execução concorrente à [arquitetura Rust](ARQUITETURA.md).
 | Backend NVIDIA VFX | API dinâmica e SDK externo | Segmentação temporal m1 Ada em Rust/TensorRT Linux; preparação guiada e fallback ONNX, validado na RTX 4070 SUPER |
 | Correção de olhar | Integração AR e GazeRedirection | Não implementado; precisa de modelo/backend e teste de qualidade próprios |
 | Enquadramento automático | FaceTrack e parâmetros de transição | Não implementado; definir detecção, suavização, crop e interação com PTZ físico |
-| HDR e processamento proprietário | Imports/getters CCUVC | Investigação por família; não equiparar a contraste/denoise genéricos |
+| HDR e processamento proprietário | HDR da webcam usa CElgatoWebcamBaseSupport; outros getters CCUVC pertencem a capturadoras | HDR MK.2 implementado por GUID/seletor confirmado e leitura de retorno; outros controles continuam em investigação |
 | Prompter | XML, textos e componentes DisplayLink | Roteiro, rolagem, espelho e apresentação implementados; transporte DisplayLink, Voice Sync, Twitch e biblioteca de roteiros ainda pendentes |
 | NDI | Três DLLs distribuídas no MSI | Alcance funcional não confirmado; não anunciar transmissão NDI existente |
 | Automação externa | Nomes de métodos e bibliotecas WebSocket | CLI/IPC local já existe; protocolo de compatibilidade ainda não estabelecido |

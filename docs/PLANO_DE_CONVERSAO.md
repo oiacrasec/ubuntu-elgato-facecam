@@ -14,8 +14,10 @@ não substitui seus testes.
   [Prompter](PROMPTER.md).
 - [ ] IA: correção de olhar e enquadramento automático completos, com GPU e
   preparação validada dos componentes necessários.
-- [ ] HDR: descoberta e operação somente com contrato confirmado por modelo;
+- [x] HDR: descoberta e operação somente com contrato confirmado por modelo;
   não implementar persistência interna ou atualização de firmware nesta etapa.
+  Implementado para MK.2 com contrato confirmado; execução física USB 2, limites e
+  pendências por modelo em [HDR](HDR.md).
 - [ ] Interface: teclado, acessibilidade, escala, Wayland e bandeja; comparação
   visual com Windows foi adiada pelo usuário.
 - [ ] Confiabilidade e distribuição: consumidores, sessões prolongadas,
