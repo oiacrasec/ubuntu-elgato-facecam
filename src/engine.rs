@@ -470,10 +470,14 @@ impl Engine {
         if self.removing_video_tools {
             bail!("Aguarde a desinstalação das ferramentas de vídeo terminar");
         }
-        if self.stream.is_some()
-            && self.state.streaming == virtual_output
-            && self.state.preview == preview
+        if self.state.streaming == virtual_output
+            && let Some(stream) = &mut self.stream
+            && stream.set_preview(preview)
         {
+            self.state.preview = preview;
+            self.state.preview_frames = stream
+                .frames_received
+                .load(std::sync::atomic::Ordering::Relaxed);
             return Ok(());
         }
         if virtual_output {
@@ -497,8 +501,11 @@ impl Engine {
             &camera.path,
             mode,
             &self.state.config,
-            virtual_output,
-            preview,
+            crate::stream::Outputs {
+                virtual_output,
+                preview,
+                keep_preview: self.state.gui,
+            },
             self.frames.clone(),
             &parent.join("virtualcam.err.log"),
         )?);
@@ -906,12 +913,27 @@ impl Engine {
                 self.refresh()?;
             }
             Request::Start { preview } => {
+                let active = self.state.streaming;
                 self.start(true, preview)?;
-                return Ok("Câmera virtual iniciando".into());
+                return Ok(if active {
+                    if preview {
+                        "Visualização ativada"
+                    } else {
+                        "Visualização pausada"
+                    }
+                } else {
+                    "Câmera virtual iniciando"
+                }
+                .into());
             }
             Request::Preview => {
-                self.start(false, true)?;
-                return Ok("Preview iniciando".into());
+                self.start(self.state.streaming, true)?;
+                return Ok(if self.state.streaming {
+                    "Visualização ativada"
+                } else {
+                    "Preview iniciando"
+                }
+                .into());
             }
             Request::Stop => {
                 self.stop()?;
@@ -1266,6 +1288,49 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preview_toggles_preserve_virtual_output_process_and_uptime() {
+        let (dir, mut engine) = engine();
+        engine.state.config.ui.show_notifications = false;
+        let stream = Stream::synthetic(&dir.path().join("stream.log"), engine.frames.clone());
+        let pid = stream.pid();
+        let started = stream.started;
+        engine.stream = Some(stream);
+        engine.state.streaming = true;
+        for _ in 0..3 {
+            // This used to call start(false, true) and discard the virtual output.
+            let reply = engine.handle(Request::Preview);
+            assert!(reply.ok, "{}", reply.message);
+            assert!(reply.state.streaming && reply.state.preview);
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let before = engine.state.preview_frames;
+            while engine.state.preview_frames <= before {
+                engine.tick();
+                assert!(Instant::now() < deadline);
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let stream = engine.stream.as_ref().unwrap();
+            assert_eq!(stream.pid(), pid);
+            assert_eq!(stream.started, started);
+            // Closing the window and the View toggle send this same request.
+            let reply = engine.handle(Request::Start { preview: false });
+            assert!(reply.ok && reply.state.streaming && !reply.state.preview);
+            assert!(engine.frames.frame.lock().unwrap().is_none());
+            let count = engine
+                .stream
+                .as_ref()
+                .unwrap()
+                .frames_received
+                .load(std::sync::atomic::Ordering::Relaxed);
+            std::thread::sleep(Duration::from_millis(60));
+            engine.tick();
+            assert_eq!(engine.state.preview_frames, count);
+            assert_eq!(engine.stream.as_ref().unwrap().pid(), pid);
+        }
+        assert!(engine.handle(Request::Stop).ok);
+        assert!(engine.stream.is_none());
+    }
 
     fn library_image(engine: &Engine) -> PathBuf {
         let image = engine.resource_root.join("images/wrong.png");

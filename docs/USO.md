@@ -97,7 +97,7 @@ v4l2loopback encontrada; nenhum campo de caminho precisa ser preenchido.
    **Confirmar preparação**.
 5. Conclua a autenticação administrativa do Ubuntu e aguarde o resultado.
 6. Clique em **Iniciar câmera virtual** antes de abrir ou atualizar o consumidor;
-   nele, escolha **VirtualCam**.
+   nele, escolha **Elgato Facecam Virtual**.
 
 Uma autorização executa as etapas fixas de preparação. O plano escolhe um número
 livre a partir de `/dev/video10` e carrega v4l2loopback com `exclusive_caps=1`,
@@ -197,6 +197,13 @@ aguarda confirmação do dispositivo. Consulte [HDR](HDR.md) para limites e mode
 
 ## Visualizar e enviar a outro aplicativo
 
+Com a câmera virtual ativa, **Visualizar** mostra ou pausa somente a imagem na
+janela. A saída para o Meet/OBS continua ativa; fechar a janela para a bandeja
+também preserva essa saída. **Iniciar preview**, quando disponível no painel,
+preserva uma câmera virtual que já esteja transmitindo. **Parar câmera virtual**
+encerra a captura. Após trocar o nome do dispositivo, atualize a lista de câmeras
+do consumidor e escolha **Elgato Facecam Virtual**.
+
 **Espelhar**, abaixo do preview, espelha preview e câmera virtual imediatamente,
 usando o mesmo efeito de **Efeitos**. **Grade** desenha apenas uma guia de
 enquadramento; desligue-a para ver a imagem sem sobreposição. O preview usa a
@@ -206,7 +213,7 @@ a janela não altera a resolução enviada. O monitor pode limitar os quadros
 apresentados, e OBS/navegadores podem aplicar seu próprio espelhamento ou ajustes.
 
 Faça a [preparação assistida](#preparar-a-câmera-virtual), inicie a câmera virtual
-e selecione **VirtualCam** no consumidor. Isso entrega vídeo ao aplicativo
+e selecione **Elgato Facecam Virtual** no consumidor. Isso entrega vídeo ao aplicativo
 selecionado; não exporta uma foto, salva uma gravação ou cria um documento em
 camadas. Não há exportador de PNG/JPEG, gravação de vídeo ou impressão na UI atual.
 

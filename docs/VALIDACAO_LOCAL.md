@@ -1315,3 +1315,31 @@ isoladas, preservação de arquivos de outro prefixo, Clippy e documentação.
 O instalador publica os PNGs no hicolor e inclui atribuição e proveniência no
 bundle. Atualização de cache usa ferramentas locais opcionais, sem adicionar
 Qt ou GTK como backend gráfico do executável.
+
+## Continuidade da câmera virtual e nome — 26/10/2026
+
+O relato do usuário identificou duas transições incorretas: `Preview` iniciava
+uma captura sem saída virtual e a troca de `Start.preview` recriava todos os
+processos. A correção preserva uma saída já ativa e, na sessão GUI, alterna a
+publicação dos quadros pelo pipe reservado, sem reabrir `/dev/video0`.
+
+O usuário autorizou interromper seu ensaio. O dispositivo do host foi recriado
+com autorização administrativa, pelo helper fixo do projeto, e a configuração
+persistente/initramfs foi atualizada. `v4l2-ctl --info` e sysfs confirmam
+**Elgato Facecam Virtual**. A configuração anterior do módulo foi preservada em
+`/etc/modprobe.d/facecam-hub.conf.before-rename`. O fluxo comum do aplicativo
+continua sem descarregar módulos automaticamente. A descoberta exclui loopbacks
+com esse nome da lista de entradas físicas.
+
+Em uma instância GUI minimizada com configuração privada, Facecam MK.2 MJPEG
+1920×1080/60 e desfoque NVIDIA, um consumidor FFmpeg permaneceu aberto durante
+três ciclos de mostrar/pausar preview. Os três PIDs de captura, worker e saída
+permaneceram iguais; uptime e quadros do consumidor avançaram. O consumidor
+recebeu 136 quadros, e Stop recolheu todos os processos pertencentes ao app.
+Não foram salvas imagens da câmera. Isso exercita o consumo V4L2 local; uma nova
+chamada Google Meet não foi iniciada pelo agente.
+
+`./test-desktop-app.sh` passou com features padrão e headless. Evidências locais
+ficam em `target/preview-toggle/`: `hardware-result.json`, logs e bateria de checks.
+Logs do encerramento explícito ainda podem conter Broken pipe entre etapas;
+um erro novo publica apenas o trecho correspondente à captura atual.

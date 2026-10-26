@@ -88,8 +88,9 @@ impl Setup {
             (
                 OPTIONS_FILE,
                 format!(
-                    "{MARKER}options v4l2loopback video_nr={} card_label=VirtualCam exclusive_caps=1\n",
-                    self.number()?
+                    "{MARKER}options v4l2loopback video_nr={} card_label=\"{}\" exclusive_caps=1\n",
+                    self.number()?,
+                    crate::config::VIRTUAL_CAMERA_LABEL
                 ),
             ),
             (MODULES_FILE, format!("{MARKER}v4l2loopback\n")),
@@ -191,7 +192,7 @@ impl Setup {
             "/usr/sbin/modprobe".into(),
             "v4l2loopback".into(),
             format!("video_nr={}", self.number()?),
-            "card_label=VirtualCam".into(),
+            format!("card_label={}", crate::config::VIRTUAL_CAMERA_LABEL),
             "exclusive_caps=1".into(),
         ]);
         if self.persistent {
@@ -339,7 +340,7 @@ fn build_plan(
         serde_json::to_string(&setup)?,
     ]];
     let mut explanation = format!(
-        "Prepara VirtualCam em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.",
+        "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.",
         setup.device
     );
     if persistent {
@@ -386,6 +387,14 @@ mod tests {
         assert_eq!(plan.commands.len(), 1);
         let setup = plan.virtual_camera.as_ref().unwrap();
         assert_eq!(setup.review_steps().unwrap().len(), 4);
+        assert!(
+            setup.review_steps().unwrap()[0].contains(&"card_label=Elgato Facecam Virtual".into())
+        );
+        assert!(
+            setup.files().unwrap()[0]
+                .1
+                .contains("card_label=\"Elgato Facecam Virtual\"")
+        );
         assert!(
             setup.review_steps().unwrap()[0]
                 .iter()

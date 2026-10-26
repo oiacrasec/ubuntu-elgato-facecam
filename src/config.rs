@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub const VIRTUAL_CAMERA_LABEL: &str = "Elgato Facecam Virtual";
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VideoConfig {
@@ -67,7 +69,7 @@ impl Default for Config {
             schema_version: 3,
             camera_device: String::new(),
             virtual_device: "/dev/video10".into(),
-            virtual_device_label: "VirtualCam".into(),
+            virtual_device_label: VIRTUAL_CAMERA_LABEL.into(),
             ffmpeg_params: VideoConfig::default(),
             ui: UiConfig::default(),
             effects: crate::effects::Effects::default(),
@@ -107,6 +109,12 @@ impl Config {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
             Err(e) => Err(e).context("Não foi possível ler a configuração"),
         }?;
+        if matches!(
+            config.virtual_device_label.as_str(),
+            "" | "VirtualCam" | "Virtual Camera"
+        ) {
+            config.virtual_device_label = VIRTUAL_CAMERA_LABEL.into();
+        }
         crate::ai_paths::autofill(&mut config.effects);
         config.validate()?;
         Ok(config)
@@ -172,6 +180,17 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_virtual_camera_label_migrates_without_rewriting_configuration() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let original = r#"{"virtual_device_label":"VirtualCam","custom":17}"#;
+        fs::write(&path, original).unwrap();
+        let config = Config::load(&path).unwrap();
+        assert_eq!(config.virtual_device_label, VIRTUAL_CAMERA_LABEL);
+        assert_eq!(config.extra["custom"], 17);
+        assert_eq!(fs::read_to_string(path).unwrap(), original);
+    }
     #[test]
     fn imports_previous_config_without_losing_extensions() {
         let c: Config = serde_json::from_str(r#"{"ffmpeg_params":{"input_format":"uyvy422","video_size":"1280x720"},"logging":{"level":"DEBUG"}}"#).unwrap();

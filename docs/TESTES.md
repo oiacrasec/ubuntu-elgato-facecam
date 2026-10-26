@@ -84,6 +84,14 @@ modelo de IA, conta NVIDIA ou câmera nessa verificação.
 
 ## Inicialização no desktop
 
+`preview_toggles_preserve_virtual_output_process_and_uptime` usa quadros sintéticos
+de um filho controlado: alterna `Preview` e `Start.preview`, confirma mesmo PID e
+uptime, contagem ao visualizar, pausa da publicação e encerramento em Stop.
+`stream_failure_reports_only_the_current_capture_log` separa mensagens antigas
+de encerramento do erro da captura atual. Nenhum desses testes abre câmera.
+O nome de legado migra em memória sem reescrever a configuração, e o plano
+administrativo testa o argumento e as aspas de **Elgato Facecam Virtual**.
+
 O teste de contrato `autostart_toggle_tracks_disk_reopens_and_preserves_state_on_failure`
 usa diretórios XDG temporários: ativa, reabre, desativa, repete a desativação,
 acompanha entradas desabilitadas externamente e verifica falha de filesystem sem
@@ -160,7 +168,7 @@ depois de parar e reiniciar o produtor. A amostragem usa vizinho mais próximo;
 U/V devem ficar a até 1 de 128, sem interpolação ou conversão RGB no oráculo.
 O runtime e a configuração são temporários.
 O teste fica ignorado e seu nome não corresponde ao filtro `ffmpeg_` dos checks
-sintéticos. Para Chrome/OBS, selecione **VirtualCam**, confira resolução/FPS,
+sintéticos. Para Chrome/OBS, selecione **Elgato Facecam Virtual**, confira resolução/FPS,
 efeitos, retomada e parada. [Validação local](VALIDACAO_LOCAL.md) registra o teste
 WebRTC real; frame recebido pelo FFmpeg não comprova aceitação pelo navegador.
 

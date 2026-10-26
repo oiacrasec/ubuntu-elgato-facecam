@@ -11,7 +11,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -39,10 +39,21 @@ pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
     }
 }
 
+pub struct Outputs {
+    pub virtual_output: bool,
+    pub preview: bool,
+    // A GUI keeps the pipe drained while hidden, so showing it never closes
+    // the producer or makes conferencing consumers lose the virtual camera.
+    pub keep_preview: bool,
+}
+
 pub struct Stream {
     child: Child,
     upstream: Children,
     reader: Option<JoinHandle<()>>,
+    preview_enabled: Arc<AtomicBool>,
+    frames: LatestFrame,
+    log_start: u64,
     pub started: Instant,
     pub log: PathBuf,
     pub frames_received: Arc<AtomicU64>,
@@ -168,11 +179,16 @@ impl Stream {
         device: &str,
         mode: &Mode,
         config: &Config,
-        virtual_output: bool,
-        preview: bool,
+        outputs: Outputs,
         frames: LatestFrame,
         log: &Path,
     ) -> Result<Self> {
+        let Outputs {
+            virtual_output,
+            preview,
+            keep_preview,
+        } = outputs;
+        let preview_pipe = preview || keep_preview;
         config.effects.preflight()?;
         let size = [usize::try_from(mode.width)?, usize::try_from(mode.height)?];
         if size[0] == 0 || size[1] == 0 || size[0] > 7680 || size[1] > 4320 {
@@ -191,9 +207,10 @@ impl Stream {
             File::create(log)?;
         }
         let err = OpenOptions::new().create(true).append(true).open(log)?;
+        let log_start = err.metadata()?.len();
         let mut upstream = Children::default();
         let mut ai_backend = None;
-        let mut args = ffmpeg_args(device, mode, config, virtual_output, preview);
+        let mut args = ffmpeg_args(device, mode, config, virtual_output, preview_pipe);
         let stdin = if config.effects.ai_enabled() {
             let (ai_width, ai_height) = (mode.width, mode.height);
             let ai_fps = output_fps(mode, &config.effects);
@@ -234,7 +251,7 @@ impl Stream {
                 height: ai_height,
                 fps: ai_fps,
             };
-            args = ffmpeg_args("pipe:0", &raw_mode, config, virtual_output, preview);
+            args = ffmpeg_args("pipe:0", &raw_mode, config, virtual_output, preview_pipe);
             let format = args.iter().position(|a| a == "-f").unwrap();
             args[format + 1] = "rawvideo".into();
             let input_format = args.iter().position(|a| a == "-input_format").unwrap();
@@ -256,7 +273,7 @@ impl Stream {
         let mut child = Command::new("ffmpeg")
             .args(args)
             .stdin(stdin)
-            .stdout(if preview {
+            .stdout(if preview_pipe {
                 Stdio::piped()
             } else {
                 Stdio::null()
@@ -266,28 +283,24 @@ impl Stream {
             .context("Não foi possível iniciar FFmpeg; instale o pacote ffmpeg")?;
         let frames_received = Arc::new(AtomicU64::new(0));
         let counter = frames_received.clone();
-        let reader = child.stdout.take().map(|mut stdout| {
-            thread::spawn(move || {
-                loop {
-                    let mut frame = PreviewFrame {
-                        size,
-                        rgb: vec![0; frame_bytes],
-                    };
-                    if stdout.read_exact(&mut frame.rgb).is_err() {
-                        break;
-                    }
-                    *frames.frame.lock().unwrap_or_else(|e| e.into_inner()) = Some(frame);
-                    counter.fetch_add(1, Ordering::Relaxed);
-                    if let Some(wake) = &*frames.wake.lock().unwrap_or_else(|e| e.into_inner()) {
-                        wake();
-                    }
-                }
-            })
+        let preview_enabled = Arc::new(AtomicBool::new(preview));
+        let reader = child.stdout.take().map(|stdout| {
+            preview_reader(
+                stdout,
+                size,
+                frame_bytes,
+                frames.clone(),
+                preview_enabled.clone(),
+                counter,
+            )
         });
         Ok(Self {
             child,
             upstream,
             reader,
+            preview_enabled,
+            frames,
+            log_start,
             started: Instant::now(),
             log: log.into(),
             frames_received,
@@ -295,9 +308,32 @@ impl Stream {
         })
     }
 
+    pub fn set_preview(&mut self, enabled: bool) -> bool {
+        if enabled && self.reader.is_none() {
+            return false;
+        }
+        let mut frame = self.frames.frame.lock().unwrap_or_else(|e| e.into_inner());
+        self.preview_enabled.store(enabled, Ordering::Relaxed);
+        if !enabled {
+            *frame = None;
+        }
+        true
+    }
+
     pub fn poll(&mut self) -> Result<bool> {
         if let Some(status) = self.child.try_wait()? {
-            let text = fs::read_to_string(&self.log).unwrap_or_default();
+            use std::io::{Seek, SeekFrom};
+            let text = (|| -> std::io::Result<String> {
+                let mut file = File::open(&self.log)?;
+                let start = self
+                    .log_start
+                    .max(file.metadata()?.len().saturating_sub(64 * 1024));
+                file.seek(SeekFrom::Start(start))?;
+                let mut bytes = Vec::new();
+                file.read_to_end(&mut bytes)?;
+                Ok(String::from_utf8_lossy(&bytes).into_owned())
+            })()
+            .unwrap_or_default();
             let tail = text
                 .lines()
                 .rev()
@@ -332,6 +368,77 @@ impl Stream {
     }
 }
 
+fn preview_reader(
+    mut stdout: impl Read + Send + 'static,
+    size: [usize; 2],
+    frame_bytes: usize,
+    delivery: LatestFrame,
+    publishing: Arc<AtomicBool>,
+    counter: Arc<AtomicU64>,
+) -> JoinHandle<()> {
+    thread::spawn(move || {
+        let mut rgb = vec![0; frame_bytes];
+        while stdout.read_exact(&mut rgb).is_ok() {
+            let mut slot = delivery.frame.lock().unwrap_or_else(|e| e.into_inner());
+            if !publishing.load(Ordering::Relaxed) {
+                continue;
+            }
+            let next = slot
+                .take()
+                .filter(|frame| frame.rgb.len() == frame_bytes)
+                .map(|frame| frame.rgb)
+                .unwrap_or_else(|| vec![0; frame_bytes]);
+            *slot = Some(PreviewFrame {
+                size,
+                rgb: std::mem::replace(&mut rgb, next),
+            });
+            counter.fetch_add(1, Ordering::Relaxed);
+            drop(slot);
+            if let Some(wake) = &*delivery.wake.lock().unwrap_or_else(|e| e.into_inner()) {
+                wake();
+            }
+        }
+    })
+}
+
+#[cfg(test)]
+impl Stream {
+    pub(crate) fn synthetic(log: &Path, frames: LatestFrame) -> Self {
+        let mut child = Command::new("sh")
+            .args(["-c", "while :; do printf 0123456789ab; sleep 0.02; done"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let frames_received = Arc::new(AtomicU64::new(0));
+        let preview_enabled = Arc::new(AtomicBool::new(false));
+        let reader = Some(preview_reader(
+            child.stdout.take().unwrap(),
+            [2, 2],
+            12,
+            frames.clone(),
+            preview_enabled.clone(),
+            frames_received.clone(),
+        ));
+        Self {
+            child,
+            upstream: Children::default(),
+            reader,
+            preview_enabled,
+            frames,
+            log: log.into(),
+            log_start: 0,
+            started: Instant::now(),
+            frames_received,
+            ai_backend: None,
+        }
+    }
+    pub(crate) fn pid(&self) -> u32 {
+        self.child.id()
+    }
+}
+
 impl Drop for Stream {
     fn drop(&mut self) {
         let _ = self.stop();
@@ -343,6 +450,25 @@ mod tests {
     use super::*;
     const PREVIEW_WIDTH: usize = 640;
     const PREVIEW_HEIGHT: usize = 360;
+    #[test]
+    fn stream_failure_reports_only_the_current_capture_log() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("stream.log");
+        fs::write(&log, "Old shutdown: Broken pipe\n").unwrap();
+        let mut stream = Stream::synthetic(&log, Arc::default());
+        stream.log_start = fs::metadata(&log).unwrap().len();
+        writeln!(
+            OpenOptions::new().append(true).open(&log).unwrap(),
+            "Current capture: device busy"
+        )
+        .unwrap();
+        stream.child.kill().unwrap();
+        stream.child.wait().unwrap();
+        let error = stream.poll().unwrap_err().to_string();
+        assert!(error.contains("Current capture: device busy"));
+        assert!(!error.contains("Old shutdown"));
+    }
     #[test]
     fn output_rate_preserves_camera_fps_and_applies_only_the_explicit_ai_limit() {
         let mode = Mode {
@@ -669,8 +795,11 @@ mod tests {
             &camera.path,
             &mode,
             &config,
-            false,
-            true,
+            Outputs {
+                virtual_output: false,
+                preview: true,
+                keep_preview: false,
+            },
             frames.clone(),
             &dir.path().join("ffmpeg.log"),
         )

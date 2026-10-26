@@ -27,7 +27,7 @@ A proteção atual depende do usuário e das permissões locais.
 | `restart_app` | nenhum | Após atualização concluída, abre o launcher instalado e encerra esta instância |
 | `refresh` | nenhum | Atualiza câmeras, modos, controles e pistas de IA; libera nova tentativa de controles recusados |
 | `start` | `preview`, bool, padrão false | Inicia a saída virtual, com preview opcional |
-| `preview` | nenhum | Inicia somente a visualização |
+| `preview` | nenhum | Ativa a visualização, preservando a saída virtual quando já ativa |
 | `stop` | nenhum | Encerra captura e filhos de vídeo |
 | `configure` | `config`, `save`, bool, padrão false | Valida formato/configuração com captura parada; salvamento opcional |
 | `update_settings` | `virtual_device`, string opcional; `start_minimized`, bool opcional; `language`, tag opcional | Aplica e salva apenas os campos enviados; troca de saída exige captura parada; idioma pode mudar durante captura |

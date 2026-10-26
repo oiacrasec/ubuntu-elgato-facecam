@@ -133,6 +133,15 @@ Sem IA, a taxa negociada é preservada. Com IA, vale o limite de FPS explícito
 para ambas as saídas, inclusive em preview sem saída virtual. Fechar a janela com
 bandeja disponível desliga o preview e mantém a saída virtual.
 
+Em sessões com GUI, o ramo RGB de preview é reservado ao iniciar a captura.
+`Stream::set_preview` alterna somente a publicação dos quadros; o leitor continua
+escoando o pipe com buffer reutilizado quando oculto. A troca preserva processos,
+uptime, worker de IA e saída virtual. `Preview` conserva uma saída virtual já
+ativa. Um controlador headless iniciado sem preview conserva a variante sem RGB;
+ativar preview pela primeira vez nesse caso ainda requer reconstruir o grafo.
+As próximas alternâncias usam o pipe já aberto. Erros incluem somente o trecho
+do log da captura atual, sem misturar avisos de encerramentos anteriores.
+
 Aplicar efeitos verifica parâmetros, arquivos e inferência, interrompe brevemente
 a captura, retoma as saídas anteriores e salva o JSON. Falhas síncronas restauram
 a configuração anterior e tentam retomar a captura. Erros posteriores de FFmpeg

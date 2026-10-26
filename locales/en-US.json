@@ -378,7 +378,6 @@
     "Placeholders incompatíveis na tradução: {source}": "Incompatible translation placeholders: {source}",
     "Plano ausente ou expirado; prepare e confirme a instalação novamente": "Plan missing or expired; prepare and confirm installation again",
     "Plano cancelado; nenhum comando desse plano foi iniciado": "Plan canceled; no command from this plan was started",
-    "Prepara VirtualCam em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Sets up VirtualCam at {}, with browser compatibility. One Ubuntu authorization runs the steps below. Uses the kernel module when available; otherwise installs the official kernel package using APT. Does not change the physical camera or unload modules.",
     "Preparando TensorRT: {name}": "Preparing TensorRT: {name}",
     "Preparando câmera virtual; confirme a autenticação administrativa do Ubuntu": "Preparing virtual camera; confirm Ubuntu administrative authentication",
     "Preparando o modelo de segmentação local": "Preparing the local segmentation model",
@@ -696,6 +695,9 @@
     "Verificar atualizações": "Check for updates",
     "Verifique as atualizações antes de instalar": "Check for updates before installing",
     "Versão": "Version",
-    "Você está usando a versão mais recente": "You are using the latest version"
+    "Você está usando a versão mais recente": "You are using the latest version",
+    "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Sets up Elgato Facecam Virtual at {}, with browser compatibility. One Ubuntu authorization runs the steps below. Uses the kernel module when available; otherwise installs the official kernel package using APT. Does not change the physical camera or unload modules.",
+    "Visualização ativada": "Preview enabled",
+    "Visualização pausada": "Preview paused"
   }
 }

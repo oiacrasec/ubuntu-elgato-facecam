@@ -378,7 +378,6 @@
     "Placeholders incompatíveis na tradução: {source}": "Placeholders incompatíveis na tradução: {source}",
     "Plano ausente ou expirado; prepare e confirme a instalação novamente": "Plano ausente ou expirado; prepare e confirme a instalação novamente",
     "Plano cancelado; nenhum comando desse plano foi iniciado": "Plano cancelado; nenhum comando desse plano foi iniciado",
-    "Prepara VirtualCam em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Prepara VirtualCam em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.",
     "Preparando TensorRT: {name}": "Preparando TensorRT: {name}",
     "Preparando câmera virtual; confirme a autenticação administrativa do Ubuntu": "Preparando câmera virtual; confirme a autenticação administrativa do Ubuntu",
     "Preparando o modelo de segmentação local": "Preparando o modelo de segmentação local",
@@ -696,6 +695,9 @@
     "Verificar atualizações": "Verificar atualizações",
     "Verifique as atualizações antes de instalar": "Verifique as atualizações antes de instalar",
     "Versão": "Versão",
-    "Você está usando a versão mais recente": "Você está usando a versão mais recente"
+    "Você está usando a versão mais recente": "Você está usando a versão mais recente",
+    "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.",
+    "Visualização ativada": "Visualização ativada",
+    "Visualização pausada": "Visualização pausada"
   }
 }

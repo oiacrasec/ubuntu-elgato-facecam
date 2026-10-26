@@ -33,7 +33,7 @@ propõe seu pacote oficial por APT; uma autorização do Ubuntu executa a prepar
 **Disponível após reiniciar o Ubuntu** controla a persistência.
 Veja [preparação e limites](docs/USO.md#preparar-a-câmera-virtual).
 
-Depois clique em **Iniciar câmera virtual** e selecione **VirtualCam** no consumidor.
+Depois clique em **Iniciar câmera virtual** e selecione **Elgato Facecam Virtual** no consumidor.
 Abrir ou atualizar o app não carrega módulos. O aplicativo nunca descarrega o
 módulo para substituir dispositivos em uso. Preview e ajustes funcionam sem
 a saída virtual, que usa yuv420p.

@@ -109,6 +109,11 @@ pub fn discover() -> Result<Vec<Camera>> {
             continue;
         }
         let path = format!("/dev/{}", entry.file_name().to_string_lossy());
+        // The requested virtual label also contains "Elgato Facecam". Its
+        // driver must never qualify it as a physical capture input.
+        if crate::stream::verify_virtual_device(&path).is_ok() {
+            continue;
+        }
         // Metadata nodes expose the same name but cannot report Video Capture format.
         if v4l2(&path, &["--get-fmt-video"]).is_ok() {
             cameras.push(Camera { name, path });
