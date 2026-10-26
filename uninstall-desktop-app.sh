@@ -33,7 +33,20 @@ if [[ -x "$BINARY" ]] && "$BINARY" --status >/dev/null 2>&1; then
 fi
 remove_entry() {
     local entry="$1"
-    if [[ -f "$entry" ]] && grep -q -F -x -- "X-Facecam-Hub-Install-Id=$ID" "$entry"; then rm -f -- "$entry"; fi
+    [[ -f "$entry" ]] || return 0
+    if grep -q -F -x -- "X-Facecam-Hub-Install-Id=$ID" "$entry"; then
+        rm -f -- "$entry"
+    elif ! grep -q '^X-Facecam-Hub-Install-Id=' "$entry" && grep -q -F -x 'Name=Facecam Hub' "$entry"; then
+        # The previous installer did not write an ownership marker. Match its
+        # escaped Exec path exactly, including a possible --minimized suffix.
+        local legacy="$BINARY"
+        legacy="${legacy//\\/\\\\}"
+        legacy="${legacy//\"/\\\"}"
+        legacy="${legacy//\$/\\\$}"
+        legacy="${legacy//\`/\\\`}"
+        legacy="${legacy//%/%%}"
+        if grep -q -F -- "Exec=\"$legacy\"" "$entry"; then rm -f -- "$entry"; fi
+    fi
 }
 if "$OWNED"; then
     remove_entry "$DATA_HOME/applications/elgato-virtualcam.desktop"
@@ -47,7 +60,7 @@ if "$OWNED"; then
 else
     # Compatibility with the previous, unversioned installer.
     for ENTRY in "$DATA_HOME/applications/elgato-virtualcam.desktop" "$AUTOSTART"; do
-        if [[ -f "$ENTRY" ]] && grep -q -F -x 'Name=Facecam Hub' "$ENTRY" && grep -q -F -- "$BINARY" "$ENTRY" && ! grep -q '^X-Facecam-Hub-Install-Id=' "$ENTRY"; then rm -f -- "$ENTRY"; fi
+        remove_entry "$ENTRY"
     done
     if [[ -f "$BINARY" && ! -L "$BINARY" ]]; then rm -f -- "$BINARY"; fi
 fi

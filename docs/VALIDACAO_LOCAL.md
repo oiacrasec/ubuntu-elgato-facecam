@@ -1285,3 +1285,13 @@ e backup de autostart foram preservados, assim como atalhos de outro prefixo.
 `desktop-file-validate` aceitou menu e autostart, inclusive com caracteres
 especiais no prefixo. Nenhum atalho pessoal, pacote APT ou controle físico foi
 alterado nessas verificações.
+
+O fluxo completo do atualizador foi exercitado com um remoto Git local de
+produção `master`, contendo o commit `d6633f9`, e a mesma implementação Rust
+usada para GitHub. Uma falha de clone manteve o launcher anterior e os bytes da
+configuração. A nova tentativa compilou com Cargo real, validou commit/features,
+publicou o bundle, preservou o executável antigo, reiniciou o controlador pelo
+launcher estável e confirmou estado `current`, sem captura. O cenário também
+verificou recusa de Preview e Quit durante a instalação. O clone local isolou o
+ensaio de escritas no remoto; não foi uma instalação pessoal pelo GitHub.
+Resultado e logs estão em `target/desktop-update-smoke/`, ignorado pelo Git.

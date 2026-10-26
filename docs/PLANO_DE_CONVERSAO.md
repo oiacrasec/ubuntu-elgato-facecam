@@ -4,6 +4,14 @@ Esta página acompanha o escopo autorizado em 25/10/2026. O [roadmap](ROADMAP.md
 continua sendo a matriz de implementação e evidências; marcar uma etapa abaixo
 não substitui seus testes.
 
+Em 26/10, o usuário priorizou versão/atualização em Configurações, instalador,
+remoção, ícones e integração da REA na produção antes de continuar a investigação
+de olhar. A implementação está em `d6633f9`, com contratos e requisitos em
+[Distribuição](DISTRIBUICAO.md). A branch de produção existente é `master`;
+`main` é o mesmo papel, não um canal adicional. A pesquisa de olhar permanece
+no [levantamento Windows](CORRECAO_DE_OLHAR_WINDOWS.md), sem nova alteração do efeito
+nesta entrega de uso cotidiano.
+
 ## Escopo e ordem de trabalho
 
 - [x] Internacionalização: PT-BR padrão, EN-US, arquivos de texto para a comunidade,

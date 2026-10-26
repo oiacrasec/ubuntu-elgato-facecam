@@ -136,6 +136,20 @@ fn desktop_installation_preserves_data_and_removes_orphaned_autostart() {
     succeeded(upgrade);
     assert_ne!(launcher.canonicalize().unwrap(), first);
     assert!(first.is_file());
+    // Upgrading an old install can leave its unmarked autostart unchanged.
+    let legacy_exec = launcher
+        .to_str()
+        .unwrap()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('$', "\\$")
+        .replace('`', "\\`")
+        .replace('%', "%%");
+    fs::write(
+        &autostart,
+        format!("[Desktop Entry]\nName=Facecam Hub\nExec=\"{legacy_exec}\" --minimized\n"),
+    )
+    .unwrap();
     // Removal must work even when the stable executable was lost.
     fs::remove_file(&launcher).unwrap();
     let uninstall = Path::new(env!("CARGO_MANIFEST_DIR")).join("uninstall-desktop-app.sh");
