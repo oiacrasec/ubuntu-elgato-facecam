@@ -43,6 +43,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 ## Planejamento e evidências
 
 - [Roadmap, paridade e critérios de prontidão](ROADMAP.md)
+- [Execução do escopo autorizado](PLANO_DE_CONVERSAO.md)
 - [Decisões de implementação](DECISOES.md)
 - [Validação local](VALIDACAO_LOCAL.md)
 - [Levantamento histórico de V4L2 e investigação inicial](PORT_UBUNTU_24_04.md)

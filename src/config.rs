@@ -31,6 +31,7 @@ impl Default for VideoConfig {
 pub struct UiConfig {
     pub show_notifications: bool,
     pub start_minimized: bool,
+    pub language: String,
 }
 
 impl Default for UiConfig {
@@ -38,6 +39,7 @@ impl Default for UiConfig {
         Self {
             show_notifications: true,
             start_minimized: false,
+            language: "pt-BR".into(),
         }
     }
 }
@@ -120,6 +122,9 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<()> {
+        if !crate::i18n::valid_tag(&self.ui.language) {
+            bail!("Código de idioma inválido");
+        }
         if !video_device(&self.virtual_device) {
             bail!("Saída virtual deve ser /dev/videoN");
         }

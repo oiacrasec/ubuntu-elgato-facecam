@@ -23,6 +23,9 @@ fi
 BINARY="$PROJECT_DIR/target/release/elgato-virtualcam"
 [[ -x "$BINARY" ]] || { echo 'Binário ausente. Execute cargo build --release --locked.' >&2; exit 1; }
 install -Dm755 "$BINARY" "$INSTALL_PREFIX/bin/elgato-virtualcam"
+for LOCALE in pt-BR en-US; do
+    install -Dm644 "$PROJECT_DIR/locales/$LOCALE.json" "$INSTALL_PREFIX/share/facecam-hub/locales/$LOCALE.json"
+done
 DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 mkdir -p "$DESKTOP_DIR"
 # Escape a path for the Desktop Entry Exec grammar (not shell syntax).

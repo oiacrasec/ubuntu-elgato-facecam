@@ -899,3 +899,32 @@ sintéticas, resposta da falha, resultados de remoção aplicada/não aplicada e
 Os checks e build estão em `target/image-removal-checks.log` e
 `target/image-removal-release.log`. O inventário mantém as 152 fontes históricas.
 As pendências para conversão completa foram revistas no [Roadmap](ROADMAP.md).
+
+## PT-BR, EN-US e catálogos comunitários — 26/10/2026
+
+A árvore em desenvolvimento oferece PT-BR padrão e EN-US, com troca imediata
+nas configurações e mensagens compartilhadas pela GUI, bandeja e CLI. Dois
+catálogos JSON de texto acompanham a instalação; uma tradução parcial adicional
+foi descoberta e ativada em teste sem alterar Rust ou recompilar.
+
+`./test-desktop-app.sh` passou: 70 testes comuns com recursos padrão, 58 sem
+recursos padrão e quatro verificações sintéticas FFmpeg. Os contratos exercitam
+persistência, preservação de efeitos e campos extras, catálogo inválido, falha ao
+salvar, placeholders, duplicatas e ajuda da CLI. A CLI foi corrigida para localizar
+catálogos junto do `--config` escolhido. Build release e Clippy sem avisos passaram.
+Instalação e remoção foram exercitadas com prefixo e diretórios XDG temporários:
+os dois catálogos foram instalados, o binário e desktop entry removidos, e uma
+tradução pessoal adicional preservada. Nenhum pacote do sistema foi alterado.
+
+A janela foi inspecionada em X11 a 960×640, com configuração/socket privados,
+preview parado ou vídeo sintético. A troca pela interface preservou a captura e
+um rascunho de brilho, aplicado depois. O seletor usa nomes nativos e a janela
+mantém posição central, com rolagem e botão de encerramento alcançável. A captura
+direta do framebuffer confirmou texto completo após troca PT-BR/EN-US; a captura
+externa apresentava artefatos e não foi usada para justificar alterações de fontes.
+O código experimental de recarga de fontes foi retirado. Capturas e logs ficam
+em `target/i18n-work/`, fora do Git. Não houve gravação de câmera física.
+
+A validação não substitui revisão de tradutor nativo, leitor de tela, sessão
+Wayland ou comparação com telas Windows. Essas etapas permanecem explícitas no
+[plano autorizado](PLANO_DE_CONVERSAO.md) e no [roadmap](ROADMAP.md).

@@ -40,9 +40,9 @@ a saída virtual, que usa yuv420p.
 
 ## Efeitos e IA NVIDIA
 
-Na aba **Effects**, ajuste cor, redução de ruído e LUT `.cube`, ou configure
-**AI Background**. **Aplicar e salvar** reinicia brevemente a captura e aplica
-os efeitos às duas saídas. **Mirror** espelha ambas; **Grid** é uma guia local.
+Na aba **Efeitos**, ajuste cor, redução de ruído e LUT `.cube`, ou configure
+**Fundo com IA**. **Aplicar e salvar** reinicia brevemente a captura e aplica
+os efeitos às duas saídas. **Espelhar** espelha ambas; **Grade** é uma guia local.
 
 A IA segmenta a pessoa e desfoca ou substitui o fundo por cor, cenário, imagem
 ou vídeo próprio. Para RTX 40/Ada, use **Configurações** › **Efeitos NVIDIA RTX** ›
@@ -58,7 +58,7 @@ correção de olhar e paridade integral com Windows continuam pendentes.
 
 Preview e câmera virtual compartilham imagem, resolução e FPS. Com IA,
 **FPS da IA** limita ambas a 30 por padrão. A janela ajusta o tamanho visual
-preservando a proporção; o rodapé **Output** informa resolução e taxa de saída.
+preservando a proporção; o rodapé **Saída** informa resolução e taxa de saída.
 
 Modelo e runtime disponíveis são detectados na abertura normal, incluindo os
 arquivos preparados em `target/ai-runtime`. Instalações personalizadas são
@@ -98,7 +98,7 @@ O arquivo fica em `~/.config/elgato-virtualcam/config.json`, respeitando
 na raiz são preservados. Um JSON inválido permanece intacto. O primeiro
 salvamento mantém o arquivo anterior em `config.json.backup`.
 
-**SAVE** e **R** salvam e restauram ajustes neste computador. Não gravam na memória
+**Salvar** e **R** salvam e restauram ajustes neste computador. Não gravam na memória
 interna da câmera. Os controles respeitam limites, passos, menus e dependências
 auto/manual; ganho permanece na unidade do driver.
 

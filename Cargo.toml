@@ -14,7 +14,7 @@ tray = ["gui", "dep:ksni"]
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "string"] }
 ctrlc = { version = "3", features = ["termination"] }
 fs2 = "0.4"
 nix = { version = "0.31", features = ["signal", "user"] }

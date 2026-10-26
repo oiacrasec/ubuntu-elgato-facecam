@@ -42,14 +42,20 @@ do código, como `elgato-virtualcam`, `background_blur` e `SetEffects`. Escreva
 NVIDIA, CUDA, ONNX Runtime e V4L2 com a capitalização correspondente.
 
 Reproduza os rótulos da interface exatamente, em **negrito**, mesmo quando estão
-em inglês. Por exemplo: “Na aba **Effects**, ative **Ativar fundo com IA**”.
-Para uma sequência de navegação, use **Camera** › **Device** › **SAVE**.
+em inglês. Por exemplo: “Na aba **Efeitos**, ative **Ativar fundo com IA**”.
+Para uma sequência de navegação, use **Câmera** › **Dispositivo** › **Salvar**.
 Use crases para comandos, caminhos, nomes de arquivos, parâmetros e valores.
 
+Guias operacionais em português reproduzem os rótulos PT-BR. Para uma interface
+em outro idioma, informe essa condição e confira o catálogo correspondente.
+Novos textos do aplicativo entram nos dois [catálogos](LOCALIZACAO.md), com as
+mesmas chaves e placeholders; nomes de arquivos, câmeras e conteúdo pessoal
+não devem ser traduzidos. Preserve datas e rótulos observados em relatos históricos.
+
 Mantenha o vocabulário consistente entre botão, guia e mensagem de resultado.
-Descreva Mirror como espelhamento compartilhado entre preview e saída virtual;
+Descreva **Espelhar** como espelhamento compartilhado entre preview e saída virtual;
 a grade é apenas uma guia local. Descreva
-SAVE e R como persistência local. Informe a unidade real de cada ajuste; ganho
+**Salvar** e **R** como persistência local. Informe a unidade real de cada ajuste; ganho
 do driver não é ISO. Uma inferência CPU não deve ser descrita como CUDA, e um
 filtro convencional não deve ser apresentado como IA.
 

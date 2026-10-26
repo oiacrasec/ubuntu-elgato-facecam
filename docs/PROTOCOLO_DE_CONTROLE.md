@@ -27,7 +27,7 @@ A proteção atual depende do usuário e das permissões locais.
 | `preview` | nenhum | Inicia somente a visualização |
 | `stop` | nenhum | Encerra captura e filhos de vídeo |
 | `configure` | `config`, `save`, bool, padrão false | Valida formato/configuração com captura parada; salvamento opcional |
-| `update_settings` | `virtual_device`, string opcional; `start_minimized`, bool opcional | Aplica e salva apenas os campos enviados; troca de saída exige captura parada |
+| `update_settings` | `virtual_device`, string opcional; `start_minimized`, bool opcional; `language`, tag opcional | Aplica e salva apenas os campos enviados; troca de saída exige captura parada; idioma pode mudar durante captura |
 | `set_control` | `name`, string; `value`, i64 | Valida e escreve um controle V4L2, com leitura de retorno |
 | `set_effects` | `effects`, objeto | Detecta campos de IA vazios, valida, aplica e salva efeitos |
 | `set_autostart` | `enabled`, bool | Ativa ou remove a inicialização automática do usuário imediatamente |
@@ -94,6 +94,14 @@ mostra nomes e diálogo de arquivos.
 `ok` expressa o resultado do pedido. Um `status` pode retornar `ok: true` com um
 `state.error` de uma falha de captura anterior. Iniciar um processo também não
 comprova entrega posterior de frames; consulte o estado e o log após a inicialização.
+
+`languages` lista as tags e os nomes nativos dos catálogos disponíveis.
+`update_settings.language` valida o catálogo antes de salvar e ativar. Um arquivo
+inválido ou falha ao salvar preserva a preferência anterior. `refresh` atualiza
+a lista. IDs e valores do protocolo permanecem estáveis; somente mensagens
+humanas da CLI são traduzidas. Use `--config` para localizar catálogos pessoais
+ao lado de uma configuração específica. [Localização](LOCALIZACAO.md) detalha
+a descoberta e `FACECAM_LANGUAGE`.
 
 ## CLI e automação
 

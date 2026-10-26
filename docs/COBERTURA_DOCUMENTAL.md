@@ -39,6 +39,11 @@ Os resultados novos da engenharia estão em [Análise RTX](ANALISE_RTX.md), com
 [catálogo de referências](nvidia-runtime-catalog.json) próprio. Esses registros
 não acrescentam arquivos ao inventário histórico de 152 fontes.
 
+Os catálogos PT-BR/EN-US e as traduções comunitárias são implementados conforme
+[Localização](LOCALIZACAO.md), com contratos em [Arquitetura](ARQUITETURA.md) e
+[Protocolo](PROTOCOLO_DE_CONTROLE.md). O [plano autorizado](PLANO_DE_CONVERSAO.md)
+acompanha as entregas; IDs, contagens e hashes históricos permanecem iguais.
+
 ## Registros por arquivo documental
 
 Preview fiel à saída, espelhamento compartilhado e limites de apresentação estão

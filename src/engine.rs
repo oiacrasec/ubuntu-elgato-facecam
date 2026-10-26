@@ -31,6 +31,7 @@ pub enum Request {
     UpdateSettings {
         virtual_device: Option<String>,
         start_minimized: Option<bool>,
+        language: Option<String>,
     },
     SetControl {
         name: String,
@@ -109,6 +110,8 @@ pub struct Snapshot {
     #[serde(default)]
     pub virtual_camera_status: crate::virtual_camera::Status,
     pub resources: Vec<crate::resources::Resource>,
+    #[serde(default)]
+    pub languages: Vec<crate::i18n::Language>,
     pub importing: bool,
     pub imported: Option<crate::resources::Resource>,
     pub import_revision: u64,
@@ -145,6 +148,9 @@ pub struct Engine {
 impl Engine {
     pub fn new(path: PathBuf, gui: bool) -> Result<Self> {
         let config = Config::load(&path)?;
+        let language = crate::i18n::load(&config.ui.language, &path);
+        let language_error = language.as_ref().err().map(|e| format!("{e:#}"));
+        crate::i18n::activate(language.or_else(|_| crate::i18n::fallback())?);
         let resource_root = path
             .parent()
             .context("Configuração sem diretório")?
@@ -163,7 +169,7 @@ impl Engine {
             uptime_seconds: 0,
             preview_frames: 0,
             message: "Pronto".into(),
-            error: None,
+            error: language_error,
             show_revision: 0,
             quit: false,
             gui,
@@ -181,6 +187,7 @@ impl Engine {
             dependency_error: None,
             virtual_camera_status: Default::default(),
             resources,
+            languages: crate::i18n::available(&path),
             importing: false,
             imported: None,
             import_revision: 0,
@@ -445,11 +452,12 @@ impl Engine {
             Request::UpdateSettings {
                 virtual_device,
                 start_minimized,
+                language,
             } => {
                 if virtual_device.is_some() && self.stream.is_some() {
                     bail!("Pare a captura antes de alterar a câmera virtual");
                 }
-                if virtual_device.is_none() && start_minimized.is_none() {
+                if virtual_device.is_none() && start_minimized.is_none() && language.is_none() {
                     return Ok("Configurações sem alterações".into());
                 }
                 let mut config = self.state.config.clone();
@@ -459,8 +467,18 @@ impl Engine {
                 if let Some(enabled) = start_minimized {
                     config.ui.start_minimized = enabled;
                 }
+                let catalog = language
+                    .as_ref()
+                    .map(|tag| crate::i18n::load(tag, &self.path))
+                    .transpose()?;
+                if let Some(language) = language {
+                    config.ui.language = language;
+                }
                 config.save(&self.path)?;
                 self.state.config = config;
+                if let Some(catalog) = catalog {
+                    crate::i18n::activate(catalog);
+                }
                 return Ok("Configurações atualizadas".into());
             }
             Request::SetAutostart { enabled } => {
@@ -641,6 +659,7 @@ impl Engine {
                 return Ok("Plano cancelado; nenhum comando desse plano foi iniciado".into());
             }
             Request::Refresh => {
+                self.state.languages = crate::i18n::available(&self.path);
                 crate::ai_paths::autofill(&mut self.state.config.effects);
                 self.write_failures.clear();
                 self.refresh()?;
@@ -779,7 +798,7 @@ impl Engine {
                         );
                     }
                     return Ok(format!(
-                        "{applied} ajustes restaurados. Indisponíveis nesta configuração: {unavailable}"
+                        "Ajustes restaurados: {applied}. Indisponíveis nesta configuração: {unavailable}"
                     ));
                 }
                 return Ok("Ajustes restaurados".into());
@@ -1070,6 +1089,7 @@ mod tests {
             assert!(
                 engine
                     .handle(Request::UpdateSettings {
+                        language: None,
                         virtual_device: None,
                         start_minimized: Some(enabled),
                     })
@@ -1083,6 +1103,7 @@ mod tests {
         assert!(
             engine
                 .handle(Request::UpdateSettings {
+                    language: None,
                     virtual_device: Some("/dev/video234".into()),
                     start_minimized: None,
                 })
@@ -1097,6 +1118,7 @@ mod tests {
         assert!(
             !engine
                 .handle(Request::UpdateSettings {
+                    language: None,
                     virtual_device: Some("/tmp/invalid-output".into()),
                     start_minimized: Some(true),
                 })
@@ -1109,6 +1131,7 @@ mod tests {
         assert!(
             !engine
                 .handle(Request::UpdateSettings {
+                    language: None,
                     virtual_device: None,
                     start_minimized: Some(true),
                 })

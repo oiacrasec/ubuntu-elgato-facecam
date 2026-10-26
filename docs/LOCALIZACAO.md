@@ -1,62 +1,123 @@
 # Idiomas, terminologia e fontes
 
-A interface atual combina mensagens em português com nomes de seções do Camera
-Hub em inglês. Não há seletor de idioma ou catálogo de traduções implementado.
+O Facecam Hub inicia em **Português (Brasil)** e oferece **English (United States)**
+em **Configurações** › **Idioma**. A escolha é salva imediatamente pelo controlador.
 
-## Contrato para evolução
+## Trocar o idioma
 
-Uma localização futura deve separar IDs de comandos e chaves estáveis dos textos
-visíveis. Presets, caminhos, nomes fornecidos pelo usuário e IDs de hardware não
-são traduzidos. Mensagens dinâmicas, erros, menus gerados e plurais precisam da
-mesma cobertura que rótulos estáticos.
+Abra as configurações e selecione o idioma pelo nome nativo. A troca atualiza
+rótulos, mensagens conhecidas, diálogos e bandeja sem reiniciar a captura ou
+confirmar efeitos do rascunho. Nomes de câmera, arquivos e conteúdo pessoal não
+são traduzidos. Comandos, enums do JSON, caminhos e IDs de hardware mantêm seus
+identificadores. Janelas e cards usam IDs independentes do texto traduzido.
 
-Definir uma preferência explícita de idioma e uma opção automática. Uma escolha
-salva pela pessoa prevalece sobre detecção do sistema. A detecção não deve gravar
-configuração apenas porque a janela abriu. Tags regionais exigem política
-publicada de fallback; não confundir português brasileiro com revisão linguística
-validada de todos os países lusófonos.
+O padrão é PT-BR, independentemente do idioma do Ubuntu. A preferência fica em
+`ui.language`, com valores iniciais `pt-BR` e `en-US`. Ela vale para as próximas
+execuções. A interface não usa uma opção automática baseada em `LANG`.
 
-A troca de idioma ao vivo, quando implementada, deve preservar captura, rascunhos
-e foco. Uma prévia em Configurações só vira preferência ao aplicar; cancelar
-restaura o idioma anterior. Identidade de janelas e controles não pode depender
-da tradução de seu título.
+O processo principal e a CLI carregam somente arquivos de texto. Trocar o
+idioma não carrega modelos, runtimes de IA, fontes da rede nem executa código
+do catálogo. Mensagens nativas de FFmpeg, driver, sistema e bibliotecas externas
+podem conservar o idioma original; o aplicativo traduz seus próprios rótulos e
+contextos conhecidos, preservando os detalhes técnicos recebidos.
 
-## Escopo de revisão por idioma
+## Criar outro idioma
 
-| Grupo | Revisão necessária |
-| --- | --- |
-| Português, espanhol e italiano | Terminologia de câmera, acentos, artigos e ações curtas |
-| Russo e outras línguas com múltiplos plurais | Contagens, placeholders, abreviações e gramática |
-| Coreano | Níveis de formalidade, espaçamento e nomes de controles |
-| Chinês simplificado e tradicional | Catálogos distintos e vocabulário técnico revisado |
-| Japonês e demais scripts CJK | Cobertura de glifos, alinhamento e fallback de fontes |
-| Idiomas da direita para a esquerda | Bidi, posição do cursor, menus, campos, foco e espelhamento de chrome |
+Os catálogos [PT-BR](../locales/pt-BR.json) e [EN-US](../locales/en-US.json)
+são JSON UTF-8, editáveis em qualquer
+editor de texto. Para iniciar uma tradução:
 
-Esta tabela é um plano de validação, não uma lista de idiomas disponíveis.
-A existência de tradução automática ou glifos não comprova revisão nativa. Não
-marcar cobertura completa apenas por traduzir os menus.
+1. Copie `locales/pt-BR.json` para um arquivo com a tag do novo idioma, por exemplo
+   `es-ES.json`.
+2. Altere `language` para `es-ES` e `name` para o nome nativo, como `Español`.
+3. Traduza somente os valores de `messages`. Preserve as chaves e os placeholders.
+4. Coloque o arquivo em um dos diretórios de descoberta abaixo.
+5. Reabra o aplicativo ou clique em atualizar dispositivos para reler a lista.
+   Abra **Configurações** e escolha o novo idioma.
 
-## Fontes e layout
+Exemplo parcial válido:
 
-O aplicativo usa as fontes padrão compiladas de egui. Não distribui os pacotes
-Inter, JetBrains Mono, dicionários ou coleções de fontes de outros projetos.
-Qualquer adoção futura exige origem e licença próprias, orçamento de tamanho e
-verificação de fallback. Encontrar o nome de uma família não comprova que os
-mesmos glifos foram resolvidos em dois computadores.
+```json
+{
+  "language": "es-ES",
+  "name": "Español",
+  "messages": {
+    "Camera": "Cámara",
+    "Configurações": "Configuración",
+    "Aplicar e salvar": "Aplicar y guardar"
+  }
+}
+```
 
-Textos de controles fixos devem caber ou ser truncados com acesso ao valor
-completo. Idiomas longos não devem desalinhá-los. Não inverta o vídeo da câmera
-para acomodar direção do texto; chrome e imagem têm semânticas independentes.
+As chaves são mensagens-fonte estáveis, conforme a abordagem gettext; não são
+os textos a editar. Uma chave ausente usa a tradução PT-BR compilada. O exemplo
+parcial não representa uma tradução completa ou revisada do espanhol. Os dois
+catálogos distribuídos, PT-BR e EN-US, têm as mesmas chaves verificadas por teste.
+Uma tradução nova não exige alterar Rust ou recompilar o aplicativo.
 
-## Manutenção de catálogos proposta
+JSON exige aspas duplas e não aceita comentários ou vírgula após o último item.
+`language` precisa corresponder ao nome do arquivo, sem `.json`. Tags aceitam
+letras ASCII, números e hífens, com até 35 caracteres. O nome nativo tem até
+128 bytes e não pode conter controles. O catálogo tem limite de 2 MiB, 4.096
+mensagens e 16 KiB por valor. Chaves duplicadas são recusadas.
 
-Um catálogo deve declarar código, nome nativo, regra de plural e estado de
-revisão. Preserve placeholders e escapes; mantenha contexto por ID quando uma
-mesma palavra tenha sentidos distintos. Um verificador futuro deve apontar
-chaves ausentes, placeholders incompatíveis e caracteres de controle inesperados.
-Não existe atualmente esse verificador ou comando de cobertura de idiomas.
+## Placeholders e mensagens dinâmicas
 
-Testar uma sequência de mudanças de idioma em um processo, janelas pequenas,
-nomes extensos, números e erros dinâmicos. Medir custo de carregar fontes em vez
-de recarregá-las por frame. Documentação em português continua seguindo os
-[Padrões de escrita](PADROES_DE_DOCUMENTACAO.md).
+Preserve placeholders como `{name}`, `{error}`, `{path}`, `{status}`, `{shape:?}`,
+`{error:#}` e `{}`. Não traduza os nomes nem remova especificadores. Mantenha a
+ordem dos placeholders anônimos; prefira placeholders nomeados em novas mensagens.
+`\n` representa uma quebra de linha dentro do JSON. Para chaves literais no texto,
+use `{{` e `}}`.
+
+O carregador compara os placeholders da chave e do valor. Arquivo inválido,
+valor vazio ou controles inesperados são recusados. Uma seleção recusada preserva
+a preferência anterior e o catálogo ativo. Se um catálogo antes escolhido ficar
+indisponível na inicialização, o aplicativo usa PT-BR compilado e informa o erro,
+sem apagar a preferência do arquivo de configuração.
+
+O catálogo também contém os templates das mensagens existentes do controlador.
+A tradução reconhece o texto fixo e mantém valores de caminhos, números, nomes e
+IDs. Contextos de erro conhecidos podem ser traduzidos; detalhes externos
+continuam como vieram da biblioteca. Não usar esse mecanismo para reinterpretar
+comandos, valores de controle ou resultados de hardware.
+
+## Diretórios de descoberta
+
+Para cada idioma, o primeiro arquivo encontrado segue esta ordem:
+
+1. Diretório indicado por `FACECAM_LOCALES_DIR`, quando definido.
+2. `locales/` ao lado do `config.json` usado pelo controlador.
+3. `${XDG_DATA_HOME:-$HOME/.local/share}/facecam-hub/locales/`.
+4. `locales/` ao lado do executável.
+5. `share/facecam-hub/locales/` no prefixo do executável.
+6. `locales/` no diretório de trabalho, usado no desenvolvimento.
+7. `/usr/local/share/facecam-hub/locales/` e `/usr/share/facecam-hub/locales/`.
+8. Catálogo compilado, para PT-BR e EN-US.
+
+Um arquivo encontrado mas inválido informa erro; não é ignorado para escolher
+outra cópia silenciosamente. Mensagens faltantes usam PT-BR. A instalação no
+usuário copia os dois catálogos distribuídos para `share/facecam-hub/locales`.
+Traduções pessoais ficam preferencialmente no diretório de dados do usuário ou
+junto da configuração, preservados na remoção do aplicativo.
+
+`FACECAM_LANGUAGE=en-US` seleciona temporariamente o idioma da ajuda e dos
+resultados humanos da CLI. Não muda a preferência salva da GUI:
+
+```bash
+FACECAM_LANGUAGE=en-US ./target/release/elgato-virtualcam --help
+```
+
+## Fontes e revisão de uma contribuição
+
+PT-BR e EN-US usam as fontes padrão compiladas de egui. Traduções para scripts
+adicionais precisam conferir glifos, tamanho, quebra de linha e, quando aplicável,
+direção do texto. A existência do arquivo não comprova revisão nativa ou suporte
+completo a todos os scripts. Não inverta o vídeo para acomodar direção do texto.
+
+Revise nomes, mensagens dinâmicas, plurais, atalhos, foco, tooltips e janelas
+pequenas. Não traduza conteúdo pessoal para fazer um nome coincidir com o catálogo.
+Contagens com regras de plural distintas exigem mensagens próprias; não há um
+motor genérico de pluralização implementado. Uma alteração deve atualizar ambos
+os catálogos distribuídos e passar os [testes de localização](TESTES.md).
+
+Documentação em português segue os [Padrões de escrita](PADROES_DE_DOCUMENTACAO.md).

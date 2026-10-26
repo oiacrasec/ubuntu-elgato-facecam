@@ -256,3 +256,20 @@ A preparação RTX sem ferramentas tem um contrato CLI comum, com `nvidia-smi`
 simulado e PATH isolado: retorna um plano `nvidia_tools`, não inicia downloads,
 não grava configuração e permite cancelar. Não consulta GPU real nem confirma APT.
 O teste de controlador também recusa captura e Quit enquanto a preparação está ativa.
+
+## Idiomas e captura da interface
+
+`tests/localization.rs` usa controladores headless e diretórios temporários:
+confere PT-BR padrão, EN-US persistido, tradução comunitária sem recompilar,
+descoberta após atualizar, catálogo inválido e falha de salvamento sem perda do
+estado. A ajuda mantém as flags em ambos os idiomas. Testes unitários verificam
+paridade de chaves, duplicatas, limites, placeholders e preservação de valores
+pessoais. Nenhum desses checks abre a câmera ou instala pacotes.
+
+Para inspecionar a renderização real com vídeo sintético ou preview parado,
+um build debug aceita `FACECAM_TEST_UI_CAPTURE=/caminho/janela.ppm`. Crie
+`/caminho/janela.request` enquanto a janela estiver ativa: o helper usa o evento
+de screenshot de egui e grava o framebuffer em PPM. Ele não existe no release,
+não envia imagens e só atua com a variável definida. Espere o arquivo completo
+antes de abrir outra janela ou converter a imagem. Não use com imagem pessoal
+sem autorização. Essa captura evita artefatos de captura externa de janelas.

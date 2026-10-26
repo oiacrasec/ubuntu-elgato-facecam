@@ -24,7 +24,7 @@ local, lacunas e condições de aceitação.
 | Interface | Implementado, paridade parcial | Layout Camera Hub e validação X11; comparação completa com Windows, Wayland e acessibilidade pendentes |
 | CLI/IPC e instância única | Implementado | Contratos em testes de processo |
 | Instalação no usuário | Implementado | Scripts e prefixos; falta matriz de upgrade entre releases publicadas |
-| Idiomas | Parcial | Português e rótulos em inglês; sem catálogos ou seletor |
+| Idiomas | Implementado | PT-BR padrão, EN-US, seletor persistido e catálogos JSON extensíveis sem recompilar; [guia](LOCALIZACAO.md) |
 | Segurança e distribuição verificável | Parcial | Controles locais presentes; lacunas em Segurança e Distribuição |
 | Prompter, HDR e firmware proprietário | Proposto para paridade completa | [Investigação Windows/macOS](REFERENCIA_WINDOWS.md); contratos por modelo ainda pendentes |
 | Relighting, eye contact | Proposto | Sem implementação ou estimativa validada |

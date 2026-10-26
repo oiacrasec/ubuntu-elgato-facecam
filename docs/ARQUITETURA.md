@@ -37,6 +37,14 @@ a cada alteração. Esse comando atualiza apenas as preferências enviadas, salv
 antes de publicar o estado e permite alterar o início na bandeja durante captura.
 A troca de câmera virtual continua exigindo captura parada.
 
+`i18n` carrega catálogos JSON com limites e placeholders verificados. O campo
+`ui.language` nasce como `pt-BR`; `UpdateSettings.language` valida o catálogo e
+salva antes de publicar a preferência e ativar as mensagens. A troca preserva
+captura e rascunhos de efeitos. `Snapshot.languages` lista idiomas descobertos;
+`Refresh` refaz essa lista. GUI, bandeja e mensagens humanas da CLI usam os
+mesmos catálogos; enums, comandos, caminhos e nomes pessoais mantêm seus valores.
+Consulte [Localização](LOCALIZACAO.md) para descoberta, fallback e contribuições.
+
 ## Comandos e estado
 
 `Request`, em `engine.rs`, é um enum serializável com discriminador `command`.

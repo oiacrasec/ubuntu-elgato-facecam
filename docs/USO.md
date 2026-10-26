@@ -1,7 +1,12 @@
 # Usar o Facecam Hub
 
 Abra `./target/release/elgato-virtualcam` e clique em **Iniciar preview**.
-A aba **Camera** controla o hardware; **Effects** processa o vídeo no computador.
+A aba **Câmera** controla o hardware; **Efeitos** processa o vídeo no computador.
+
+O idioma padrão é **Português (Brasil)**. Em **Configurações** › **Idioma**,
+escolha **English (United States)** para usar inglês. A mudança é imediata,
+salva automaticamente e preserva a captura. [Localização](LOCALIZACAO.md)
+explica como acrescentar outro idioma por um arquivo JSON.
 
 ## Instalar e abrir
 
@@ -59,7 +64,7 @@ indicados pela Elgato e os limites da migração para Ubuntu.
 ## Escolher câmera e formato
 
 1. Pare a captura se estiver ativa.
-2. Na aba **Camera**, card **Device**, escolha **Input** e **Format**.
+2. Na aba **Câmera**, card **Dispositivo**, escolha **Entrada** e **Formato**.
 3. Use atualização de dispositivos se conectou ou trocou a câmera.
 4. Clique em **Iniciar preview** e confira a imagem.
 
@@ -69,12 +74,12 @@ na lista. [Solução de problemas](SOLUCAO_DE_PROBLEMAS.md) ajuda quando a câme
 
 ## Ajustar imagem e enquadramento
 
-Use os controles disponíveis em **Frame**, **Picture**, **Exposure** e
-**White Balance**. Pan, tilt e zoom pertencem ao hardware. O driver determina
+Use os controles disponíveis em **Enquadramento**, **Imagem**, **Exposição** e
+**Balanço de branco**. Pan, tilt e zoom pertencem ao hardware. O driver determina
 mínimo, máximo, passo e valores de menu. Modo automático pode tornar um ajuste
 manual indisponível. Tempo de exposição e ganho têm as unidades indicadas na UI.
 
-**SAVE** guarda formato e controles disponíveis neste computador. **R** restaura
+**Salvar** guarda formato e controles disponíveis neste computador. **R** restaura
 os controles salvos que a câmera aceitar naquela configuração. O aplicativo não
 promete memória interna, presets de firmware ou equivalência entre câmeras.
 
@@ -115,16 +120,16 @@ comprova consumo de vídeo. Abrir, atualizar ou cancelar o plano não carrega o 
 
 ## Alterar cor e efeitos
 
-1. Abra **Effects**.
-2. Escolha uma LUT em **Look**, ajuste brilho, contraste e saturação em **Picture**,
-   ou denoise e espelho em **Processing**.
+1. Abra **Efeitos**.
+2. Escolha uma LUT em **Visual**, ajuste brilho, contraste e saturação em **Imagem**,
+   ou denoise e espelho em **Processamento**.
 3. Clique em **Aplicar e salvar**.
 4. Confira o estado e o resultado no preview; a captura pode reiniciar brevemente.
 
 Saturação zero remove a cor. Restauração dos efeitos padrão prepara um rascunho;
 o botão de aplicar confirma a alteração. LUTs e efeitos são locais, preservando
 os controles V4L2 como uma etapa distinta. [Efeitos](EFEITOS.md) lista valores e arquivos.
-Os cards seguem o padrão da aba **Camera** e podem ser recolhidos pelos títulos
+Os cards seguem o padrão da aba **Câmera** e podem ser recolhidos pelos títulos
 para liberar espaço. Rótulos ficam à esquerda e valores numéricos à direita.
 
 **Original**, **Quente**, **Frio** e **Contraste suave** estão disponíveis no seletor.
@@ -145,7 +150,7 @@ confirmação e autenticação do Ubuntu. Ao concluir, repita **Preparar IA RTX*
 O modo **Automática**, em **Opções avançadas**, prefere a segmentação temporal
 NVIDIA validada. Se ela falhar ao iniciar, usa ONNX com o mesmo provider e mostra
 o motivo. Para a alternativa ONNX, prepare `./prepare-ai.sh --cuda` ou `--cpu`.
-Modelo e runtime são detectados automaticamente. Use **Atualizar** em **AI Background**
+Modelo e runtime são detectados automaticamente. Use **Atualizar** em **Fundo com IA**
 se preparou arquivos com a janela aberta. [Análise RTX](ANALISE_RTX.md) registra
 o suporte local e as famílias ainda não reconstruídas.
 
@@ -172,7 +177,7 @@ não podem ser apagadas por esse botão. Você pode adicionar outra imagem em se
 
 **FPS da IA** limita preview e saída virtual a 30 fps por padrão, mantendo a
 resolução escolhida. Ambos recebem os mesmos quadros, inclusive com apenas
-preview ativo. O rodapé **Output** mostra resolução e taxa configuradas para a
+preview ativo. O rodapé **Saída** mostra resolução e taxa configuradas para a
 saída. A janela preserva a proporção ao ajustar a imagem ao espaço disponível.
 
 A máscara atual serve ao desfoque e à substituição; não existe editor de seleção,
@@ -184,8 +189,8 @@ A segmentação pode errar; confira o vídeo antes de compartilhar.
 
 ## Visualizar e enviar a outro aplicativo
 
-**Mirror**, abaixo do preview, espelha preview e câmera virtual imediatamente,
-usando o mesmo efeito de **Effects**. **Grid** desenha apenas uma guia de
+**Espelhar**, abaixo do preview, espelha preview e câmera virtual imediatamente,
+usando o mesmo efeito de **Efeitos**. **Grade** desenha apenas uma guia de
 enquadramento; desligue-a para ver a imagem sem sobreposição. O preview usa a
 resolução e a taxa da saída, com os mesmos efeitos e conversão de cor yuv420p.
 O tamanho da imagem na janela depende do espaço disponível; ampliar ou reduzir

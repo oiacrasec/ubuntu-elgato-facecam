@@ -15,4 +15,5 @@ if [[ -x "$BINARY" ]]; then
     "$BINARY" --remove-autostart
 fi
 rm -f -- "$BINARY" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/elgato-virtualcam.desktop"
+rm -f -- "$INSTALL_PREFIX/share/facecam-hub/locales/pt-BR.json" "$INSTALL_PREFIX/share/facecam-hub/locales/en-US.json"
 echo 'Aplicativo removido. Configurações, backups e pacotes do sistema foram preservados.'

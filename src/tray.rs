@@ -1,4 +1,5 @@
 use crate::engine::Request;
+use crate::i18n::tr as t;
 use std::sync::mpsc::Sender;
 
 pub struct Tray {
@@ -11,12 +12,11 @@ impl ksni::Tray for Tray {
         "elgato-virtualcam".into()
     }
     fn title(&self) -> String {
-        if self.streaming {
+        t(if self.streaming {
             "Facecam Hub — câmera virtual ativa"
         } else {
             "Facecam Hub"
-        }
-        .into()
+        })
     }
     fn icon_name(&self) -> String {
         "camera-web".into()
@@ -28,7 +28,7 @@ impl ksni::Tray for Tray {
         use ksni::menu::StandardItem;
         vec![
             StandardItem {
-                label: "Abrir Facecam Hub".into(),
+                label: t("Abrir Facecam Hub"),
                 activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(Request::Show);
                 }),
@@ -36,12 +36,11 @@ impl ksni::Tray for Tray {
             }
             .into(),
             StandardItem {
-                label: if self.streaming {
+                label: t(if self.streaming {
                     "Parar câmera virtual"
                 } else {
                     "Iniciar câmera virtual"
-                }
-                .into(),
+                }),
                 activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(if this.streaming {
                         Request::Stop
@@ -54,7 +53,7 @@ impl ksni::Tray for Tray {
             .into(),
             ksni::MenuItem::Separator,
             StandardItem {
-                label: "Sair".into(),
+                label: t("Sair"),
                 activate: Box::new(|this: &mut Self| {
                     let _ = this.tx.send(Request::Quit);
                 }),

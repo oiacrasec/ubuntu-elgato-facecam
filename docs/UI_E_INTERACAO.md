@@ -3,6 +3,11 @@
 A janela segue a organização do Camera Hub: coluna de controles à esquerda e
 preview à direita. Este é o contrato visual do produto para Linux.
 
+O padrão é PT-BR; EN-US e traduções da comunidade são selecionadas em
+**Configurações** › **Idioma**, sem reiniciar captura ou confirmar rascunhos.
+IDs de janelas e cards independem dos rótulos traduzidos. Os catálogos e as
+regras de contribuição estão em [Localização](LOCALIZACAO.md).
+
 ## Estrutura, temas e componentes
 
 O tema atual usa fundo escuro, cards de controles, texto claro e ações em azul.
@@ -10,14 +15,14 @@ As constantes de cor ficam no início de `gui.rs`. Não existe seletor de temas,
 catálogo de tokens em crate separado ou biblioteca própria de widgets. Ao ampliar
 a UI, centralize novos valores em vez de espalhar estilos em cada callback.
 
-**Camera** reúne **Device**, **Frame**, **Picture**, **Exposure**, **White Balance**
-e **Processing**. **Effects** reúne processamento local e IA. **Prompter** aparece
+**Câmera** reúne **Dispositivo**, **Enquadramento**, **Imagem**, **Exposição**, **Balanço de branco**
+e **Processamento**. **Efeitos** reúne processamento local e IA. **Prompter** aparece
 desabilitado; isso não comprova integração com o dispositivo.
 
-**Effects** usa a mesma geometria de cards de **Camera**: margens de 10 pontos,
-cantos de 3 pontos, títulos de 13 pontos e intervalos compactos. **Look** reúne o
-seletor de LUT e a importação no cabeçalho; **Picture** agrupa brilho, contraste
-e saturação; **Processing** agrupa denoise e espelho; **AI Background** agrupa
+**Efeitos** usa a mesma geometria de cards de **Câmera**: margens de 10 pontos,
+cantos de 3 pontos, títulos de 13 pontos e intervalos compactos. **Visual** reúne o
+seletor de LUT e a importação no cabeçalho; **Imagem** agrupa brilho, contraste
+e saturação; **Processamento** agrupa denoise e espelho; **Fundo com IA** agrupa
 fundo, intensidade, FPS e estado da IA. Os cards de parâmetros são recolhíveis,
 com estados independentes dos cards da aba Camera. **Opções avançadas** começa
 recolhido e contém provider e detalhes do runtime.
@@ -27,14 +32,14 @@ campo numérico à direita dos controles da Camera. Valores continuam sendo
 rascunhos até **Aplicar e salvar**. Seletores têm largura estável, truncam nomes
 longos e mostram o nome completo no tooltip. Recolher um card não altera valores.
 
-O card **Device** usa uma grade de duas colunas. Rótulos compartilham uma coluna
-fixa, e **Input** e **Format** têm a mesma largura disponível. Nomes longos são
+O card **Dispositivo** usa uma grade de duas colunas. Rótulos compartilham uma coluna
+fixa, e **Entrada** e **Formato** têm a mesma largura disponível. Nomes longos são
 truncados no controle, sem mudar a geometria das linhas. Listas precisam permitir
 identificar a opção completa ao escolher. Não altere a largura de um campo em
 função do texto selecionado.
 
-No cabeçalho de **Device**, **R** e **⟳** usam a mesma largura e altura de
-**SAVE**. Os tooltips identificam restauração dos ajustes salvos e atualização
+No cabeçalho de **Dispositivo**, **R** e **⟳** usam a mesma largura e altura de
+**Salvar**. Os tooltips identificam restauração dos ajustes salvos e atualização
 dos dispositivos e ajustes.
 
 Em novos componentes, prever foco visível, uso por teclado, unidades legíveis e
@@ -55,7 +60,7 @@ valores pelo caminho de escrita e leitura de retorno. Efeitos só são aplicados
 por **Aplicar e salvar**, que pode reiniciar a captura. O rodapé permanece visível
 enquanto os controles rolam. **Atualizar** repete a descoberta sem ativar IA.
 
-**Look** e os fundos próprios usam seletores por nome. Os fundos apresentam uma
+**Visual** e os fundos próprios usam seletores por nome. Os fundos apresentam uma
 miniatura do primeiro frame. **Adicionar LUT…**, **Adicionar imagem…** e
 **Adicionar vídeo…** abrem o diálogo nativo; ao escolher, a GUI envia
 `ImportResource`, exibe progresso e seleciona o resultado no rascunho. Cancelar o
@@ -67,9 +72,9 @@ linha. A remoção usa o controlador, preserva o original e só permite cópias 
 biblioteca gravável. Seu tooltip informa a troca para desfoque se estiver aplicada.
 A seleção e a miniatura são limpas após a confirmação da remoção no catálogo.
 
-O botão **Mirror** abaixo do preview aplica e salva o espelho pelo controlador,
-afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Effects**.
-**Grid** desenha uma sobreposição de visualização. A
+O botão **Espelhar** abaixo do preview aplica e salva o espelho pelo controlador,
+afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Efeitos**.
+**Grade** desenha uma sobreposição de visualização. A
 saída para outro aplicativo não deve receber acidentalmente grade ou controles.
 
 ## Diálogos, confirmação e cancelamento
@@ -80,7 +85,8 @@ preservando efeitos e controles. O produto não tem um gerenciador geral de pilh
 histórico de desfazer ou controles de todas as janelas por IPC.
 
 **Configurações** fica ancorada no centro horizontal e vertical da janela, com
-largura inicial de 560 pontos lógicos. Os botões das dependências ocupam uma linha,
+largura inicial de 560 pontos lógicos e corpo rolável limitado à altura disponível.
+Os botões das dependências ocupam uma linha,
 cada um com metade da largura disponível após o espaçamento. Pacotes presentes
 exibem **Desinstalar…**, ausentes ou incompletos exibem **Instalar…**; versões ficam
 no tooltip. Falha de consulta e operação em andamento desabilitam as ações.

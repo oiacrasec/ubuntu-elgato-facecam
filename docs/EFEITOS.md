@@ -6,11 +6,11 @@ preview e câmera virtual, inclusive quando a janela está na bandeja.
 
 ![Cards de Effects no padrão da aba Camera, com preview pausado](screenshots/facecam-effects.png)
 
-**Effects** organiza os ajustes em cards: **Look** para a LUT, **Picture** para
-brilho/contraste/saturação, **Processing** para denoise e espelho, e **AI Background**
+**Efeitos** organiza os ajustes em cards: **Visual** para a LUT, **Imagem** para
+brilho/contraste/saturação, **Processamento** para denoise e espelho, e **Fundo com IA**
 para fundo, FPS e estado da IA. Clique no título dos cards de parâmetros para
 recolher ou expandir. Rótulos, sliders e valores seguem as mesmas colunas da aba
-**Camera**. Os detalhes de provider ficam em **Opções avançadas**, inicialmente
+**Câmera**. Os detalhes de provider ficam em **Opções avançadas**, inicialmente
 recolhido. O botão **Aplicar e salvar** permanece no rodapé durante a rolagem.
 
 ## Efeitos comuns
@@ -103,7 +103,7 @@ O decoder é recolhido no encerramento normal e recebe SIGKILL se o worker morre
 do modo anunciado pela câmera; com entrada 1080p60 e limite 30, a saída com IA é
 1080p30. Sem IA, a taxa negociada é preservada. Preview sem saída virtual usa
 a mesma resolução, taxa e composição que terá ao iniciar essa saída. O rodapé
-**Output** mostra resolução e taxa configuradas para ambas. Um limite de 60 não
+**Saída** mostra resolução e taxa configuradas para ambas. Um limite de 60 não
 garante que o hardware ou o monitor apresente 60 frames por segundo.
 
 Para privacidade, uma substituição opaca esconde mais detalhes que desfoque.
@@ -162,13 +162,13 @@ preferência, depois versões mais novas. Outro pacote disponível pode preenche
 campo sem alterar o provider: encontrar runtime CPU não faz CUDA passar a usar CPU.
 
 Se preparou arquivos com a janela aberta, clique em **Atualizar** na aba
-**Effects**, ou use a atualização de dispositivos. Configurações antigas com
+**Efeitos**, ou use a atualização de dispositivos. Configurações antigas com
 caminhos explícitos continuam compatíveis; para voltar à detecção, remova esses
 campos do JSON com o app fechado. A GUI apresenta disponibilidade, sem caminhos editáveis.
 
 ## Biblioteca de Looks e fundos
 
-O seletor **Look** oferece **Original** e três LUTs próprias: **Quente**, **Frio** e
+O seletor **Visual** oferece **Original** e três LUTs próprias: **Quente**, **Frio** e
 **Contraste suave**. São transformações originais geradas localmente quando aplicadas;
 não são LUTs extraídas do Camera Hub. Arquivos `.cube` importados devem ser texto
 UTF-8 até 16 MiB, com `LUT_3D_SIZE` de 2 a 65, exatamente N³ cores RGB finitas e

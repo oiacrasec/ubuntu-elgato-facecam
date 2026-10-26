@@ -12,6 +12,9 @@ mod engine;
 mod gpu;
 #[cfg(feature = "gui")]
 mod gui;
+#[cfg(all(feature = "gui", debug_assertions))]
+mod gui_test;
+mod i18n;
 mod ipc;
 #[cfg(feature = "ai")]
 mod nvidia;
@@ -28,7 +31,7 @@ mod video_background;
 mod virtual_camera;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{Arg, ArgAction, CommandFactory, FromArgMatches, Parser};
 use engine::Request;
 use std::{
     path::PathBuf,
@@ -144,7 +147,13 @@ struct Args {
     daemon: bool,
 }
 
-fn print_reply(reply: engine::Reply) -> Result<()> {
+fn print_reply(mut reply: engine::Reply, path: &std::path::Path) -> Result<()> {
+    let language = std::env::var("FACECAM_LANGUAGE")
+        .unwrap_or_else(|_| reply.state.config.ui.language.clone());
+    i18n::activate(i18n::load(&language, path).or_else(|_| i18n::fallback())?);
+    reply.message = i18n::tr(&reply.message);
+    reply.state.message = i18n::tr(&reply.state.message);
+    reply.state.error = reply.state.error.as_deref().map(i18n::tr);
     println!("{}", serde_json::to_string_pretty(&reply)?);
     if !reply.ok {
         bail!("{}", reply.message);
@@ -154,7 +163,7 @@ fn print_reply(reply: engine::Reply) -> Result<()> {
 
 fn background_start(path: &std::path::Path) -> Result<()> {
     if let Ok(reply) = ipc::send(&Request::Start { preview: false }) {
-        return print_reply(reply);
+        return print_reply(reply, path);
     }
     let log_dir = path.parent().context("Configuração sem diretório")?;
     std::fs::create_dir_all(log_dir)?;
@@ -175,14 +184,17 @@ fn background_start(path: &std::path::Path) -> Result<()> {
         if let Ok(reply) = ipc::send(&Request::Status) {
             if let Some(error) = reply.state.error.clone() {
                 let _ = ipc::send(&Request::Quit);
-                return print_reply(engine::Reply {
-                    ok: false,
-                    message: error,
-                    ..reply
-                });
+                return print_reply(
+                    engine::Reply {
+                        ok: false,
+                        message: error,
+                        ..reply
+                    },
+                    path,
+                );
             }
             if reply.state.streaming && reply.state.uptime_seconds >= 1 {
-                return print_reply(reply);
+                return print_reply(reply, path);
             }
         }
         if let Some(status) = child.try_wait()? {
@@ -198,8 +210,77 @@ fn background_start(path: &std::path::Path) -> Result<()> {
     bail!("Controlador não iniciou dentro de 10 segundos")
 }
 
+fn localized_args() -> Result<Args> {
+    let raw: Vec<_> = std::env::args_os().collect();
+    if raw.iter().any(|arg| {
+        arg == "--virtual-camera-helper" || arg == "--ai-worker" || arg == "--decode-background"
+    }) {
+        return Ok(Args::try_parse_from(raw)?);
+    }
+    let selected = raw
+        .windows(2)
+        .find(|pair| pair[0] == "--config")
+        .map(|pair| PathBuf::from(&pair[1]))
+        .or_else(|| {
+            raw.iter()
+                .filter_map(|s| s.to_str())
+                .find_map(|s| s.strip_prefix("--config=").map(PathBuf::from))
+        });
+    let path = selected
+        .or_else(|| config::default_path().ok())
+        .unwrap_or_else(|| PathBuf::from("config.json"));
+    let language = std::env::var("FACECAM_LANGUAGE")
+        .ok()
+        .or_else(|| config::Config::load(&path).ok().map(|c| c.ui.language))
+        .unwrap_or_else(|| "pt-BR".into());
+    i18n::activate(i18n::load(&language, &path).or_else(|_| i18n::fallback())?);
+    let mut command = Args::command()
+        .disable_help_flag(true)
+        .disable_version_flag(true);
+    if let Some(about) = command.get_about() {
+        let about = i18n::tr(&about.to_string());
+        command = command.about(about);
+    }
+    let labels: Vec<_> = command
+        .get_arguments()
+        .filter_map(|arg| {
+            arg.get_help()
+                .map(|help| (arg.get_id().clone(), i18n::tr(&help.to_string())))
+        })
+        .collect();
+    for (id, label) in labels {
+        command = command.mut_arg(id, |arg| arg.help(label));
+    }
+    command = command
+        .arg(
+            Arg::new("help")
+                .short('h')
+                .long("help")
+                .action(ArgAction::Help)
+                .help(i18n::tr("Print help")),
+        )
+        .arg(
+            Arg::new("version")
+                .short('V')
+                .long("version")
+                .action(ArgAction::Version)
+                .help(i18n::tr("Print version")),
+        );
+    let ids: Vec<_> = command
+        .get_arguments()
+        .map(|arg| arg.get_id().clone())
+        .collect();
+    for id in ids {
+        command = command.mut_arg(id, |arg| arg.help_heading(i18n::tr("Options")));
+    }
+    let template = "{about-with-newline}\n{usage-heading} {usage}\n\n{all-args}"
+        .replace("{usage-heading}", &i18n::tr("Usage:"));
+    let matches = command.help_template(template).get_matches();
+    Ok(Args::from_arg_matches(&matches)?)
+}
+
 fn run() -> Result<()> {
-    let args = Args::parse();
+    let args = localized_args()?;
     if let Some(payload) = &args.virtual_camera_helper {
         return virtual_camera::run_privileged(payload);
     }
@@ -223,17 +304,20 @@ fn run() -> Result<()> {
         .unwrap_or_else(config::default_path)?;
     if args.debug {
         eprintln!(
-            "Facecam Hub {} · configuração: {} · runtime: {}",
-            env!("CARGO_PKG_VERSION"),
-            path.display(),
-            ipc::runtime_dir()?.display()
+            "{}",
+            i18n::tr(&format!(
+                "Facecam Hub {} · configuração: {} · runtime: {}",
+                env!("CARGO_PKG_VERSION"),
+                path.display(),
+                ipc::runtime_dir()?.display()
+            ))
         );
     }
     if args.install_autostart || args.remove_autostart {
         if let Ok(reply) = ipc::send(&Request::SetAutostart {
             enabled: args.install_autostart,
         }) {
-            return print_reply(reply);
+            return print_reply(reply, &path);
         }
         return if args.install_autostart {
             desktop::install_autostart()
@@ -250,55 +334,64 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if args.status {
-        return print_reply(ipc::send(&Request::Status)?);
+        return print_reply(ipc::send(&Request::Status)?, &path);
     }
     if args.prepare_nvidia {
-        return print_reply(ipc::send(&Request::PrepareNvidia)?);
+        return print_reply(ipc::send(&Request::PrepareNvidia)?, &path);
     }
     if let Some(dependency) = args.prepare_install {
-        return print_reply(ipc::send(&Request::PrepareInstall { dependency })?);
+        return print_reply(ipc::send(&Request::PrepareInstall { dependency })?, &path);
     }
     if let Some(dependency) = args.prepare_uninstall {
-        return print_reply(ipc::send(&Request::PrepareUninstall { dependency })?);
+        return print_reply(ipc::send(&Request::PrepareUninstall { dependency })?, &path);
     }
     if args.prepare_virtual_camera {
-        return print_reply(ipc::send(&Request::PrepareVirtualCamera {
-            persistent: !args.virtual_camera_session_only,
-        })?);
+        return print_reply(
+            ipc::send(&Request::PrepareVirtualCamera {
+                persistent: !args.virtual_camera_session_only,
+            })?,
+            &path,
+        );
     }
     if let Some(id) = args.confirm_install {
-        return print_reply(ipc::send(&Request::ConfirmInstall { id })?);
+        return print_reply(ipc::send(&Request::ConfirmInstall { id })?, &path);
     }
     if args.cancel_install {
-        return print_reply(ipc::send(&Request::CancelInstall)?);
+        return print_reply(ipc::send(&Request::CancelInstall)?, &path);
     }
-    if let Some(path) = args.remove_image {
-        return print_reply(ipc::send(&Request::RemoveImage { path })?);
+    if let Some(image) = args.remove_image {
+        return print_reply(ipc::send(&Request::RemoveImage { path: image })?, &path);
     }
-    if let (Some(kind), Some(path)) = (args.import_resource, args.import_file) {
-        return print_reply(ipc::send(&Request::ImportResource { kind, path })?);
+    if let (Some(kind), Some(file)) = (args.import_resource, args.import_file) {
+        return print_reply(
+            ipc::send(&Request::ImportResource { kind, path: file })?,
+            &path,
+        );
     }
     if args.check_ai {
         let config = config::Config::load(&path)?;
         let status = ai::check(&config.effects)?;
         println!(
-            "IA validada: {:?}, {:?}; inferência executada",
-            status.backend, config.effects.ai_provider
+            "{}",
+            i18n::tr(&format!(
+                "IA validada: {:?}, {:?}; inferência executada",
+                status.backend, config.effects.ai_provider
+            ))
         );
         if let Some(warning) = status.warning {
-            eprintln!("{warning}");
+            eprintln!("{}", i18n::tr(&warning));
         }
         return Ok(());
     }
     if let Some(file) = args.set_effects {
         let effects = serde_json::from_slice(&std::fs::read(file)?)?;
-        return print_reply(ipc::send(&Request::SetEffects { effects })?);
+        return print_reply(ipc::send(&Request::SetEffects { effects })?, &path);
     }
     if args.stop {
-        return print_reply(ipc::send(&Request::Stop)?);
+        return print_reply(ipc::send(&Request::Stop)?, &path);
     }
     if args.quit {
-        return print_reply(ipc::send(&Request::Quit)?);
+        return print_reply(ipc::send(&Request::Quit)?, &path);
     }
     if args.list_controls || args.set_control.is_some() {
         let config = config::Config::load(&path)?;
@@ -318,7 +411,7 @@ fn run() -> Result<()> {
                 name: name.into(),
                 value,
             }) {
-                return print_reply(reply);
+                return print_reply(reply, &path);
             }
             let control = controls
                 .iter()
@@ -372,7 +465,7 @@ fn run() -> Result<()> {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("{error:#}");
+        eprintln!("{}", i18n::tr(&format!("{error:#}")));
         std::process::exit(1);
     }
 }
