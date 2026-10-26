@@ -51,6 +51,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Levantamento histórico de V4L2 e investigação inicial](PORT_UBUNTU_24_04.md)
 - [Referência Windows e matriz de migração completa](REFERENCIA_WINDOWS.md)
 - [Análise RTX, compatibilidade e organização dos runtimes](ANALISE_RTX.md)
+- [Correção de olhar: caminho Windows e lacunas da implementação](CORRECAO_DE_OLHAR_WINDOWS.md)
 - [Inventário de cobertura documental](COBERTURA_DOCUMENTAL.md)
 
 A cobertura classifica individualmente os textos, licenças e dados documentais

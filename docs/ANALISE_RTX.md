@@ -335,3 +335,12 @@ O alinhamento continua frontal 2D, diferente do alinhamento 3D do SDK. A aplica�
 de referência indica AR 0.8.2 Ada, enquanto o caminho nativo exercitado usa os
 modelos AR 0.8.7 Ada fixados. Não foi demonstrada equivalência visual entre
 essas versões ou aceitação da revisão na câmera do usuário.
+
+## Revisão do caminho completo após o vídeo do usuário
+
+A gravação fornecida depois de `f9939eb` não foi aceita como resultado natural.
+O [levantamento do caminho Windows](CORRECAO_DE_OLHAR_WINDOWS.md) registra padrões
+de 68 landmarks e sensibilidade 3 do Camera Hub, os seis estágios dentro do SDK,
+o controle de features/GazePOR ausente no Rust, a normalização por pose e a
+recomposição que usa contornos gerados. O efeito atual permanece funcional com
+qualidade recusada; os ensaios estáticos anteriores não constituem paridade visual.

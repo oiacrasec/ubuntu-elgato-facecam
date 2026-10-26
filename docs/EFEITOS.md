@@ -304,7 +304,9 @@ Não há seleção manual de pessoa nem recuperação automática após perda da
 
 A integração atual usa alinhamento 2D próprio para rostos frontais. Ângulos
 grandes, óculos, reflexos, oclusões, baixa luz e movimento real exigem aceitação
-de qualidade adicional; não há paridade visual demonstrada com Windows.
+de qualidade adicional. O usuário recusou a qualidade no ensaio em vídeo;
+as diferenças para o Windows estão no [levantamento do recurso](CORRECAO_DE_OLHAR_WINDOWS.md).
+Não há paridade visual demonstrada com Windows.
 CPU e backend ONNX explícitos são recusados para esse recurso. Não existe
 fallback CPU silencioso nem movimento de PTZ físico.
 

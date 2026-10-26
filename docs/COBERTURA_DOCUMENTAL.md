@@ -59,6 +59,9 @@ Correção de olhar evolui essa base: operação em [Efeitos](EFEITOS.md),
 contratos em [Algoritmos](ALGORITMOS_DE_EFEITOS.md) e [Arquitetura](ARQUITETURA.md),
 com limites de aceitação em [Roadmap](ROADMAP.md). Os testes de rosto e a origem
 da fotografia pública ficam em [Testes](TESTES.md), sem alterar as 152 fontes históricas.
+O relato de qualidade em vídeo motivou o [levantamento do caminho Windows](CORRECAO_DE_OLHAR_WINDOWS.md),
+que relaciona configuração, modelos, normalização, controle temporal e composição
+às lacunas da implementação, sem acrescentar fontes ao inventário histórico.
 
 ## Registros por arquivo documental
 

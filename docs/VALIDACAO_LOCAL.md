@@ -1240,3 +1240,32 @@ Foi usada somente a fotografia pública com SHA fixado em
 continua frontal 2D; o pipeline 3D e a qualidade visual do Camera Hub não foram
 reproduzidos integralmente. A avaliação desta revisão na câmera do usuário,
 com movimentos, óculos e iluminação real, continua pendente.
+
+## Avaliação visual recusada e revisão Windows — 26/10/2026
+
+O usuário forneceu uma gravação de 23,2 s, 1920×1080/60, mostrando o preview
+processado e relatou que a correção não estava boa. A inspeção local de sequências
+ao longo da gravação identificou mudanças de aparência na região ocular e falta
+de naturalidade. Sem entrada original pareada, não se pode separar por frame
+expressão, compressão, imagem original e efeito. Não foi aplicada outra correção
+ao preview gravado nem incorporada imagem pessoal aos testes ou ao repositório.
+
+O [levantamento Windows](CORRECAO_DE_OLHAR_WINDOWS.md) foi feito sobre o Camera Hub
+2.3.0.7295 e DLLs AR Ada 0.8.2/0.8.7. Incluiu inicialização, I/O, Run, seis
+estágios, bindings, encerramento, imports e auxiliares de geometria/máscara.
+O construtor do Camera Hub inicia com 68 pontos e EyeSizeSensitivity 3, além de
+Temporal habilitado. O SDK tem controle intermediário de redireção e usa os
+landmarks gerados na recomposição; esses contratos não foram reproduzidos na
+implementação 2D com alvo constante.
+
+Uma sondagem somente da fotografia pública, com o hash já fixado nos testes,
+leu a saída `gaze_landmarks` 0.8.7. Os centros dos cantos mudaram aproximadamente
+de `(64,32)/(192,32)` para `(63,18;28,46)/(193,45;28,41)` no recorte. Isso
+evidencia que encaixe geométrico deve entrar no critério de composição.
+O teste positivo passou em 3,42 s; a instrumentação temporária foi removida.
+Evidência: `target/ar-gaze-contract/review/decoder-landmarks.log`.
+
+Manifesto e evidências estáticas ficam em `target/ar-gaze-contract/review/`.
+Não houve execução das DLLs Windows, abertura de câmera, mudança de controles
+ou nova alteração funcional neste levantamento. O código permanece em `f9939eb`;
+o estado de aceitação passa a **funcional, qualidade recusada no ensaio do usuário**.
