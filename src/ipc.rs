@@ -11,10 +11,7 @@ use std::{
         net::{UnixListener, UnixStream},
     },
     path::{Path, PathBuf},
-    sync::{
-        Arc, Mutex,
-        mpsc::{self, Receiver, Sender},
-    },
+    sync::mpsc::{self, Receiver, Sender},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -60,7 +57,7 @@ impl Drop for SocketGuard {
     }
 }
 
-pub type Wake = Arc<Mutex<Option<Box<dyn Fn() + Send>>>>;
+use crate::stream::Wake;
 
 pub struct Controller {
     pub tx: Sender<Request>,
@@ -97,7 +94,7 @@ impl Controller {
         #[cfg(feature = "gui")]
         let frames = engine.frames.clone();
         let (tx, rx) = mpsc::channel();
-        let wake: Wake = Arc::new(Mutex::new(None));
+        let wake = engine.frames.wake.clone();
         let worker_wake = wake.clone();
         let thread = thread::spawn(move || run(engine, rx, listener, guard, worker_wake));
         Ok(Self {

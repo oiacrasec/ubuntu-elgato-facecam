@@ -14,7 +14,8 @@ local, lacunas e condições de aceitação.
 | Saída virtual | Implementado, validação local | Chrome WebRTC real em 1280×720/30, cor, retomada e parada; OBS e longa duração pendentes |
 | Preparação da câmera virtual | Implementado, aceitação parcial | Módulo nativo assinado, revisão e persistência; carga real validada, falta reinício e execução administrativa do helper com autorização única |
 | Efeitos comuns | Implementado | Cor, LUT, mirror e denoise com teste de pixels |
-| IA de fundo | Implementado, paridade parcial | ONNX CPU/CUDA; backend Maxine VFX/AR e bateria de qualidade ainda pendentes |
+| IA de fundo | Implementado, paridade parcial | NVIDIA temporal VFX 0.7.6 Ada e fallback ONNX no mesmo provider; qualidade comparativa e AR pendentes |
+| Processamento CUDA de fundo | Implementado, validação local | Resize, desfoque e composição na GPU; 1080p/60 com RTX 4070 SUPER, sem eliminar transferências RGB ou filtros CPU |
 | Substituição de fundo | Implementado | Cor sólida, três cenários ilustrados e PNG/JPEG/WebP/BMP próprio |
 | Fundo animado | Implementado, validação local | MP4/MOV/WebM/MKV próprio em loop; FPS sincronizado e decoder vinculado ao worker |
 | Biblioteca de Looks e fundos | Implementado nesta revisão | Nomes, miniatura de fundo, três LUTs próprias, importação validada e descoberta sem campos de caminho |
@@ -33,8 +34,8 @@ local, lacunas e condições de aceitação.
 
 O usuário confirmou que a versão Windows funciona com todos os recursos de IA
 na sua RTX 4070 SUPER. Esse relato define a referência de aceitação; não é uma
-medição Linux nem um benchmark de taxa/resolução. A ausência dessa placa em uma
-lista do SDK Linux não invalida o funcionamento Windows informado.
+medição Linux nem um benchmark de taxa/resolução. A referência dos componentes
+é a linha de redistribuíveis NVIDIA Broadcast para RTX 40/Ada indicada pela Elgato.
 As lacunas documentadas são trabalho necessário para atingir o alvo completo,
 incluindo SDK VFX/AR, correção de olhar, enquadramento, controles e layout.
 
@@ -56,8 +57,10 @@ incluindo fundos animados, VFX, AR, Prompter e controles específicos de câmera
 1. Exercitar saída virtual de ponta a ponta em consumidores selecionados, registrando
    resolução, taxa, cor, retomada e parada. Chrome local validado; concluir OBS,
    longa duração e persistência após reinício.
-2. Obter Core e recursos Maxine VFX/AR Linux pelo NGC e validar a RTX neste ambiente;
-   seguir [requisitos e limitações](NVIDIA_MAXINE.md) antes de implementar o backend.
+2. Ampliar a validação da [segmentação temporal Ada implementada](ANALISE_RTX.md):
+   qualidade comparativa com Windows, outras GPUs e estabilidade prolongada.
+   Preparação guiada, inferência Rust/TensorRT e fallback ONNX de inicialização
+   estão implementados. Outras famílias e AR exigem investigações separadas.
 3. Validar sessão Wayland, escalas de desktop, bandeja e navegação assistiva.
 4. Avaliar qualidade e estabilidade de segmentação com cenas autorizadas, movimento,
    cabelos, baixa luz e custo de CPU/GPU.

@@ -94,6 +94,75 @@ fn cli(dir: &Path, args: &[&str]) -> Output {
 }
 
 #[test]
+#[cfg(feature = "ai")]
+fn nvidia_preparation_offers_apt_for_missing_tools_without_downloading_or_installing() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let tools = dir.path().join("tools");
+    std::fs::create_dir(&tools).unwrap();
+    let query = tools.join("nvidia-smi");
+    std::fs::write(&query, "#!/bin/sh\nprintf '8.9\\n'\n").unwrap();
+    std::fs::set_permissions(&query, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let config = dir.path().join("config.json");
+    let data = dir.path().join("data");
+    let mut process = Process(
+        Command::new(BIN)
+            .args(["--headless", "--config"])
+            .arg(&config)
+            .env("XDG_RUNTIME_DIR", dir.path())
+            .env("XDG_DATA_HOME", &data)
+            .env("PATH", &tools)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !cli(dir.path(), &["--status"]).status.success() {
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(25));
+    }
+    let output = cli(dir.path(), &["--prepare-nvidia"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(reply["state"]["preparing_nvidia"], false);
+    let plan = &reply["state"]["installation_plan"];
+    assert_eq!(plan["dependency"], "nvidia_tools");
+    assert_eq!(
+        plan["commands"],
+        serde_json::json!([
+            [
+                "/usr/bin/pkexec",
+                "--disable-internal-agent",
+                "/usr/bin/apt-get",
+                "update"
+            ],
+            [
+                "/usr/bin/pkexec",
+                "--disable-internal-agent",
+                "/usr/bin/apt-get",
+                "install",
+                "--yes",
+                "--no-install-recommends",
+                "--",
+                "curl",
+                "p7zip-full",
+                "unzip"
+            ]
+        ])
+    );
+    assert!(!data.exists());
+    assert!(!config.exists());
+    assert!(cli(dir.path(), &["--cancel-install"]).status.success());
+    assert!(cli(dir.path(), &["--quit"]).status.success());
+    assert!(process.0.wait().unwrap().success());
+}
+
+#[test]
 fn autostart_toggle_tracks_disk_reopens_and_preserves_state_on_failure() {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("config.json");

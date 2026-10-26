@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
     time::Instant,
 };
 
@@ -51,6 +51,7 @@ pub enum Request {
     PrepareVirtualCamera {
         persistent: bool,
     },
+    PrepareNvidia,
     ConfirmInstall {
         id: u64,
     },
@@ -84,6 +85,16 @@ pub struct Snapshot {
     pub quit: bool,
     pub gui: bool,
     pub ai_compiled: bool,
+    #[serde(default)]
+    pub ai_backend: Option<crate::ai::BackendStatus>,
+    #[serde(default)]
+    pub nvidia_prepared: bool,
+    #[serde(default)]
+    pub preparing_nvidia: bool,
+    #[serde(default)]
+    pub nvidia_progress: String,
+    #[serde(default)]
+    pub nvidia_log: Option<PathBuf>,
     #[serde(default)]
     pub autostart_enabled: Option<bool>,
     pub installation_plan: Option<crate::dependencies::InstallPlan>,
@@ -124,6 +135,8 @@ pub struct Engine {
     last_dependency_refresh: Instant,
     removing_video_tools: bool,
     preparing_virtual_camera: bool,
+    #[cfg(feature = "ai")]
+    nvidia_preparation: Option<crate::nvidia_setup::Preparation>,
 }
 
 impl Engine {
@@ -152,6 +165,11 @@ impl Engine {
             quit: false,
             gui,
             ai_compiled: cfg!(feature = "ai"),
+            ai_backend: None,
+            nvidia_prepared: false,
+            preparing_nvidia: false,
+            nvidia_progress: String::new(),
+            nvidia_log: None,
             autostart_enabled: None,
             installation_plan: None,
             installation_running: false,
@@ -167,7 +185,7 @@ impl Engine {
         let mut engine = Self {
             shared: Arc::new(RwLock::new(state.clone())),
             state,
-            frames: Arc::new(Mutex::new(None)),
+            frames: Arc::default(),
             path,
             stream: None,
             last_refresh: Instant::now(),
@@ -178,6 +196,8 @@ impl Engine {
             last_dependency_refresh: Instant::now(),
             removing_video_tools: false,
             preparing_virtual_camera: false,
+            #[cfg(feature = "ai")]
+            nvidia_preparation: None,
             installation_revision: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?
                 .as_millis()
@@ -297,6 +317,8 @@ impl Engine {
 
     fn refresh(&mut self) -> Result<()> {
         self.last_refresh = Instant::now();
+        self.state.nvidia_prepared =
+            crate::ai::native_available(&crate::effects::Effects::default());
         self.refresh_dependencies();
         self.state.resources =
             crate::resources::catalog(&self.resource_root, &self.state.config.effects);
@@ -346,11 +368,14 @@ impl Engine {
         self.state.preview = false;
         self.state.uptime_seconds = 0;
         self.state.preview_frames = 0;
-        *self.frames.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self.frames.frame.lock().unwrap_or_else(|e| e.into_inner()) = None;
         Ok(())
     }
 
     fn start(&mut self, virtual_output: bool, preview: bool) -> Result<()> {
+        if self.state.preparing_nvidia {
+            bail!("Aguarde a preparação da IA RTX terminar");
+        }
         if self.preparing_virtual_camera {
             bail!("Aguarde a preparação da câmera virtual terminar");
         }
@@ -391,6 +416,7 @@ impl Engine {
         )?);
         self.state.streaming = virtual_output;
         self.state.preview = preview;
+        self.state.ai_backend = self.stream.as_ref().and_then(|s| s.ai_backend.clone());
         Ok(())
     }
 
@@ -450,6 +476,41 @@ impl Engine {
                 self.state.importing = true;
                 return Ok("Adicionando arquivo à biblioteca…".into());
             }
+            Request::PrepareNvidia => {
+                #[cfg(not(feature = "ai"))]
+                bail!("Esta compilação não inclui IA; use uma compilação com o recurso ai");
+                #[cfg(feature = "ai")]
+                {
+                    if self.stream.is_some()
+                        || self.installation.is_some()
+                        || self.state.preparing_nvidia
+                    {
+                        bail!(
+                            "Pare a captura e aguarde a operação atual antes de preparar a IA RTX"
+                        );
+                    }
+                    crate::nvidia::ada_device()?;
+                    if crate::nvidia_setup::missing_tools() {
+                        return self.prepare_dependency(
+                            crate::dependencies::Dependency::NvidiaTools,
+                            crate::dependencies::Action::Install,
+                        );
+                    }
+                    let log = self
+                        .path
+                        .parent()
+                        .context("Configuração sem diretório")?
+                        .join("nvidia-prepare.log");
+                    self.nvidia_preparation = Some(crate::nvidia_setup::Preparation::start(
+                        self.state.config.effects.clone(),
+                        log.clone(),
+                    )?);
+                    self.state.preparing_nvidia = true;
+                    self.state.nvidia_log = Some(log);
+                    self.state.nvidia_progress = "Iniciando preparação da IA RTX…".into();
+                    return Ok(self.state.nvidia_progress.clone());
+                }
+            }
             Request::PrepareInstall { dependency } => {
                 return self.prepare_dependency(dependency, crate::dependencies::Action::Install);
             }
@@ -477,6 +538,9 @@ impl Engine {
                 return Ok("Revise os comandos e confirme a preparação da câmera virtual".into());
             }
             Request::ConfirmInstall { id } => {
+                if self.state.preparing_nvidia {
+                    bail!("Aguarde a preparação da IA RTX terminar");
+                }
                 if self.installation.is_some() {
                     bail!("Aguarde a operação APT atual terminar");
                 }
@@ -564,9 +628,11 @@ impl Engine {
                 effects.validate()?;
                 crate::resources::materialize(&self.resource_root, &effects.lut)?;
                 effects.preflight()?;
-                if effects.background_blur {
-                    crate::ai::check(&effects)?;
-                }
+                let checked_backend = if effects.background_blur {
+                    Some(crate::ai::check(&effects)?)
+                } else {
+                    None
+                };
                 let previous = self.state.config.clone();
                 let outputs = (self.state.streaming, self.state.preview);
                 self.stop()?;
@@ -591,9 +657,22 @@ impl Engine {
                     }
                     return Err(error);
                 }
-                return Ok(
-                    "Efeitos aplicados ao preview e à câmera virtual; configuração salva".into(),
-                );
+                self.state.ai_backend = self
+                    .stream
+                    .as_ref()
+                    .and_then(|s| s.ai_backend.clone())
+                    .or(checked_backend);
+                let warning = self
+                    .state
+                    .ai_backend
+                    .as_ref()
+                    .and_then(|s| s.warning.as_deref());
+                return Ok(match warning {
+                    Some(warning) => format!("Efeitos aplicados; configuração salva. {warning}"),
+                    None => {
+                        "Efeitos aplicados ao preview e à câmera virtual; configuração salva".into()
+                    }
+                });
             }
             Request::Save => {
                 if self.state.camera.is_some() {
@@ -649,6 +728,9 @@ impl Engine {
             }
             Request::Show => self.state.show_revision = self.state.show_revision.wrapping_add(1),
             Request::Quit => {
+                if self.state.preparing_nvidia {
+                    bail!("Aguarde a preparação da IA RTX terminar antes de encerrar o aplicativo");
+                }
                 if self.import.is_some() {
                     bail!("Aguarde a importação terminar antes de encerrar o aplicativo");
                 }
@@ -702,6 +784,32 @@ impl Engine {
 
     pub fn tick(&mut self) -> bool {
         let mut changed = false;
+        #[cfg(feature = "ai")]
+        while let Some(event) = self.nvidia_preparation.as_ref().and_then(|job| job.poll()) {
+            changed = true;
+            match event {
+                crate::nvidia_setup::Update::Progress(message) => {
+                    self.state.nvidia_progress = message
+                }
+                crate::nvidia_setup::Update::Finished(result) => {
+                    self.nvidia_preparation = None;
+                    self.state.preparing_nvidia = false;
+                    self.state.nvidia_prepared =
+                        crate::ai::native_available(&crate::effects::Effects::default());
+                    match result {
+                        Ok(message) => {
+                            self.state.nvidia_progress = message.clone();
+                            self.state.message = message;
+                            self.state.error = None;
+                        }
+                        Err(message) => {
+                            self.state.nvidia_progress = "Preparação RTX não concluída".into();
+                            self.state.error = Some(message);
+                        }
+                    }
+                }
+            }
+        }
         if let Some(import) = &self.import
             && let Some(result) = import.poll()
         {
@@ -775,6 +883,23 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nvidia_preparation_blocks_capture_and_quit_without_touching_configuration() {
+        let (dir, mut engine) = engine();
+        engine.state.preparing_nvidia = true;
+        for request in [
+            Request::Preview,
+            Request::Start { preview: false },
+            Request::Quit,
+        ] {
+            let reply = engine.handle(request);
+            assert!(!reply.ok);
+            assert!(reply.message.contains("preparação da IA RTX"));
+            assert!(!reply.state.quit);
+        }
+        assert!(!dir.path().join("config.json").exists());
+    }
 
     fn engine() -> (tempfile::TempDir, Engine) {
         let dir = tempfile::tempdir().unwrap();

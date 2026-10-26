@@ -17,9 +17,27 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub const PREVIEW_WIDTH: usize = 640;
-pub const PREVIEW_HEIGHT: usize = 360;
-pub type LatestFrame = Arc<Mutex<Option<Vec<u8>>>>;
+pub struct PreviewFrame {
+    // Headless controllers can receive/count frames without a display consumer.
+    #[cfg_attr(not(feature = "gui"), allow(dead_code))]
+    pub size: [usize; 2],
+    pub rgb: Vec<u8>,
+}
+pub type Wake = Arc<Mutex<Option<Box<dyn Fn() + Send>>>>;
+#[derive(Default)]
+pub struct PreviewFrames {
+    pub frame: Mutex<Option<PreviewFrame>>,
+    pub wake: Wake,
+}
+pub type LatestFrame = Arc<PreviewFrames>;
+
+pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
+    if effects.background_blur {
+        mode.fps.min(f64::from(effects.ai_fps))
+    } else {
+        mode.fps
+    }
+}
 
 pub struct Stream {
     child: Child,
@@ -28,6 +46,7 @@ pub struct Stream {
     pub started: Instant,
     pub log: PathBuf,
     pub frames_received: Arc<AtomicU64>,
+    pub ai_backend: Option<crate::ai::BackendStatus>,
 }
 
 #[derive(Default)]
@@ -80,13 +99,14 @@ pub fn ffmpeg_args(
     if filters.is_empty() {
         filters.push("null".into());
     }
+    // Share the actual output format too: previewing RGB before YUV420 conversion
+    // would hide chroma loss and rounding that virtual-camera consumers receive.
+    filters.push("format=yuv420p".into());
     let base = filters.join(",");
-    let preview_filter =
-        "fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2";
     let graph = match (virtual_output, preview) {
-        (true, true) => format!("[0:v]{base},split=2[vout][p];[p]{preview_filter}[preview]"),
+        (true, true) => format!("[0:v]{base},split=2[vout][p];[p]format=rgb24[preview]"),
         (true, false) => format!("[0:v]{base}[vout]"),
-        _ => format!("[0:v]{base},{preview_filter}[preview]"),
+        _ => format!("[0:v]{base},format=rgb24[preview]"),
     };
     args.extend(["-filter_complex".into(), graph]);
     if virtual_output {
@@ -154,8 +174,16 @@ impl Stream {
         log: &Path,
     ) -> Result<Self> {
         config.effects.preflight()?;
-        // SetEffects validates inference before stopping an active capture. The
-        // real worker also warms up; do not launch a third native session here.
+        let size = [usize::try_from(mode.width)?, usize::try_from(mode.height)?];
+        if size[0] == 0 || size[1] == 0 || size[0] > 7680 || size[1] > 4320 {
+            bail!("Resolução de vídeo fora dos limites");
+        }
+        let frame_bytes = size[0]
+            .checked_mul(size[1])
+            .and_then(|n| n.checked_mul(3))
+            .context("Tamanho de quadro inválido")?;
+        // SetEffects validates inference before stopping an active capture.
+        // Automatic backend selection probes RTX in an isolated child.
         if virtual_output {
             verify_virtual_device(&config.virtual_device)?;
         }
@@ -164,15 +192,14 @@ impl Stream {
         }
         let err = OpenOptions::new().create(true).append(true).open(log)?;
         let mut upstream = Children::default();
+        let mut ai_backend = None;
         let mut args = ffmpeg_args(device, mode, config, virtual_output, preview);
         let stdin = if config.effects.background_blur {
-            // A preview-only session needs 640x360 at 15fps, not full-resolution
-            // RGB and inference for every 1080p60/120 camera frame.
-            let (ai_width, ai_height, ai_fps) =
-                ai_processing_mode(mode, &config.effects, virtual_output);
+            let (ai_width, ai_height) = (mode.width, mode.height);
+            let ai_fps = output_fps(mode, &config.effects);
             let end = args.iter().position(|a| a == "-i").unwrap() + 2;
             let mut capture = args[..end].to_vec();
-            capture.extend(["-vf".into(), format!("fps={ai_fps},scale={ai_width}:{ai_height}:force_original_aspect_ratio=decrease,pad={ai_width}:{ai_height}:(ow-iw)/2:(oh-ih)/2")]);
+            capture.extend(["-vf".into(), format!("fps={ai_fps}")]);
             capture.extend(
                 [
                     "-an", "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
@@ -190,7 +217,9 @@ impl Stream {
                 .take()
                 .context("Pipe de captura indisponível")?;
             upstream.0.push(decoder);
-            let mut worker = crate::ai::command(&config.effects)?
+            let (mut worker_command, status) = crate::ai::command(&config.effects)?;
+            ai_backend = Some(status);
+            let mut worker = worker_command
                 .args(["--ai-size", &format!("{ai_width}x{ai_height}")])
                 .args(["--ai-rate", &ai_fps.to_string()])
                 .stdin(Stdio::from(source))
@@ -240,12 +269,18 @@ impl Stream {
         let reader = child.stdout.take().map(|mut stdout| {
             thread::spawn(move || {
                 loop {
-                    let mut bytes = vec![0; PREVIEW_WIDTH * PREVIEW_HEIGHT * 3];
-                    if stdout.read_exact(&mut bytes).is_err() {
+                    let mut frame = PreviewFrame {
+                        size,
+                        rgb: vec![0; frame_bytes],
+                    };
+                    if stdout.read_exact(&mut frame.rgb).is_err() {
                         break;
                     }
-                    *frames.lock().unwrap_or_else(|e| e.into_inner()) = Some(bytes);
+                    *frames.frame.lock().unwrap_or_else(|e| e.into_inner()) = Some(frame);
                     counter.fetch_add(1, Ordering::Relaxed);
+                    if let Some(wake) = &*frames.wake.lock().unwrap_or_else(|e| e.into_inner()) {
+                        wake();
+                    }
                 }
             })
         });
@@ -256,6 +291,7 @@ impl Stream {
             started: Instant::now(),
             log: log.into(),
             frames_received,
+            ai_backend,
         })
     }
 
@@ -296,22 +332,6 @@ impl Stream {
     }
 }
 
-fn ai_processing_mode(
-    mode: &Mode,
-    effects: &crate::effects::Effects,
-    virtual_output: bool,
-) -> (u32, u32, f64) {
-    if virtual_output {
-        (mode.width, mode.height, mode.fps.min(effects.ai_fps as f64))
-    } else {
-        (
-            PREVIEW_WIDTH as u32,
-            PREVIEW_HEIGHT as u32,
-            mode.fps.min(effects.ai_fps.min(15) as f64),
-        )
-    }
-}
-
 impl Drop for Stream {
     fn drop(&mut self) {
         let _ = self.stop();
@@ -321,8 +341,10 @@ impl Drop for Stream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const PREVIEW_WIDTH: usize = 640;
+    const PREVIEW_HEIGHT: usize = 360;
     #[test]
-    fn ai_preview_does_not_process_full_camera_resolution_and_virtual_fps_is_explicit() {
+    fn output_rate_preserves_camera_fps_and_applies_only_the_explicit_ai_limit() {
         let mode = Mode {
             format: "mjpeg".into(),
             width: 1920,
@@ -330,19 +352,22 @@ mod tests {
             fps: 60.0,
         };
         let effects = crate::effects::Effects::default();
-        assert_eq!(ai_processing_mode(&mode, &effects, false), (640, 360, 15.0));
-        assert_eq!(
-            ai_processing_mode(&mode, &effects, true),
-            (1920, 1080, 30.0)
-        );
+        assert_eq!(output_fps(&mode, &effects), 60.0);
+        let effects = crate::effects::Effects {
+            background_blur: true,
+            ..effects
+        };
+        assert_eq!(output_fps(&mode, &effects), 30.0);
         let effects = crate::effects::Effects {
             ai_fps: 60,
             ..effects
         };
-        assert_eq!(
-            ai_processing_mode(&mode, &effects, true),
-            (1920, 1080, 60.0)
-        );
+        assert_eq!(output_fps(&mode, &effects), 60.0);
+        let mode = Mode {
+            fps: 30000.0 / 1001.0,
+            ..mode
+        };
+        assert_eq!(output_fps(&mode, &effects), mode.fps);
     }
     #[test]
     fn headless_stream_does_not_decode_preview_frames() {
@@ -355,6 +380,110 @@ mod tests {
         let args = ffmpeg_args("/dev/video0", &mode, &Config::default(), true, false);
         assert!(!args.iter().any(|a| a == "rawvideo" || a == "pipe:1"));
         assert_eq!(args.last().unwrap(), "/dev/video10");
+    }
+
+    #[test]
+    #[ignore = "requires ffmpeg; compares synthetic preview and virtual output, no camera"]
+    fn ffmpeg_preview_matches_decoded_virtual_pixels_resolution_and_frame_count() {
+        let dir = tempfile::tempdir().unwrap();
+        for (width, height, fps) in [(160, 120, 60.0), (320, 180, 30000.0 / 1001.0)] {
+            let mode = Mode {
+                format: "rgb24".into(),
+                width,
+                height,
+                fps,
+            };
+            let config = Config {
+                effects: crate::effects::Effects {
+                    mirror: true,
+                    contrast: 1.2,
+                    saturation: 0.7,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let virtual_file = dir.path().join(format!("{width}.yuv"));
+            let render = |virtual_output| {
+                let original = ffmpeg_args("unused", &mode, &config, virtual_output, true);
+                let filter = original
+                    .iter()
+                    .position(|a| a == "-filter_complex")
+                    .unwrap();
+                let mut args: Vec<String> = [
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-filter_complex_threads",
+                    "1",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                ]
+                .map(str::to_owned)
+                .into();
+                args.push(format!(
+                    "testsrc2=size={width}x{height}:rate={fps}:duration=0.2"
+                ));
+                args.extend_from_slice(&original[filter..]);
+                if virtual_output {
+                    let sink = args
+                        .iter()
+                        .position(|a| a == &config.virtual_device)
+                        .unwrap();
+                    args[sink - 1] = "rawvideo".into();
+                    args[sink] = virtual_file.to_str().unwrap().into();
+                }
+                let output = Command::new("ffmpeg").args(args).output().unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                output.stdout
+            };
+            let preview = render(true);
+            let plane = width as usize * height as usize;
+            let virtual_bytes = fs::metadata(&virtual_file).unwrap().len() as usize;
+            let count = preview.len() / (plane * 3);
+            assert_eq!(count, if fps == 60.0 { 12 } else { 6 });
+            assert_eq!(preview.len(), count * plane * 3);
+            assert_eq!(virtual_bytes, count * plane * 3 / 2);
+            let decoded = Command::new("ffmpeg")
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "rawvideo",
+                    "-pixel_format",
+                    "yuv420p",
+                    "-video_size",
+                    &format!("{width}x{height}"),
+                    "-framerate",
+                    &fps.to_string(),
+                    "-i",
+                ])
+                .arg(&virtual_file)
+                .args([
+                    "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
+                ])
+                .output()
+                .unwrap();
+            assert!(
+                decoded.status.success(),
+                "{}",
+                String::from_utf8_lossy(&decoded.stderr)
+            );
+            assert_eq!(
+                preview, decoded.stdout,
+                "preview must match the decoded virtual frames byte for byte"
+            );
+            assert_eq!(
+                render(false),
+                preview,
+                "starting virtual output must not change the preview"
+            );
+        }
     }
 
     #[test]
@@ -528,7 +657,7 @@ mod tests {
             &crate::camera::v4l2(&camera.path, &["--list-formats-ext"]).unwrap(),
         );
         let mode = crate::camera::choose_mode(&modes, &config).unwrap();
-        let frames: LatestFrame = Arc::new(Mutex::new(None));
+        let frames: LatestFrame = Arc::default();
         let dir = tempfile::tempdir().unwrap();
         let mut stream = Stream::start(
             &camera.path,
@@ -547,8 +676,12 @@ mod tests {
             thread::sleep(Duration::from_millis(50));
         }
         assert_eq!(
-            frames.lock().unwrap().as_ref().unwrap().len(),
-            PREVIEW_WIDTH * PREVIEW_HEIGHT * 3
+            frames.frame.lock().unwrap().as_ref().unwrap().rgb.len(),
+            mode.width as usize * mode.height as usize * 3
+        );
+        assert_eq!(
+            frames.frame.lock().unwrap().as_ref().unwrap().size,
+            [mode.width as usize, mode.height as usize]
         );
         stream.stop().unwrap();
         assert!(stream.child.try_wait().unwrap().is_some());

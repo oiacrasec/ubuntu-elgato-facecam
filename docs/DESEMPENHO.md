@@ -47,13 +47,36 @@ Tempo menor em um caso não comprova complexidade melhor ou ganho em todos os ca
 
 ## Evitar trabalho repetido
 
-A implementação atual limita o preview e conserva somente um frame. A captura
+A implementação atual conserva somente o último quadro do preview. A captura
 sem preview não produz RGB para a GUI. O modelo ONNX permanece carregado no
-worker durante a captura; não é criado para cada frame. Desfoque usa duas passagens
-de janela deslizante em imagem reduzida.
+worker durante a captura; não é criado para cada frame. Na alternativa CPU,
+desfoque usa duas passagens de janela deslizante em imagem reduzida.
 
-Somente preview com IA reduz resolução e FPS antes do worker. A saída virtual
-mantém a resolução e aplica `ai_fps`, padrão 30. Coordenadas e buffer horizontal
+Com CUDA, `gpu.rs` executa resize, normalização, desfoque separável, interpolação
+da máscara e composição com grafos ONNX próprios. Máscara e imagens intermediárias
+permanecem na GPU por I/O binding; o RGB de entrada é enviado e o RGB composto
+retorna para FFmpeg. Fundos estáticos são enviados uma vez; vídeo envia o quadro
+atual. Três escalares retornam para validar probabilidades sem ler a máscara na
+CPU. Os grafos recusam fallback CPU. Isso não elimina o custo dos pipes, conversão
+YUV, filtros convencionais, decodificação ou apresentação do preview.
+
+A geometria bilinear segue `half_pixel` do
+[operador Resize](https://onnx.ai/onnx/operators/onnx__Resize.html).
+O desfoque usa duas médias separáveis com truncamento entre passagens e padding
+excluído do divisor, conforme o contrato
+[AveragePool](https://onnx.ai/onnx/operators/onnx__AveragePool.html).
+A referência CPU permanece disponível para comparação sintética optativa.
+
+Para inspecionar a execução, defina `FACECAM_GPU_PROFILE_DIR` somente no worker de
+teste. Ele grava perfis ORT dos estágios `prepare`, `background` (quando usado)
+e `compose`. Confira os eventos de kernel com `args.provider`, distinguindo
+execução CUDA de cópias e sincronização. Medir desempenho sem profiling; a
+instrumentação afeta o tempo. O perfil desses grafos não comprova o provider de
+todos os operadores de um modelo ONNX externo.
+
+Preview e saída virtual mantêm a mesma resolução e aplicam `ai_fps`, padrão 30.
+O preview não tem redução própria; o custo cresce com a resolução e a taxa da
+câmera. A GUI é notificada por quadro, sem fila crescente. Coordenadas e buffer horizontal
 da composição são reutilizados, e fundos estáticos são preparados uma vez.
 Aplicar efeitos verifica a inferência antes de parar a captura; o worker real
 aquece sua sessão, sem um terceiro processo de verificação no supervisor.

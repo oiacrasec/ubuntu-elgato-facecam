@@ -10,11 +10,24 @@ Não adicionar Python, Qt, GTK, Electron ou webview ao produto.
 O alvo de paridade funcional e visual é Camera Hub Windows 2.3.0.7295.
 O usuário confirmou todos os recursos de IA no Windows com sua RTX 4070 SUPER;
 isso é a referência de aceitação, sem presumir execução dos SDKs Windows no Linux.
+Para essa referência, use os redistribuíveis NVIDIA Broadcast Video Effects 0.7.6
+e AR 0.8.2 para RTX 40/Ada indicados pela Elgato. [Runtimes NVIDIA](docs/NVIDIA_MAXINE.md)
+registra os arquivos e distingue análise Windows de implementação nativa Linux.
+O caminho escolhido é engenharia reversa dos pacotes Windows e implementação
+própria em Rust. Não retomar a busca ou instalação de SDKs NVIDIA Linux como
+pré-requisito. [Análise RTX](docs/ANALISE_RTX.md) registra essa decisão e as evidências.
+A pesquisa deve fechar os contratos necessários ao recurso e então dar lugar à
+implementação. Priorizar segmentação, desfoque e troca de fundo no worker Rust
+existente; reconstruir todo o SDK não é pré-requisito.
 
 - `camera.rs`: descoberta V4L2, modos, metadados, validação e escrita de controles.
 - `config.rs`: configuração JSON, compatibilidade de campos e backup.
 - `effects.rs`: parâmetros de efeitos, limites e geração dos filtros.
-- `ai.rs`: inferência ONNX em processo isolado, CPU ou NVIDIA CUDA explícitos.
+- `ai.rs`: worker isolado, seleção NVIDIA/ONNX, composição e provider explícito.
+- `gpu.rs`: grafos ONNX próprios para resize, desfoque e composição CUDA, com I/O binding.
+- `nvidia.rs`: segmentação temporal Ada por TensorRT, com estados na GPU.
+- `nvidia_model.rs`: importação local do modelo exato e descritor EPContext próprio.
+- `nvidia_setup.rs`: preparação no usuário, hashes e inferência antes da publicação.
 - `ai_paths.rs`: descoberta local de modelo/runtime, preservando caminhos manuais.
 - `background.rs`: cenários locais e decodificação limitada de fundos próprios, uma vez por worker.
 - `video_background.rs`: fundo animado com decoder FFmpeg em loop, FPS de processamento e morte junto do worker.
@@ -33,18 +46,19 @@ O recurso Cargo `ai` carrega as bibliotecas externas somente ao ativar IA.
 Mantenha `unsafe_code = "forbid"` no código da aplicação.
 
 A interface mantém controles à esquerda e preview à direita. Efeitos de vídeo
-são aplicados antes da divisão entre preview e saída virtual. Grade e espelho
-local pertencem à visualização; o espelho da aba Effects afeta ambas as saídas.
+são aplicados antes da divisão entre preview e saída virtual. A grade
+é uma guia local; Mirror e o espelho da aba Effects afetam ambas as saídas.
 Não apresentar filtros convencionais como IA. Nunca ocultar falha de CUDA
 usando CPU automaticamente. Verificar uma inferência antes de trocar a captura.
-Com IA, limitar FPS explicitamente; preview sem saída virtual deve ser reduzido
-antes da inferência. Não carregar ou redimensionar imagens estáticas por frame.
+Com IA, limitar FPS explicitamente e igualmente para preview e saída virtual.
+Preservar resolução, proporção e conversão YUV comuns antes do split. Não carregar
+ou redimensionar imagens estáticas por frame.
 
 Testar valores negativos, zero, positivos, extremos, passos, menus esparsos,
 valores não finitos e mensagens de falha. Não escrever na câmera em testes comuns.
 [TESTES.md](docs/TESTES.md) separa verificações automáticas das que exigem hardware.
 
-`package/` contém os instaladores macOS/Windows, ferramentas de análise e evidências
+`package/` contém o instalador Windows, ferramentas de análise e evidências
 locais, ignorados pelo Git. [Referência Windows](docs/REFERENCIA_WINDOWS.md) registra
 hashes, chamadas investigadas e limites da comparação; não confundir distribuição
 de arquivos ou strings de menu com execução e suporte no dispositivo.

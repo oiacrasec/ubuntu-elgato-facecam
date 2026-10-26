@@ -19,9 +19,15 @@ não inclui LUTs, fundos, ícones ou shaders extraídos do Camera Hub.
 | v4l-utils / `v4l2-ctl` | Consulta e escrita de controles e formatos |
 | v4l2loopback | Nó virtual preparado no sistema pelo usuário |
 | `ort` | Bindings Rust opcionais para ONNX Runtime carregado dinamicamente |
+| `aes` 0.8 / `cbc` 0.1 / `sha2` 0.10 | RustCrypto, MIT ou Apache-2.0; leitura e conferência do modelo local, sem chaves embutidas |
+| `tempfile` | Staging da preparação RTX e testes, MIT ou Apache-2.0 |
 | `image` | Decodificação opcional de PNG/JPEG/WebP/BMP e preparo de fundo; MIT ou Apache-2.0 |
 | ONNX Runtime e modelo | Inferência opcional, fora do binário do aplicativo |
 | CUDA e cuDNN | Provider NVIDIA, com dependências externas opcionais |
+| Video Effects 0.7.6 Ada | Modelo local importado para segmentação Rust/TensorRT; componentes externos sujeitos à EULA NVIDIA, sem redistribuição no Git/binário |
+| AR 0.8.2 Ada | Referência Windows inventariada, sem backend implementado; [origem](NVIDIA_MAXINE.md) |
+| TensorRT 10.4.0.26 / ONNX Runtime GPU 1.20.1 | Execução nativa do modelo Ada, componentes preparados no usuário; ONNX Runtime sob MIT, TensorRT sob licença NVIDIA |
+| 7z, tar, unzip, dpkg-deb e setpriv | Extração e supervisão da preparação RTX; ferramentas Ubuntu externas, sem execução do instalador Windows |
 | APT, pkexec, curl e sha256sum | Instalação assistida opcional, com confirmação e autenticação do Ubuntu |
 
 Leia `Cargo.toml` para as features e `Cargo.lock` para o grafo resolvido. O produto

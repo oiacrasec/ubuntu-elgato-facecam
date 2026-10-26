@@ -32,15 +32,29 @@ os hashes completos e é a fonte dos registros abaixo.
 A preparação virtual com confirmação está em [Uso](USO.md#preparar-a-câmera-virtual),
 com contratos em [Arquitetura](ARQUITETURA.md) e [Protocolo](PROTOCOLO_DE_CONTROLE.md).
 [Testes](TESTES.md) separa checks comuns da aceitação física no consumidor.
-Os requisitos da próxima integração de IA estão em [NVIDIA Maxine](NVIDIA_MAXINE.md),
+Os redistribuíveis da referência Windows e os critérios da integração de
+IA estão em [Runtimes NVIDIA](NVIDIA_MAXINE.md),
 sem alterar o inventário das fontes documentais examinadas.
+Os resultados novos da engenharia estão em [Análise RTX](ANALISE_RTX.md), com
+[catálogo de referências](nvidia-runtime-catalog.json) próprio. Esses registros
+não acrescentam arquivos ao inventário histórico de 152 fontes.
 
 ## Registros por arquivo documental
+
+Preview fiel à saída, espelhamento compartilhado e limites de apresentação estão
+em [Uso](USO.md#visualizar-e-enviar-a-outro-aplicativo), com fluxo em
+[Arquitetura](ARQUITETURA.md#captura-e-efeitos) e teste sintético em [Testes](TESTES.md).
+Essa evolução não altera as 152 fontes do inventário histórico.
+
+Processamento CUDA, transferências CPU/GPU e comparação numérica com a referência
+CPU estão em [Desempenho](DESEMPENHO.md), [Arquitetura](ARQUITETURA.md) e
+[Testes](TESTES.md). As medições locais ficam em [Validação local](VALIDACAO_LOCAL.md).
+Os IDs e hashes históricos permanecem preservados.
 
 | ID | Assunto | Destino | Adaptação | SHA-256 (prefixo) |
 | --- | --- | --- | --- | --- |
 | D001 | Regras para manutenção e agentes | [CONTRIBUICAO.md](CONTRIBUICAO.md) | Comandos no núcleo, erros de entrada, recursos próprios e revisão verificável. | `2fcac6815bcd` |
-| D002 | Atribuição e recursos de terceiros | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Inventário de origem e licença somente dos recursos realmente usados. | `f9c076102d8e` |
+| D002 | Atribuição e recursos de terceiros | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Inventário de origem e licença dos recursos usados; redistribuíveis NVIDIA locais identificados como artefatos de análise. | `f9c076102d8e` |
 | D003 | Licenças permissivas e avisos | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Condições de componentes externos não substituem a licença MIT local. | `0d542e0c8804` |
 | D004 | Licença do código | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Distinguir licença do projeto e direitos de recursos opcionais. | `1a8f66d8a86b` |
 | D005 | Notices e proveniência | [DEPENDENCIAS_E_LICENCAS.md](DEPENDENCIAS_E_LICENCAS.md) | Preservar avisos aplicáveis sem incorporar recursos que não são distribuídos. | `25a69f3364a0` |

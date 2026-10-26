@@ -58,8 +58,9 @@ miniatura do primeiro frame. **Adicionar LUT…**, **Adicionar imagem…** e
 diálogo não importa nem aplica. Modelo/runtime e saída virtual são detectados;
 não há campos de caminho na GUI. A seleção de provider fica em **Opções avançadas**.
 
-O botão **Mirror** abaixo do preview é local. O espelho em **Effects** transforma
-preview e saída virtual. **Grid** desenha uma sobreposição de visualização. A
+O botão **Mirror** abaixo do preview aplica e salva o espelho pelo controlador,
+afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Effects**.
+**Grid** desenha uma sobreposição de visualização. A
 saída para outro aplicativo não deve receber acidentalmente grade ou controles.
 
 ## Diálogos, confirmação e cancelamento

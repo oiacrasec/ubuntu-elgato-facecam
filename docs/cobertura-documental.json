@@ -17,7 +17,7 @@
       "id": "D002",
       "subject": "Atribuição e recursos de terceiros",
       "destination": "DEPENDENCIAS_E_LICENCAS.md",
-      "adaptation": "Inventário de origem e licença somente dos recursos realmente usados.",
+      "adaptation": "Inventário de origem e licença dos recursos usados; redistribuíveis NVIDIA locais identificados como artefatos de análise.",
       "source_sha256": "f9c076102d8e7cfd92ee035960cbf70ad0fdf5b8a3649150f4b6fde5e9d1a42d",
       "source_bytes": 26844
     },

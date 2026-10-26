@@ -19,7 +19,7 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Instalação e execução](../README.md)
 - [Operação da câmera, presets e visualização](USO.md)
 - [Efeitos e IA, incluindo descoberta automática](EFEITOS.md)
-- [Requisitos e limites da integração NVIDIA Maxine](NVIDIA_MAXINE.md)
+- [Runtimes NVIDIA Broadcast de referência e migração Linux](NVIDIA_MAXINE.md)
 - [Falhas e recuperação](SOLUCAO_DE_PROBLEMAS.md)
 - [Comandos, CLI e protocolo local](PROTOCOLO_DE_CONTROLE.md)
 - [Formatos, importação e fidelidade](FORMATOS_E_COMPATIBILIDADE.md)
@@ -45,8 +45,9 @@ revisão em que foram executadas; o perfil Cargo `release` não comprova publica
 - [Roadmap, paridade e critérios de prontidão](ROADMAP.md)
 - [Decisões de implementação](DECISOES.md)
 - [Validação local](VALIDACAO_LOCAL.md)
-- [Investigação de V4L2 e do pacote macOS](PORT_UBUNTU_24_04.md)
-- [Comparação Windows/macOS e matriz de migração completa](REFERENCIA_WINDOWS.md)
+- [Levantamento histórico de V4L2 e investigação inicial](PORT_UBUNTU_24_04.md)
+- [Referência Windows e matriz de migração completa](REFERENCIA_WINDOWS.md)
+- [Análise RTX, compatibilidade e organização dos runtimes](ANALISE_RTX.md)
 - [Inventário de cobertura documental](COBERTURA_DOCUMENTAL.md)
 
 A cobertura classifica individualmente os textos, licenças e dados documentais

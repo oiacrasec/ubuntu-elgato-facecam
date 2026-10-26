@@ -21,7 +21,7 @@ comuns não precisam de câmera, servidor gráfico, CUDA, modelo ou ONNX Runtime
 | Cor e redução de ruído | Negativos, zero, positivos, limites, NaN e infinito |
 | Máscaras de IA | Alpha 0, 0,5 e 1; valores fora do intervalo e shapes inválidos |
 | Composição e fundos | Referência escalar com tolerância de 1 por canal; alpha zero opaco; cenários e imagem inválida |
-| Taxa de IA | Negativo, zero, 1, 30, 60 e acima do máximo; preview reduzido antes do worker |
+| Taxa de IA | Negativo, zero, 1, 30, 60 e acima do máximo; mesmo limite em preview e saída virtual |
 | Persistência | Valores assinados preservados, backup e erro sem substituir JSON |
 | LUT 3D | Valores negativos, zero e positivos; NaN, infinito, grade/domínio inválidos e conteúdo incompleto |
 
@@ -57,6 +57,13 @@ cargo test ffmpeg_effects_render -- --ignored
 
 A CI instala FFmpeg e executa essa verificação. O script local também a executa
 quando o executável está disponível.
+
+`ffmpeg_preview_matches_decoded_virtual_pixels_resolution_and_frame_count`
+compara todos os pixels do preview com uma decodificação independente dos mesmos
+quadros yuv420p da saída virtual. Verifica dimensões, número de quadros, 4:3,
+16:9, 60 fps e 30000/1001 fps, com efeitos e espelhamento. Iniciar a saída virtual
+não pode alterar o preview. Esse teste usa arquivos temporários sintéticos e
+roda no filtro `ffmpeg_`, sem câmera, display ou GPU.
 
 Fundos animados usam uma mídia sintética de dois frames. O teste verifica loop,
 conversão de FPS, caminhos com caracteres especiais, rejeição de mídia inválida
@@ -154,6 +161,35 @@ mudam hardware automaticamente na CI.
 
 ## Testes optativos de IA
 
+Para comparar os grafos CUDA próprios com a referência CPU, configure o runtime
+GPU e suas bibliotecas conforme [Efeitos](EFEITOS.md):
+
+```bash
+FACECAM_AI_RUNTIME=/caminho/libonnxruntime.so LD_LIBRARY_PATH=/caminho/bibliotecas cargo test --locked gpu::tests -- --ignored --nocapture
+```
+
+Os dois testes usam apenas pixels sintéticos, sem câmera. Exercitam canais RGB/BGR,
+normalização, alpha 0/0,5/1 e gradiente, blur com raios 1/4/10/32, fundo estático,
+troca de fundo animado entre quadros e rejeição de probabilidades negativas,
+acima de 1, NaN e infinitos. A entrada normalizada admite 1/255 de diferença e a
+composição até dois níveis por canal, por diferenças de arredondamento float e
+interpolação CUDA/CPU; não se exige identidade binária. Fundos animados também
+verificam que o upload não sobrescreva o primeiro plano. O profiling opcional
+está descrito em [Desempenho](DESEMPENHO.md).
+
+Para a segmentação temporal NVIDIA, depois da preparação pelo app:
+
+```bash
+FACECAM_NVIDIA_MANIFEST="${XDG_DATA_HOME:-$HOME/.local/share}/facecam-hub/runtimes/linux-x86_64/vfx/0.7.6/ada/manifest.json" cargo test --locked --test ai nvidia_worker_composes -- --ignored --nocapture
+```
+
+O teste usa quadros pretos sintéticos, verifica oito quadros completos, cor
+opaca, desfoque, três cenários distintos, reinício sem histórico anterior e
+recusa de quadro truncado. Ele carrega as bibliotecas do manifesto somente no
+filho, sem configurar o ambiente global. Não abre a câmera. A suíte comum
+verifica metadados inválidos, limites do contêiner, máscara de probabilidades e
+composição retangular 512×288 contra referência escalar, sem carregar CUDA.
+
 Os testes de inferência exercitam frames completos e truncados. O teste com
 câmera verifica preview processado e encerramento de todos os filhos:
 
@@ -168,6 +204,10 @@ cargo test --test ai ai_video_background_reaps_decoder_and_kills_it_when_owner_d
 
 O teste direto do worker requer as bibliotecas CUDA no `LD_LIBRARY_PATH`. O teste
 de controlador usa a descoberta de bibliotecas da estrutura do preparador.
+Mantenha as bibliotecas de cada versão ORT separadas: para um worker ONNX 1.22,
+use o diretório `lib` dessa versão antes das bibliotecas CUDA, sem acrescentar o
+`lib` ORT 1.20 do manifesto RTX. Misturar providers nativos de versões diferentes
+pode encerrar o processo; a seleção normal do app prepara o ambiente do filho.
 O teste de fundo animado usa vídeo sintético e comprova composição, recolhimento
 normal e morte do decoder por encerramento abrupto do worker. Um leitor do pipe
 permanece aberto fora do worker no último caso, distinguindo SIGKILL de uma
@@ -205,3 +245,8 @@ e verifica que a leitura não cria ou sobrescreve `config.json`.
 O teste documental verifica links locais e o inventário de cobertura, inclusive
 unicidade das entradas e existência dos destinos. Não é um avaliador automático
 de qualidade da prosa ou de equivalência semântica entre manuais.
+
+A preparação RTX sem ferramentas tem um contrato CLI comum, com `nvidia-smi`
+simulado e PATH isolado: retorna um plano `nvidia_tools`, não inicia downloads,
+não grava configuração e permite cancelar. Não consulta GPU real nem confirma APT.
+O teste de controlador também recusa captura e Quit enquanto a preparação está ativa.

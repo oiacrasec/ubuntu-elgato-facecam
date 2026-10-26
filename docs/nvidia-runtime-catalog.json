@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "purpose": "reference_inventory",
+  "verified_on": "2026-10-25",
+  "consumed_by_application": false,
+  "sources": {
+    "redistributables": "https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/",
+    "gpu_capabilities": "https://developer.nvidia.com/cuda/gpus"
+  },
+  "gpu_families": [
+    {
+      "id": "turing",
+      "geforce_series": "RTX 20",
+      "compute_capability": "7.5",
+      "examined": false
+    },
+    {
+      "id": "ampere",
+      "geforce_series": "RTX 30",
+      "compute_capability": "8.6",
+      "examined": false
+    },
+    {
+      "id": "ada",
+      "geforce_series": "RTX 40",
+      "compute_capability": "8.9",
+      "examined": true
+    },
+    {
+      "id": "blackwell",
+      "geforce_series": "RTX 50",
+      "compute_capability": "12.0",
+      "examined": false
+    }
+  ],
+  "references": [
+    {
+      "id": "vfx-0.7.6-windows-x86_64-ada",
+      "status": "native_segmentation_verified_locally",
+      "platform": {
+        "os": "windows",
+        "cpu_architecture": "x86_64"
+      },
+      "gpu_family": "ada",
+      "compute_capability": "8.9",
+      "sdk": {
+        "kind": "vfx",
+        "version": "0.7.6",
+        "api_version_hex": "0x00070600",
+        "version_evidence": "static_decompilation"
+      },
+      "installer": {
+        "filename": "nvidia_video_effects_sdk_installer_v0.7.6_ada.exe",
+        "url": "https://international.download.nvidia.com/Windows/broadcast/sdk/VFX/nvidia_video_effects_sdk_installer_v0.7.6_ada.exe",
+        "bytes": 767555072,
+        "sha256": "4761fe1579e82de6d45efec8dc09492cf2cc601867269955e129707ac8ea8546"
+      },
+      "primary_library": {
+        "path": "NVVideoEffects.dll",
+        "bytes": 19186192,
+        "sha256": "2a78effae55e9e3791bbe66f312f0bd08a2ede2c94fd8f820933badfa0a6cd8c"
+      },
+      "dependencies": {
+        "cuda_major": 12,
+        "cuda_version_exact": null,
+        "tensorrt": {
+          "path": "nvinfer_10.dll",
+          "bytes": 215426088,
+          "sha256": "5e322c35f90c042b459b8a6391c98d2d0de061a4e3f86e58223e367514db69bf",
+          "version": "10.4.0",
+          "version_evidence": "static_getInferLibVersion_constant",
+          "encoded_version": 100400
+        }
+      },
+      "inspected_model": {
+        "path": "models/AIGS_288x512_89_m1.engine.trtpkg",
+        "bytes": 8773968,
+        "sha256": "6636284e5d3d8363c01f83aac90f1ca08ac05952537f38c1e82a39500af87d22",
+        "magic_ascii": "NVnn",
+        "format_semantics": "NVnn_AES256CBC_TensorRT_10.4.0.26",
+        "native_linux_compatibility": "verified_exact_m1_with_platform_header_adaptation_on_RTX_4070_SUPER"
+      },
+      "imports": {
+        "dlls": 22,
+        "functions": 245,
+        "evidence_id": "ev_057e4b6313e8d4df43b19a3572ca7d38fb4a79f9bf57606e2bb87f1463da5395"
+      },
+      "linux_runtime": {
+        "implementation": "safe_Rust_worker",
+        "onnxruntime": "1.20.1",
+        "tensorrt": "10.4.0.26",
+        "model_mode": "m1",
+        "input": [
+          1,
+          3,
+          288,
+          512
+        ],
+        "temporal_states": 6,
+        "tested_gpu": "RTX 4070 SUPER",
+        "tested_driver": "595.99.02",
+        "scope": "segmentation_only_not_AR_or_complete_VFX_SDK"
+      },
+      "minimum_linux_driver": null,
+      "native_inference_verified": true
+    },
+    {
+      "id": "ar-0.8.2-windows-x86_64-ada",
+      "status": "reference_only",
+      "platform": {
+        "os": "windows",
+        "cpu_architecture": "x86_64"
+      },
+      "gpu_family": "ada",
+      "compute_capability": "8.9",
+      "sdk": {
+        "kind": "ar",
+        "version": "0.8.2",
+        "api_version_hex": "0x00080200",
+        "version_evidence": "static_decompilation"
+      },
+      "installer": {
+        "filename": "nvidia_ar_sdk_installer_v0.8.2_ada.exe",
+        "url": "https://international.download.nvidia.com/Windows/broadcast/sdk/AR/nvidia_ar_sdk_installer_v0.8.2_ada.exe",
+        "bytes": 1167071912,
+        "sha256": "cf1eb45839d4b0131bbc08c7205bb9ccc2989e6d91ec2da28e8ee0e515da28e1"
+      },
+      "primary_library": {
+        "path": "nvARPose.dll",
+        "bytes": 1557048,
+        "sha256": "659f4c30f1d7c5a459e25b9f62fe0d49282079872260c8f7ec16b0f4b3101010"
+      },
+      "dependencies": {
+        "cuda_major": 11,
+        "cuda_version_exact": null,
+        "tensorrt": {
+          "path": "nvinfer.dll",
+          "bytes": 185948712,
+          "sha256": "c6995595c35636b68fbd148ee75802a08a25b20efcb55617461461dfa1760886",
+          "version": "8.4.2",
+          "version_evidence": "static_getInferLibVersion_constant",
+          "encoded_version": 8402
+        }
+      },
+      "inspected_model": {
+        "path": "models/gaze_landmarks_fp16_89.engine.trtpkg",
+        "bytes": 3561076,
+        "sha256": "3b389c0c08a59daa1beab4e22508fe953338462a7fa1db69637b358b751bec46",
+        "magic_ascii": "NVnn",
+        "format_semantics": "unresolved",
+        "native_linux_compatibility": "unverified"
+      },
+      "imports": {
+        "dlls": 24,
+        "functions": 311,
+        "evidence_id": "ev_9f4af8c7de9d2ccc74ff398694eb7c55e8b5642f37ba2723af60a31f788e6fdf"
+      },
+      "linux_runtime": null,
+      "minimum_linux_driver": null,
+      "native_inference_verified": false
+    }
+  ]
+}

@@ -66,18 +66,30 @@ capacidade limitada pelo sistema: não existe uma fila crescente de frames em
 Rust. O worker mantém uma sessão ONNX e é encerrado junto com a captura.
 A inferência CUDA não falha silenciosamente para CPU.
 
-Antes do worker, somente preview é reduzido a 640×360 e até 15 fps. Com saída
-virtual, a resolução original é mantida e a taxa é limitada por `ai_fps`
+Antes do worker, preview e saída virtual mantêm a resolução original e usam
+a mesma taxa, limitada por `ai_fps`
 (padrão 30, até 60). O input rawvideo do segundo FFmpeg usa os FPS processados
 e probing mínimo, pois dimensão e formato já são conhecidos.
 
-A segmentação usa RGB float32 NCHW 1×3×256×256, reescala para [0,1] e retorna
-alpha de pessoa. A composição preserva o primeiro plano e usa um fundo
+A segmentação ONNX usa RGB float32 NCHW 1×3×256×256. O backend NVIDIA Ada usa
+BGR 1×3×288×512 e seis estados temporais mantidos na GPU, com entradas e saídas
+distintas. Ambos reescalam pixels para [0,1] e retornam alpha de pessoa.
+`auto` testa NVIDIA isoladamente quando disponível, com fallback ONNX no mesmo
+provider e aviso no snapshot. `nvidia` e `onnx` fixam o backend. O aquecimento
+verifica uma inferência antes da troca. A composição preserva o primeiro plano e usa um fundo
 reduzido e desfocado. O modelo é externo e tem contrato verificado no aquecimento.
 Cor sólida, cenários ilustrados e imagem própria também podem substituir o fundo.
-A imagem é decodificada com limites e preparada uma vez por worker. A composição
-reutiliza geometria e um buffer de interpolação horizontal; não recalcula
-coordenadas e quatro leituras por canal para cada pixel de saída.
+A imagem é decodificada com limites e preparada uma vez por worker.
+Com CUDA, `gpu.rs` gera grafos ONNX próprios para redimensionar e normalizar a
+entrada, desfocar o fundo, interpolar alpha e compor a imagem na GPU. O I/O
+binding conecta os tensores de imagem, máscara e estados entre sessões sem
+copiá-los para CPU. Fundos estáticos são enviados uma vez; vídeo envia cada
+quadro novo. O RGB de captura entra na GPU e o RGB composto retorna para FFmpeg;
+conversão YUV, filtros convencionais e apresentação continuam fora desse caminho.
+Os grafos de processamento recusam fallback CPU. O modelo ONNX externo pode ter
+operadores auxiliares em CPU; a segmentação temporal nativa usa TensorRT.
+Na alternativa CPU explícita, a composição reutiliza geometria e um buffer de
+interpolação horizontal. Não há troca automática de provider em caso de falha.
 O worker isola carregamento e possíveis falhas nativas da janela/controlador.
 
 Em modo de vídeo de fundo, o worker possui um decoder FFmpeg adicional em loop.
@@ -87,9 +99,15 @@ a morte por encerramento do pai antes de executar FFmpeg, com APIs seguras de
 `nix`. O encerramento normal mata e recolhe o decoder; morte abrupta do worker
 também encerra o processo. O controlador mantém a posse da captura e do worker.
 
-O preview é RGB 640×360 a 15 fps e mantém somente o último frame completo.
-A saída virtual preserva a resolução; sem IA, também preserva a taxa negociada.
-Com IA, vale o limite de FPS explícito. Fechar a janela com
+Os filtros convertem para yuv420p antes do split. O preview converte uma cópia
+desses mesmos quadros para RGB24, em resolução nativa e sem limitador próprio.
+`PreviewFrame` carrega dimensão e pixels; a GUI preserva a proporção e recebe
+uma notificação a cada quadro. Somente o último quadro completo fica na caixa
+de entrega; uma janela lenta não acumula histórico para exibir depois. O monitor
+e o compositor ainda limitam a apresentação, e consumidores externos podem
+aplicar suas próprias conversões ou espelhamento.
+Sem IA, a taxa negociada é preservada. Com IA, vale o limite de FPS explícito
+para ambas as saídas, inclusive em preview sem saída virtual. Fechar a janela com
 bandeja disponível desliga o preview e mantém a saída virtual.
 
 Aplicar efeitos verifica parâmetros, arquivos e inferência, interrompe brevemente
@@ -111,6 +129,15 @@ LUTs próprias são materializadas pelo controlador quando selecionadas. O build
 headless mantém catálogo, importação e validação sem depender de egui ou ONNX.
 
 ## Instalação de dependências
+
+`PrepareNvidia` inicia `nvidia_setup` em segundo plano, com captura parada.
+Ele prepara componentes no diretório de dados do usuário, sem operação
+administrativa: download com hash, extração e importação limitada ao modelo
+conhecido, runtime separado e inferência real em staging. Só depois publica
+o diretório por rename; falha preserva os componentes anteriores. O snapshot
+publica presença, progresso, execução e log. Iniciar captura ou sair durante
+essa preparação é recusado. A GUI não executa downloads diretamente.
+[Análise RTX](ANALISE_RTX.md) detalha arquivos, versões e limites.
 
 `dependencies` prepara um plano APT sem modificar o sistema. `PrepareInstall`, `PrepareUninstall`,
 `ConfirmInstall` e `CancelInstall` passam pelo mesmo controlador em GUI/CLI.

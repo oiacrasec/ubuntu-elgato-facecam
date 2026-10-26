@@ -11,6 +11,15 @@ pub enum AiProvider {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum AiBackend {
+    #[default]
+    Auto,
+    Onnx,
+    Nvidia,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BackgroundMode {
     #[default]
     Blur,
@@ -54,6 +63,7 @@ pub struct Effects {
     pub ai_fps: u32,
     pub blur_radius: u32,
     pub ai_provider: AiProvider,
+    pub ai_backend: AiBackend,
     pub ai_model: String,
     pub ai_runtime: String,
 }
@@ -75,6 +85,7 @@ impl Default for Effects {
             ai_fps: 30,
             blur_radius: 12,
             ai_provider: AiProvider::Cuda,
+            ai_backend: AiBackend::Auto,
             ai_model: String::new(),
             ai_runtime: String::new(),
         }
@@ -83,6 +94,9 @@ impl Default for Effects {
 
 impl Effects {
     pub fn validate(&self) -> Result<()> {
+        if self.ai_backend == AiBackend::Nvidia && self.ai_provider != AiProvider::Cuda {
+            bail!("A segmentação RTX requer processamento NVIDIA CUDA");
+        }
         for (name, value, min, max) in [
             ("Brilho", self.brightness, -1.0, 1.0),
             ("Contraste", self.contrast, 0.0, 2.0),
@@ -99,7 +113,10 @@ impl Effects {
         if !(1..=60).contains(&self.ai_fps) {
             bail!("FPS da IA deve estar entre 1 e 60");
         }
-        if self.background_blur && (self.ai_model.is_empty() || self.ai_runtime.is_empty()) {
+        if self.background_blur
+            && (self.ai_model.is_empty() || self.ai_runtime.is_empty())
+            && !crate::ai::native_available(self)
+        {
             bail!(
                 "IA indisponível: instale o modelo e o runtime conforme o guia de IA; depois atualize os dispositivos para detectar a instalação"
             );

@@ -21,6 +21,7 @@ pub enum Dependency {
     #[default]
     VideoTools,
     SdkManager,
+    NvidiaTools,
     VirtualCamera,
 }
 
@@ -29,6 +30,7 @@ impl Dependency {
         match self {
             Self::VideoTools => "FFmpeg e V4L2",
             Self::SdkManager => "NVIDIA SDK Manager",
+            Self::NvidiaTools => "Ferramentas de IA RTX",
             Self::VirtualCamera => "Câmera virtual",
         }
     }
@@ -36,6 +38,7 @@ impl Dependency {
         match self {
             Self::VideoTools => &["ffmpeg", "v4l-utils"],
             Self::SdkManager => &["sdkmanager"],
+            Self::NvidiaTools => &["curl", "p7zip-full", "unzip"],
             Self::VirtualCamera => &[],
         }
     }
@@ -78,6 +81,9 @@ pub fn discover() -> Result<Vec<DependencyState>> {
             "ffmpeg",
             "v4l-utils",
             "sdkmanager",
+            "curl",
+            "p7zip-full",
+            "unzip",
         ])
         .env("LC_ALL", "C")
         .output()
@@ -93,35 +99,39 @@ pub fn discover() -> Result<Vec<DependencyState>> {
 }
 
 fn parse_packages(text: &str) -> Vec<DependencyState> {
-    [Dependency::VideoTools, Dependency::SdkManager]
-        .into_iter()
-        .map(|dependency| DependencyState {
-            dependency,
-            packages: dependency
-                .packages()
-                .iter()
-                .map(|name| {
-                    let entry = text.lines().find_map(|line| {
-                        let mut fields = line.split('\t');
-                        if fields.next()? != *name {
-                            return None;
-                        }
-                        let status = fields.next()?;
-                        let version = fields.next()?.trim();
-                        Some((status.to_owned(), version.to_owned()))
-                    });
-                    let version = entry.as_ref().and_then(|(status, version)| {
-                        (status == "installed" && !version.is_empty()).then(|| version.clone())
-                    });
-                    PackageState {
-                        name: (*name).into(),
-                        version,
-                        status: entry.map(|(status, _)| status),
+    [
+        Dependency::VideoTools,
+        Dependency::SdkManager,
+        Dependency::NvidiaTools,
+    ]
+    .into_iter()
+    .map(|dependency| DependencyState {
+        dependency,
+        packages: dependency
+            .packages()
+            .iter()
+            .map(|name| {
+                let entry = text.lines().find_map(|line| {
+                    let mut fields = line.split('\t');
+                    if fields.next()? != *name {
+                        return None;
                     }
-                })
-                .collect(),
-        })
-        .collect()
+                    let status = fields.next()?;
+                    let version = fields.next()?.trim();
+                    Some((status.to_owned(), version.to_owned()))
+                });
+                let version = entry.as_ref().and_then(|(status, version)| {
+                    (status == "installed" && !version.is_empty()).then(|| version.clone())
+                });
+                PackageState {
+                    name: (*name).into(),
+                    version,
+                    status: entry.map(|(status, _)| status),
+                }
+            })
+            .collect(),
+    })
+    .collect()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -213,9 +223,22 @@ pub fn prepare(dependency: Dependency, id: u64, directory: &Path) -> Result<Inst
                 "v4l-utils",
             ]));
         }
+        Dependency::NvidiaTools => {
+            plan.title = "Preparar ferramentas de IA RTX".into();
+            plan.explanation = "Instala as ferramentas de download e extração pelo APT. Depois de concluir, clique novamente em Preparar IA RTX para obter e validar os componentes no seu usuário.".into();
+            plan.commands.push(apt(&[
+                "install",
+                "--yes",
+                "--no-install-recommends",
+                "--",
+                "curl",
+                "p7zip-full",
+                "unzip",
+            ]));
+        }
         Dependency::SdkManager => {
             plan.title = "Instalar NVIDIA SDK Manager".into();
-            plan.explanation = "Instala o gerenciador NVIDIA. Os runtimes/modelos Maxine VFX e AR para Linux são obtidos separadamente no NGC e ainda precisam de integração.".into();
+            plan.explanation = "Instala o gerenciador NVIDIA. A preparação dos efeitos de fundo fica em Efeitos NVIDIA RTX nas configurações.".into();
             if std::env::consts::ARCH != "x86_64" {
                 bail!("A instalação assistida do SDK Manager requer Ubuntu x86-64");
             }

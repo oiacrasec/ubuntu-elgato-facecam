@@ -18,11 +18,12 @@ necessários para escrever um controle, mas uma recusa real do driver prevalece
 até uma atualização explícita. Ler de volta impede mostrar sucesso com um valor
 que não foi aplicado.
 
-## Efeitos compartilhados e preview limitado
+## Efeitos e preview compartilhados
 
-Efeitos transformam o vídeo antes do split; o preview é reduzido e descartável.
-Grade e espelho de visualização não contaminam a saída virtual. O slot único
-prioriza imagem recente sem uma fila crescente. Uma futura fila ou buffer deve
+Efeitos e conversão yuv420p ocorrem antes do split. O preview mostra os mesmos
+quadros, na mesma resolução e taxa; apenas o tamanho de exibição acompanha a
+janela. Mirror afeta ambas as saídas, e Grid permanece uma guia local opcional.
+O slot único prioriza imagem recente sem uma fila crescente. Uma futura fila ou buffer deve
 justificar seu custo e sua política de descarte.
 
 ## IA opcional por processo
@@ -37,6 +38,28 @@ não altera o provider nem substitui caminho explicitamente configurado. O
 preparador registra diretórios personalizados, para que o comando normal de
 abertura consiga encontrá-los. Presença em disco e inferência validada são estados
 diferentes. Não há download, inferência ou salvamento automático só por abrir a UI.
+
+## Compatibilidade RTX por runtime
+
+A investigação organiza referências por plataforma, SDK, versão e família GPU.
+VFX 0.7.6 e AR 0.8.2 Ada usam gerações diferentes de CUDA e TensorRT; não há
+uma única versão NVIDIA que possa representar ambas. O
+[catálogo documental](nvidia-runtime-catalog.json) conserva somente descritores
+de referência Windows, sem disponibilizá-los ao carregador Linux.
+
+O backend compartilha código e separa componentes quando a API
+ou o modelo exigir. A série RTX não basta para selecionar engines: plataforma,
+compute capability, versões, modelo e opções de construção também importam.
+[Análise RTX](ANALISE_RTX.md) registra evidências e a implementação Ada.
+
+O caminho adotado usa engenharia reversa dos pacotes Windows e implementação
+própria em Rust. A obtenção de SDKs NVIDIA Linux fica fora desta investigação;
+não é um bloqueio a ser resolvido por cadastro ou instalação de outro produto.
+
+A inferência nativa validada na RTX 4070 SUPER permitiu implementar preparação
+guiada no usuário. Ela fixa o modelo m1, ONNX Runtime 1.20.1 e TensorRT 10.4.0.26,
+sem instalar SDK VFX Linux. O fallback de inicialização usa ONNX com o provider
+escolhido e aviso explícito; uma falha não deve modificar a configuração confirmada.
 
 ## Configuração e substituição de arquivos
 

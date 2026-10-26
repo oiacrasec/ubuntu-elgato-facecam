@@ -29,8 +29,9 @@ recolhido. O botão **Aplicar e salvar** permanece no rodapé durante a rolagem.
 | `background_image` | vazio | Caminho interno de PNG, JPEG, WebP ou BMP para `image` |
 | `background_video` | vazio | MP4/MOV/WebM/MKV local não vazio, até 4 GiB, para `video` |
 | `ai_fps` | 30 | 1 a 60; limite da saída virtual com IA |
-| `blur_radius` | 12 | 1 a 32, medido no fundo reduzido a 256×256 |
+| `blur_radius` | 12 | 1 a 32, no fundo reduzido: 256×256 ONNX ou 512×288 NVIDIA |
 | `ai_provider` | cuda | `cuda` ou `cpu`, escolha explícita |
+| `ai_backend` | auto | `auto`, `onnx` ou `nvidia`; seleção NVIDIA não altera o provider |
 | `ai_model` | detectado quando disponível | Caminho completo para modelo ONNX |
 | `ai_runtime` | detectado quando disponível | Caminho completo para `libonnxruntime.so` |
 
@@ -87,21 +88,41 @@ do app em segundo plano; um arquivo recusado não altera a configuração salva.
 O arquivo importado fica selecionado no rascunho até **Aplicar e salvar**.
 Para vídeo, escolha **Meu vídeo** e um MP4, MOV, WebM ou MKV local. A reprodução é em
 loop, sem áudio, com recorte central para preencher o quadro. Um decoder FFmpeg
-por worker fornece RGB na taxa efetiva de processamento, inclusive no preview
-limitado a 15 fps e em modos fracionários. O pipe aplica contrapressão; o arquivo
+por worker fornece RGB na taxa efetiva de processamento, igual para preview e
+saída virtual, inclusive em modos fracionários. O pipe aplica contrapressão; o arquivo
 inteiro não é carregado em memória. Mídia inválida é recusada no aquecimento.
 O decoder é recolhido no encerramento normal e recebe SIGKILL se o worker morrer.
 
-`ai_fps` limita a taxa processada da saída virtual, com padrão 30. É independente
+`ai_fps` limita a taxa processada de preview e saída virtual, com padrão 30. É independente
 do modo anunciado pela câmera; com entrada 1080p60 e limite 30, a saída com IA é
-1080p30. Sem IA, a taxa negociada é preservada. Quando só há preview, a redução
-para 640×360 e até 15 fps ocorre antes do worker. O rótulo **Input Format** mostra
-a entrada. Um limite de 60 não garante que o hardware processe 60 frames por segundo.
+1080p30. Sem IA, a taxa negociada é preservada. Preview sem saída virtual usa
+a mesma resolução, taxa e composição que terá ao iniciar essa saída. O rodapé
+**Output** mostra resolução e taxa configuradas para ambas. Um limite de 60 não
+garante que o hardware ou o monitor apresente 60 frames por segundo.
 
 Para privacidade, uma substituição opaca esconde mais detalhes que desfoque.
 A segmentação continua sujeita a falhas; nenhuma opção garante recorte perfeito.
 
 ## Preparar a IA
+
+Para RTX 40/Ada, pare a captura e abra **Configurações** › **Efeitos NVIDIA RTX** ›
+**Preparar IA RTX**. O app reutiliza o pacote de referência quando disponível em
+Downloads, obtém as dependências e testa a inferência antes de publicar a instalação.
+Não exige caminhos manuais nem executa instaladores Windows. Também não modifica
+o driver ou instala pacotes no sistema. A preparação pode baixar vários GB.
+Requer `7z`, `curl`, `tar`, `dpkg-deb`, `unzip`, `setpriv` e o helper APT do Ubuntu.
+Progresso e caminho do log aparecem nas configurações.
+Se as ferramentas de download/extração faltarem, o mesmo botão apresenta um plano
+APT para `curl`, `p7zip-full` e `unzip`. Confirme a instalação e, ao concluir,
+clique novamente em **Preparar IA RTX**. Essa etapa administrativa usa o fluxo
+de autenticação do Ubuntu; os componentes de inferência continuam no usuário.
+
+O backend **Automática** prefere a segmentação temporal NVIDIA quando preparada
+e validada. Se a inicialização falhar, tenta ONNX com o mesmo provider e mostra o
+motivo. **NVIDIA RTX** exige esse backend; **ONNX** força a alternativa anterior.
+A seleção fica em **Opções avançadas**. Falha durante captura encerra o stream
+com erro, sem trocar para CPU. [Análise RTX](ANALISE_RTX.md) define a combinação
+exata suportada e seus limites; outras famílias continuam pelo ONNX disponível.
 
 Ao abrir `./target/release/elgato-virtualcam`, modelo e runtime
 são detectados nos locais conhecidos, sem edição de paths na GUI. Não é necessário `--config`
@@ -169,7 +190,8 @@ O usuário precisa selecionar CPU explicitamente se esse for o provider desejado
 
 ## Modelo e runtime compatíveis
 
-A implementação usa **ONNX Runtime 1.22.x**, acessado por `ort` 2.0.0-rc.10.
+A alternativa ONNX usa **ONNX Runtime 1.22.0**, acessado por `ort` 2.0.0-rc.9
+(API 20). NVIDIA usa runtime separado 1.20.1 com TensorRT 10.4.0.26.
 O modelo de referência compatível é a conversão ONNX da segmentação Selfie
 MediaPipe, revisão `be49485c8e027524be38591817fc5cd31bd9d00e`:
 
@@ -228,20 +250,20 @@ runtime em CPU; registro CUDA não significa execução de todo o grafo na GPU.
 ## Relação com Camera Hub e limites
 
 A [documentação Elgato](https://help.elgato.com/hc/en-us/articles/7665140128653-Elgato-Camera-Hub-How-to-use-AI-Background-Effects)
-descreve efeitos de fundo baseados no NVIDIA Video Effects SDK em RTX. A NVIDIA
-também publica um [SDK Linux](https://docs.nvidia.com/maxine/vfx/latest/LinuxVFXSDK/InstalltheVFXSDK.html),
-com componentes distribuídos pelo NGC e uma lista própria de GPUs suportadas.
-Esse caminho não assegura suporte oficial à RTX de desktop no Ubuntu.
+descreve efeitos de fundo baseados no NVIDIA Video Effects SDK em RTX e aponta
+para os redistribuíveis do [NVIDIA Broadcast Download Center](https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/).
+A referência para RTX 4070 SUPER/Ada é Video Effects 0.7.6 e AR 0.8.2, conforme
+as versões associadas ao Camera Hub nessa página em 25/10/2026. Os pacotes são
+instaladores Windows e servem à investigação da integração de referência.
 
-Na consulta de 25/10/2026, a instalação Linux publicada pela NVIDIA exige chave
-NGC para os recursos e lista GPUs de datacenter, incluindo L4/L40, sem listar
-a GeForce RTX 4070 SUPER deste host. Compatibilidade de Compute Capability não
-comprova suporte, acesso aos modelos ou funcionamento do SDK nessa GPU. Não há
-integração Maxine neste binário; uma integração futura precisa ser validada com
-o Core, recursos, licença e GPU efetivamente disponíveis.
+O [guia dos runtimes NVIDIA](NVIDIA_MAXINE.md) registra downloads, versões e
+critérios da migração. O worker executa o modelo temporal VFX 0.7.6 Ada com
+TensorRT nativo Linux, validado localmente na RTX 4070 SUPER. AR não foi integrado.
+Isso não demonstra paridade de qualidade ou suporte de todas as GPUs.
 
-O Facecam Hub implementa sua própria composição com ONNX Runtime/CUDA; não
-embute o SDK proprietário, os modelos da NVIDIA ou recursos do Camera Hub.
+O Facecam Hub implementa sua própria composição; o binário e o repositório não
+embutem SDK, modelos da NVIDIA ou recursos do Camera Hub. A preparação importa
+o modelo local e conserva as licenças externas no diretório do usuário.
 Desfoque, cor sólida, cenários locais e troca por imagem estão implementados.
 Correção de olhar, reenquadramento automático e relighting não estão implementados.
 Denoise comum é um filtro convencional e não usa IA.
@@ -251,5 +273,9 @@ Os efeitos de IA acrescentam transferência RGB e inferência por frame. O model
 o aplicativo. Sem IA, esses arquivos não são carregados. A qualidade depende de
 iluminação, cabelo, movimento e contraste do fundo; não há garantia de recorte
 perfeito. O fundo é desfocado em resolução reduzida para limitar custo. Coordenadas
-e buffers de composição são reutilizados; a interpolação horizontal ocorre uma
-vez por linha do mapa reduzido. Isso não equivale a um compositor inteiramente GPU.
+e buffers de composição são reutilizados na alternativa CPU. Com o provider
+CUDA, redimensionamento, normalização, desfoque, interpolação da máscara e
+composição usam a GPU, inclusive no backend ONNX. Imagem e máscara permanecem
+na GPU entre essas etapas. O RGB composto retorna para FFmpeg, que ainda aplica
+os filtros convencionais e a conversão YUV; a apresentação também tem seu custo.
+Falha nos grafos CUDA informa erro, sem continuar a composição em CPU.

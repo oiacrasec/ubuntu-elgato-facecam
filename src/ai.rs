@@ -1,13 +1,69 @@
 use crate::effects::Effects;
+use crate::effects::{AiBackend, AiProvider};
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 
-pub fn command(effects: &Effects) -> Result<std::process::Command> {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BackendStatus {
+    pub backend: AiBackend,
+    pub warning: Option<String>,
+}
+
+pub fn native_available(effects: &Effects) -> bool {
+    if effects.ai_provider != AiProvider::Cuda || effects.ai_backend == AiBackend::Onnx {
+        return false;
+    }
+    #[cfg(feature = "ai")]
+    {
+        crate::nvidia::Installation::discover().is_some()
+    }
+    #[cfg(not(feature = "ai"))]
+    {
+        false
+    }
+}
+
+pub fn command(effects: &Effects) -> Result<(std::process::Command, BackendStatus)> {
+    let mut warning = None;
+    let backend = if effects.ai_backend == AiBackend::Nvidia {
+        AiBackend::Nvidia
+    } else if native_available(effects) {
+        let output = command_for(effects, AiBackend::Nvidia)?
+            .stdin(std::process::Stdio::null())
+            .output()?;
+        if output.status.success() {
+            AiBackend::Nvidia
+        } else {
+            warning = Some(format!(
+                "RTX indisponível; usando ONNX com o provider selecionado: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+            AiBackend::Onnx
+        }
+    } else {
+        AiBackend::Onnx
+    };
+    Ok((
+        command_for(effects, backend)?,
+        BackendStatus { backend, warning },
+    ))
+}
+
+fn command_for(effects: &Effects, backend: AiBackend) -> Result<std::process::Command> {
+    let mut effective = effects.clone();
+    effective.ai_backend = backend;
     let mut command = std::process::Command::new(std::env::current_exe()?);
-    command.args(["--ai-worker", &serde_json::to_string(effects)?]);
+    command.args(["--ai-worker", &serde_json::to_string(&effective)?]);
     // The preparer keeps CUDA libraries beside the extracted runtime. Pass their
     // paths only to the native worker; no process-global environment mutation.
     let runtime = std::path::Path::new(&effects.ai_runtime);
     let mut libraries = Vec::new();
+    #[cfg(feature = "ai")]
+    if backend == AiBackend::Nvidia {
+        let installation = crate::nvidia::Installation::discover()
+            .ok_or_else(|| anyhow::anyhow!("Componentes da segmentação RTX não encontrados"))?;
+        libraries.extend(installation.libraries);
+    }
     if let Some(lib) = runtime.parent() {
         libraries.push(lib.to_path_buf());
         if let Some(root) = lib.parent().and_then(|p| p.parent())
@@ -29,21 +85,25 @@ pub fn command(effects: &Effects) -> Result<std::process::Command> {
     Ok(command)
 }
 
-pub fn check(effects: &Effects) -> Result<()> {
+pub fn check(effects: &Effects) -> Result<BackendStatus> {
     effects.preflight()?;
     if !effects.background_blur {
         bail!("Ative background_blur para verificar a IA");
     }
-    let output = command(effects)?
-        .stdin(std::process::Stdio::null())
-        .output()?;
+    let (mut command, status) = command(effects)?;
+    let output = command.stdin(std::process::Stdio::null()).output()?;
     if !output.status.success() {
         bail!(
-            "IA indisponível: {}",
+            "IA indisponível: {}{}",
+            status
+                .warning
+                .as_ref()
+                .map(|s| format!("{s}; "))
+                .unwrap_or_default(),
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-    Ok(())
+    Ok(status)
 }
 
 #[cfg(not(feature = "ai"))]
@@ -52,99 +112,283 @@ pub fn worker(_effects: &Effects, _size: Option<&str>, _rate: Option<f64>) -> Re
 }
 
 #[cfg(feature = "ai")]
-pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Result<()> {
-    use crate::effects::AiProvider;
-    use anyhow::Context;
-    use ort::{
-        execution_providers::CUDAExecutionProvider,
-        session::Session,
-        tensor::TensorElementType,
-        value::{Tensor, ValueType},
-    };
-    use std::io::{Read, Write};
+enum Segmentation {
+    Onnx(Box<OnnxSegmentation>),
+    Nvidia(Box<crate::nvidia::Segmentation>),
+}
 
+#[cfg(feature = "ai")]
+impl Segmentation {
+    fn open(effects: &Effects) -> Result<Self> {
+        if effects.ai_backend == AiBackend::Nvidia
+            || (effects.ai_backend == AiBackend::Auto && native_available(effects))
+        {
+            let installation = crate::nvidia::Installation::discover()
+                .ok_or_else(|| anyhow::anyhow!("Componentes RTX não encontrados"))?;
+            Ok(Self::Nvidia(Box::new(crate::nvidia::Segmentation::open(
+                &installation,
+            )?)))
+        } else {
+            Ok(Self::Onnx(Box::new(OnnxSegmentation::open(effects)?)))
+        }
+    }
+
+    fn size(&self) -> (usize, usize) {
+        match self {
+            Self::Onnx(_) => (256, 256),
+            Self::Nvidia(_) => (crate::nvidia::WIDTH, crate::nvidia::HEIGHT),
+        }
+    }
+
+    fn infer(&mut self, rgb: &[u8]) -> Result<&[f32]> {
+        match self {
+            Self::Onnx(model) => model.infer(rgb),
+            Self::Nvidia(_) => bail!("A segmentação RTX requer o processamento GPU"),
+        }
+    }
+
+    fn gpu_contract(&self, size: [usize; 2]) -> crate::gpu::Contract {
+        let (w, h) = self.size();
+        let (native, device, mask_shape) = match self {
+            Self::Nvidia(model) => (true, model.device, vec![1, 2, h as i64, w as i64]),
+            Self::Onnx(model) => (false, 0, model.output_shape.clone()),
+        };
+        crate::gpu::Contract {
+            size,
+            mask: [w, h],
+            mask_shape,
+            native,
+            device,
+        }
+    }
+
+    fn infer_gpu(&mut self, image: &ort::value::DynValue) -> Result<ort::value::DynValue> {
+        use anyhow::Context;
+        match self {
+            Self::Nvidia(model) => model.infer_gpu(image),
+            Self::Onnx(model) => {
+                let binding = model.gpu.as_mut().context("Sessão CUDA indisponível")?;
+                binding.bind_input(&model.input_name, image)?;
+                let mut output = binding.run()?;
+                output
+                    .remove(&model.output_name)
+                    .context("Máscara CUDA ausente")
+            }
+        }
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        match self {
+            Self::Nvidia(model) => model.reset(),
+            Self::Onnx(_) => Ok(()),
+        }
+    }
+}
+
+#[cfg(feature = "ai")]
+struct OnnxSegmentation {
+    session: ort::session::Session,
+    image: ort::value::Tensor<f32>,
+    input_name: String,
+    mask: Vec<f32>,
+    output_shape: Vec<i64>,
+    output_name: String,
+    gpu: Option<ort::io_binding::IoBinding>,
+}
+
+#[cfg(feature = "ai")]
+impl OnnxSegmentation {
+    fn open(effects: &Effects) -> Result<Self> {
+        use anyhow::Context;
+        use ort::{
+            execution_providers::CUDAExecutionProvider,
+            session::Session,
+            tensor::TensorElementType,
+            value::{Tensor, ValueType},
+        };
+        if !std::path::Path::new(&effects.ai_runtime).is_file() {
+            bail!(
+                "Biblioteca ONNX Runtime não encontrada: {}",
+                effects.ai_runtime
+            );
+        }
+        ort::init_from(&effects.ai_runtime)
+            .with_name("Facecam Hub AI")
+            .commit()?;
+        let mut builder = Session::builder()?.with_intra_threads(2)?;
+        if effects.ai_provider == AiProvider::Cuda {
+            builder = builder.with_execution_providers([CUDAExecutionProvider::default()
+                .build()
+                .error_on_failure()])?;
+        }
+        let session = builder
+            .commit_from_file(&effects.ai_model)
+            .context("Não foi possível carregar a segmentação ONNX")?;
+        let shape = match session.inputs.first().map(|i| &i.input_type) {
+            Some(ValueType::Tensor {
+                ty: TensorElementType::Float32,
+                dimensions,
+                ..
+            }) => dimensions,
+            _ => bail!("O modelo deve receber RGB float32 NCHW 1×3×256×256"),
+        };
+        if session.inputs.len() != 1 || !matches!(&shape[..], [1 | -1, 3, 256, 256]) {
+            bail!("Modelo incompatível: esperado RGB NCHW 1×3×256×256; recebido {shape:?}");
+        }
+        let input_name = session.inputs[0].name.clone();
+        let output_name = session
+            .outputs
+            .first()
+            .context("Modelo ONNX sem saída")?
+            .name
+            .clone();
+        let mut model = Self {
+            session,
+            input_name,
+            image: Tensor::from_array(([1usize, 3, 256, 256], vec![0_f32; 3 * 256 * 256]))?,
+            mask: vec![0_f32; 256 * 256],
+            output_shape: Vec::new(),
+            output_name,
+            gpu: None,
+        };
+        model.infer(&vec![0; 256 * 256 * 3])?;
+        if effects.ai_provider == AiProvider::Cuda {
+            use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
+            let mut binding = model.session.create_binding()?;
+            let memory = MemoryInfo::new(
+                AllocationDevice::CUDA,
+                0,
+                AllocatorType::Device,
+                MemoryType::Default,
+            )?;
+            binding.bind_output_to_device(&model.output_name, &memory)?;
+            model.gpu = Some(binding);
+        }
+        Ok(model)
+    }
+
+    fn infer(&mut self, rgb: &[u8]) -> Result<&[f32]> {
+        let (_, tensor) = self.image.try_extract_raw_tensor_mut::<f32>()?;
+        for (i, pixel) in rgb.as_chunks::<3>().0.iter().enumerate() {
+            for c in 0..3 {
+                tensor[c * 256 * 256 + i] = f32::from(pixel[c]) / 255.0;
+            }
+        }
+        let outputs = self
+            .session
+            .run(vec![(self.input_name.as_str(), self.image.view())])?;
+        let (shape, mask) = outputs[0].try_extract_raw_tensor::<f32>()?;
+        validate_mask(shape, mask)?;
+        self.output_shape = shape.to_vec();
+        self.mask.copy_from_slice(mask);
+        Ok(&self.mask)
+    }
+}
+
+#[cfg(feature = "ai")]
+pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Result<()> {
+    use anyhow::Context;
+    use std::io::{Read, Write};
     effects.preflight()?;
-    if !std::path::Path::new(&effects.ai_runtime).is_file() {
-        bail!(
-            "Biblioteca ONNX Runtime não encontrada: {}",
-            effects.ai_runtime
-        );
-    }
-    // This process isolates native runtime failures from the controller and GUI.
-    ort::init_from(&effects.ai_runtime)
-        .with_name("Facecam Hub AI")
-        .commit()?;
-    let mut builder = Session::builder()?.with_intra_threads(2)?;
-    if effects.ai_provider == AiProvider::Cuda {
-        builder = builder.with_execution_providers([CUDAExecutionProvider::default()
-            .build()
-            .error_on_failure()])?;
-    }
-    let mut session = builder
-        .commit_from_file(&effects.ai_model)
-        .context("Não foi possível carregar a segmentação ONNX")?;
-    let shape = match session.inputs.first().map(|i| &i.input_type) {
-        Some(ValueType::Tensor {
-            ty: TensorElementType::Float32,
-            shape,
-            ..
-        }) => shape,
-        _ => bail!("O modelo deve receber RGB float32 NCHW 1×3×256×256"),
-    };
-    if session.inputs.len() != 1 || !matches!(&shape[..], [1 | -1, 3, 256, 256]) {
-        bail!("Modelo incompatível: esperado RGB NCHW 1×3×256×256; recebido {shape:?}");
-    }
-    // Warm up both providers and verify the output, including in --check-ai.
-    let warm = Tensor::from_array(([1usize, 3, 256, 256], vec![0.0_f32; 3 * 256 * 256]))?;
-    let outputs = session.run(ort::inputs![warm])?;
-    let (shape, mask) = outputs[0].try_extract_tensor::<f32>()?;
-    validate_mask(shape, mask)?;
-    drop(outputs);
+    let mut model = Segmentation::open(effects)?;
+    let (mask_width, mask_height) = model.size();
     let fps = rate.unwrap_or(f64::from(effects.ai_fps));
     if !fps.is_finite() || fps <= 0.0 || fps > 60.0 {
         bail!("FPS de processamento da IA inválido");
     }
-    let Some(size) = size else {
-        crate::background::Background::open(effects, 256, 256, fps)?.frame()?;
-        return Ok(());
+    let (w, h) = if let Some(size) = size {
+        let (w, h) = size.split_once('x').context("Resolução IA inválida")?;
+        (w.parse::<usize>()?, h.parse::<usize>()?)
+    } else {
+        (mask_width, mask_height)
     };
-    let (w, h) = size.split_once('x').context("Resolução IA inválida")?;
-    let (w, h) = (w.parse::<usize>()?, h.parse::<usize>()?);
     if w == 0 || h == 0 || w > 7680 || h > 4320 {
         bail!("Resolução IA fora dos limites");
+    }
+    if effects.ai_provider == AiProvider::Cuda {
+        return gpu_worker(&mut model, effects, [w, h], fps, size.is_none());
+    }
+    if size.is_none() {
+        crate::background::Background::open(effects, w, h, fps)?.frame()?;
+        return Ok(());
     }
     let mut input = std::io::stdin().lock();
     let mut output = std::io::stdout().lock();
     let mut frame = vec![0; w * h * 3];
     let mut background = crate::background::Background::open(effects, w, h, fps)?;
-    let mut compositor = Compositor::new(w, h);
+    let mut compositor = Compositor::for_mask(w, h, mask_width, mask_height);
     loop {
-        // A partial frame is an error; a clean EOF ends the owned worker.
         if input.read(&mut frame[..1])? == 0 {
             break;
         }
         input
             .read_exact(&mut frame[1..])
             .context("Frame RGB incompleto")?;
-        let small = resize_rgb(&frame, w, h);
-        let mut tensor = vec![0.0_f32; 3 * 256 * 256];
-        for (i, rgb) in small.as_chunks::<3>().0.iter().enumerate() {
-            for c in 0..3 {
-                tensor[c * 256 * 256 + i] = rgb[c] as f32 / 255.0;
-            }
-        }
-        let value = Tensor::from_array(([1usize, 3, 256, 256], tensor))?;
-        let outputs = session.run(ort::inputs![value])?;
-        let (shape, mask) = outputs[0].try_extract_tensor::<f32>()?;
-        validate_mask(shape, mask)?;
+        let small = resize_rgb_to(&frame, w, h, mask_width, mask_height);
+        let mask = model.infer(&small)?;
         let background = background.frame()?;
         let blurred = if background.is_none() {
-            Some(blur(&small, 256, 256, effects.blur_radius as usize))
+            Some(blur(
+                &small,
+                mask_width,
+                mask_height,
+                effects.blur_radius as usize,
+            ))
         } else {
             None
         };
         compositor.apply(&mut frame, mask, blurred.as_deref(), background);
         output.write_all(&frame)?;
+    }
+    Ok(())
+}
+
+#[cfg(feature = "ai")]
+fn gpu_worker(
+    model: &mut Segmentation,
+    effects: &Effects,
+    [w, h]: [usize; 2],
+    fps: f64,
+    checking: bool,
+) -> Result<()> {
+    use anyhow::Context;
+    use std::io::{Read, Write};
+    let mut background = crate::background::Background::open(effects, w, h, fps)?;
+    let initial = match &background {
+        crate::background::Background::Static(rgb) => Some(rgb.as_slice()),
+        _ => None,
+    };
+    let mut gpu = crate::gpu::Processing::open(model.gpu_contract([w, h]), effects, initial)?;
+    let mut frame = vec![0; w * h * 3];
+    let prepared = gpu.prepare(&frame)?;
+    let mask = model.infer_gpu(&prepared.image)?;
+    let warm_background = (effects.background_mode == crate::effects::BackgroundMode::Video)
+        .then_some(frame.as_slice());
+    gpu.compose(&prepared, &mask, warm_background)?;
+    model.reset()?;
+    if checking {
+        // Validate real image/video decoding as well as the GPU path without
+        // advancing the live video's first frame during the worker warm-up.
+        background.frame()?;
+        return Ok(());
+    }
+    let mut input = std::io::stdin().lock();
+    let mut output = std::io::stdout().lock();
+    loop {
+        if input.read(&mut frame[..1])? == 0 {
+            break;
+        }
+        input
+            .read_exact(&mut frame[1..])
+            .context("Frame RGB incompleto")?;
+        let prepared = gpu.prepare(&frame)?;
+        let mask = model.infer_gpu(&prepared.image)?;
+        let result = gpu.compose(&prepared, &mask, background.frame()?)?;
+        let (shape, rgb) = result.try_extract_raw_tensor::<u8>()?;
+        if shape != [1, h as i64, w as i64, 3] || rgb.len() != frame.len() {
+            bail!("Quadro de composição GPU incompatível");
+        }
+        output.write_all(rgb)?;
     }
     Ok(())
 }
@@ -193,13 +437,19 @@ fn interpolate(
 }
 
 #[cfg(feature = "ai")]
-fn resize_rgb(frame: &[u8], w: usize, h: usize) -> Vec<u8> {
-    let mut out = vec![0; 256 * 256 * 3];
-    for y in 0..256 {
-        for x in 0..256 {
-            let (sx, sy, dx, dy) = sample(x, y, w, h, 256, 256);
+pub(crate) fn resize_rgb_to(
+    frame: &[u8],
+    w: usize,
+    h: usize,
+    width: usize,
+    height: usize,
+) -> Vec<u8> {
+    let mut out = vec![0; width * height * 3];
+    for y in 0..height {
+        for x in 0..width {
+            let (sx, sy, dx, dy) = sample(x, y, w, h, width, height);
             for c in 0..3 {
-                out[(y * 256 + x) * 3 + c] =
+                out[(y * width + x) * 3 + c] =
                     interpolate(frame, (w, h), (sx, sy, dx, dy), c).round() as u8;
             }
         }
@@ -208,7 +458,7 @@ fn resize_rgb(frame: &[u8], w: usize, h: usize) -> Vec<u8> {
 }
 
 #[cfg(feature = "ai")]
-fn blur(rgb: &[u8], w: usize, h: usize, radius: usize) -> Vec<u8> {
+pub(crate) fn blur(rgb: &[u8], w: usize, h: usize, radius: usize) -> Vec<u8> {
     let mut tmp = vec![0; rgb.len()];
     let mut out = vec![0; rgb.len()];
     // Two sliding-window passes: O(pixels), independent of the radius.
@@ -250,8 +500,9 @@ fn blur_pass(
 }
 
 #[cfg(feature = "ai")]
-struct Compositor {
+pub(crate) struct Compositor {
     width: usize,
+    mask_width: usize,
     x: Vec<(usize, usize, f32)>,
     y: Vec<(usize, usize, f32)>,
     horizontal: Vec<[f32; 4]>,
@@ -259,36 +510,42 @@ struct Compositor {
 
 #[cfg(feature = "ai")]
 impl Compositor {
-    fn new(width: usize, height: usize) -> Self {
-        let axis = |length| {
+    pub(crate) fn for_mask(
+        width: usize,
+        height: usize,
+        mask_width: usize,
+        mask_height: usize,
+    ) -> Self {
+        let axis = |length, source| {
             (0..length)
                 .map(|i| {
-                    let (a, _, t, _) = sample(i, 0, 256, 1, length, 1);
-                    (a, (a + 1).min(255), t)
+                    let (a, _, t, _) = sample(i, 0, source, 1, length, 1);
+                    (a, (a + 1).min(source - 1), t)
                 })
                 .collect()
         };
         Self {
             width,
-            x: axis(width),
-            y: axis(height),
-            horizontal: vec![[0.0; 4]; width * 256],
+            mask_width,
+            x: axis(width, mask_width),
+            y: axis(height, mask_height),
+            horizontal: vec![[0.0; 4]; width * mask_height],
         }
     }
 
-    fn apply(
+    pub(crate) fn apply(
         &mut self,
         frame: &mut [u8],
         mask: &[f32],
         blurred: Option<&[u8]>,
         background: Option<&[u8]>,
     ) {
-        // Resample each 256px source row once. Adjacent output rows reuse these
+        // Resample each mask row once. Adjacent output rows reuse these
         // values, avoiding divisions and four source reads per output channel.
         for (sy, row) in self.horizontal.chunks_exact_mut(self.width).enumerate() {
             for (pixel, &(a, b, t)) in row.iter_mut().zip(&self.x) {
-                let left = sy * 256 + a;
-                let right = sy * 256 + b;
+                let left = sy * self.mask_width + a;
+                let right = sy * self.mask_width + b;
                 pixel[0] = mask[left] + (mask[right] - mask[left]) * t;
                 if let Some(rgb) = blurred {
                     for c in 0..3 {
@@ -330,18 +587,26 @@ impl Compositor {
 }
 
 #[cfg(all(test, feature = "ai"))]
-fn composite(frame: &mut [u8], w: usize, h: usize, mask: &[f32], background: &[u8]) {
+fn composite(
+    frame: &mut [u8],
+    w: usize,
+    h: usize,
+    mask: &[f32],
+    background: &[u8],
+    shape: (usize, usize),
+) {
+    let (mw, mh) = shape;
     for y in 0..h {
         for x in 0..w {
-            let (sx, sy, dx, dy) = sample(x, y, 256, 256, w, h);
-            let a = mask[sy * 256 + sx];
-            let b = mask[sy * 256 + (sx + 1).min(255)];
-            let d = mask[(sy + 1).min(255) * 256 + sx];
-            let e = mask[(sy + 1).min(255) * 256 + (sx + 1).min(255)];
+            let (sx, sy, dx, dy) = sample(x, y, mw, mh, w, h);
+            let a = mask[sy * mw + sx];
+            let b = mask[sy * mw + (sx + 1).min(mw - 1)];
+            let d = mask[(sy + 1).min(mh - 1) * mw + sx];
+            let e = mask[(sy + 1).min(mh - 1) * mw + (sx + 1).min(mw - 1)];
             let alpha = ((a + (b - a) * dx) * (1.0 - dy) + (d + (e - d) * dx) * dy).clamp(0.0, 1.0);
             for c in 0..3 {
                 let i = (y * w + x) * 3 + c;
-                let bg = interpolate(background, (256, 256), (sx, sy, dx, dy), c);
+                let bg = interpolate(background, shape, (sx, sy, dx, dy), c);
                 frame[i] = (frame[i] as f32 * alpha + bg * (1.0 - alpha)).round() as u8;
             }
         }
@@ -357,7 +622,12 @@ mod tests {
         let bg = vec![60; 256 * 256 * 3];
         for alpha in [0.0, 0.5, 1.0] {
             let mut frame = original.clone();
-            Compositor::new(2, 1).apply(&mut frame, &vec![alpha; 256 * 256], Some(&bg), None);
+            Compositor::for_mask(2, 1, 256, 256).apply(
+                &mut frame,
+                &vec![alpha; 256 * 256],
+                Some(&bg),
+                None,
+            );
             for (actual, source) in frame.iter().zip(&original) {
                 assert_eq!(
                     *actual,
@@ -368,19 +638,21 @@ mod tests {
     }
     #[test]
     fn cached_composition_matches_scalar_reference_and_static_privacy_background() {
-        let mask: Vec<_> = (0..256 * 256).map(|i| (i % 101) as f32 / 100.0).collect();
-        let bg: Vec<_> = (0..256 * 256 * 3).map(|i| (i * 17 % 256) as u8).collect();
-        for (w, h) in [(1, 1), (3, 2), (17, 11), (128, 73)] {
-            let source: Vec<_> = (0..w * h * 3).map(|i| (i * 11 % 256) as u8).collect();
-            let mut expected = source.clone();
-            composite(&mut expected, w, h, &mask, &bg);
-            let mut actual = source;
-            let mut renderer = Compositor::new(w, h);
-            renderer.apply(&mut actual, &mask, Some(&bg), None);
-            assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1));
-            let privacy = vec![42; w * h * 3];
-            renderer.apply(&mut actual, &vec![0.0; 256 * 256], None, Some(&privacy));
-            assert_eq!(actual, privacy);
+        for (mw, mh) in [(256, 256), (512, 288)] {
+            let mask: Vec<_> = (0..mw * mh).map(|i| (i % 101) as f32 / 100.0).collect();
+            let bg: Vec<_> = (0..mw * mh * 3).map(|i| (i * 17 % 256) as u8).collect();
+            for (w, h) in [(1, 1), (3, 2), (17, 11), (128, 73)] {
+                let source: Vec<_> = (0..w * h * 3).map(|i| (i * 11 % 256) as u8).collect();
+                let mut expected = source.clone();
+                composite(&mut expected, w, h, &mask, &bg, (mw, mh));
+                let mut actual = source;
+                let mut renderer = Compositor::for_mask(w, h, mw, mh);
+                renderer.apply(&mut actual, &mask, Some(&bg), None);
+                assert!(actual.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1));
+                let privacy = vec![42; w * h * 3];
+                renderer.apply(&mut actual, &vec![0.0; mw * mh], None, Some(&privacy));
+                assert_eq!(actual, privacy);
+            }
         }
     }
     #[test]

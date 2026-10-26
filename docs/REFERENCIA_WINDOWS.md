@@ -9,6 +9,10 @@ IA com sua RTX 4070 SUPER. O alvo do produto é reproduzir essa experiência no
 Linux. O relato é evidência de uso do Windows, sem taxa, duração ou comparação
 lado a lado registradas nesta revisão.
 
+O instalador macOS e suas extrações/relatórios exclusivos foram removidos de
+`package/` em 25/10/2026. Comparações macOS desta página preservam resultados
+históricos; o MSI, os arquivos Windows e sua investigação permanecem disponíveis.
+
 ## Artefatos e ferramentas
 
 | Entrada | Identidade observada |
@@ -73,7 +77,8 @@ processamento de todos os módulos do aplicativo.
 A opção CPU do Facecam Hub é uma alternativa ONNX própria, disponível em
 **Opções avançadas** e na CLI para testes e operação explícita. Ela não é um
 fallback para os SDKs NVIDIA nem evidencia paridade com o Windows. A UI principal
-mantém NVIDIA CUDA como padrão; o backend Maxine Linux continua pendente.
+mantém NVIDIA CUDA como padrão. A segmentação temporal VFX Ada já executa em
+Rust/TensorRT nativo, conforme [Análise RTX](ANALISE_RTX.md); AR continua pendente.
 
 O executável contém caminhos separados para localizar **NVIDIA Video Effects**
 e **NVIDIA AR SDK**, com carregamento dinâmico de `NVVideoEffects.dll`,
@@ -130,16 +135,14 @@ Também aparecem métodos RPC como `getNvidiaVideoEffectSettings`,
 São candidatos de interoperabilidade; nomes não estabelecem schema, enumerações,
 porta de rede, autenticação ou serviço em execução.
 
-O [SDK Linux da NVIDIA](https://docs.nvidia.com/maxine/vfx/latest/LinuxVFXSDK/InstalltheVFXSDK.html)
-é uma distribuição própria, com Core, recursos/modelos e condições de GPU/NGC.
-Na documentação consultada em 25/10/2026, o Core não inclui as bibliotecas/modelos
-dos efeitos, e a RTX 4070 SUPER não consta da lista de GPUs suportadas nessa
-página. A compatibilidade do SDK Linux com essa placa continua pendente de
-validação; compartilhar compute capability com outra GPU não a comprova.
-As DLLs Windows não substituem esses componentes. Esta inspeção não altera o
-backend ONNX/CUDA existente no [fluxo de efeitos](EFEITOS.md).
-O [plano de integração Maxine](NVIDIA_MAXINE.md) detalha os pacotes Linux,
-a restrição oficial a aplicações cliente e os critérios para validar o backend.
+O link de download do guia Elgato leva ao [NVIDIA Broadcast Download Center](https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/).
+Para RTX 40/Ada, a página associa Camera Hub aos redistribuíveis Video Effects
+0.7.6 e AR 0.8.2. Esses são os artefatos selecionados para estudar a integração
+Windows; a versão efetivamente carregada por uma instalação precisa ser conferida.
+Os arquivos `.exe` e suas DLLs não fornecem um runtime nativo Linux validado.
+O [guia dos runtimes NVIDIA](NVIDIA_MAXINE.md) registra os downloads e os critérios
+para integrar um backend no Ubuntu. O [fluxo atual de efeitos](EFEITOS.md)
+continua usando ONNX Runtime/CUDA.
 
 ## Controles específicos: evidência decompilada
 
@@ -180,7 +183,7 @@ de execução concorrente à [arquitetura Rust](ARQUITETURA.md).
 | Cor e LUT | Manifesto de LUTs e arquivos `.cube` | Implementado com LUT própria/do usuário; recursos Elgato não são distribuídos |
 | Desfoque e substituição estática | Caminhos VFX e catálogo de fundos | Implementado com ONNX/CUDA e composição própria |
 | Fundo animado | Sete MP4 presentes em ambos os pacotes | Implementado com MP4/MOV/WebM próprio, loop e decoder com memória limitada |
-| Backend NVIDIA VFX | API dinâmica e SDK externo | Proposto: validar SDK Linux/GPU/licença antes de integrar ao worker |
+| Backend NVIDIA VFX | API dinâmica e SDK externo | Segmentação temporal m1 Ada em Rust/TensorRT Linux; preparação guiada e fallback ONNX, validado na RTX 4070 SUPER |
 | Correção de olhar | Integração AR e GazeRedirection | Não implementado; precisa de modelo/backend e teste de qualidade próprios |
 | Enquadramento automático | FaceTrack e parâmetros de transição | Não implementado; definir detecção, suavização, crop e interação com PTZ físico |
 | HDR e processamento proprietário | Imports/getters CCUVC | Investigação por família; não equiparar a contraste/denoise genéricos |
@@ -201,10 +204,10 @@ O SDK Manager 26.1.0-14392 foi inspecionado por extração local do `.deb` infor
 pelo usuário, sem executar o instalador. Seu catálogo público lista GeForce com
 alvo Windows e não lista Maxine. A [documentação do SDK Manager](https://developer.nvidia.com/sdk-manager)
 descreve os produtos e a instalação por repositório. A instalação assistida no
-Facecam Hub segue APT, sem usar o `.deb` de Downloads. Isso não fornece os modelos
-VFX/AR: o [catálogo Maxine](https://catalog.ngc.nvidia.com/orgs/nvidia/maxine/collections/maxine_vfx_sdk/-)
-exige acesso à conta para os SDKs e recursos. A integração desses runtimes Linux
-continua pendente; o app atual usa ONNX Runtime/CUDA.
+Facecam Hub segue APT, sem usar o `.deb` de Downloads. Isso não fornece os
+redistribuíveis VFX/AR Windows indicados pela Elgato. Sua obtenção e estudo são
+separados da instalação do gerenciador. A segmentação VFX Ada tem implementação
+Rust/TensorRT no Ubuntu; AR e paridade integral continuam pendentes.
 
 Os resultados completos estão em `package/analysis-windows-2.3.0.7295/`:
 `installed-file-map.json`, `msi-file-table.idt`, `msi-properties.idt`,

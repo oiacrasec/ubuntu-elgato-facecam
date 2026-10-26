@@ -31,9 +31,10 @@ A proteção atual depende do usuário e das permissões locais.
 | `set_control` | `name`, string; `value`, i64 | Valida e escreve um controle V4L2, com leitura de retorno |
 | `set_effects` | `effects`, objeto | Detecta campos de IA vazios, valida, aplica e salva efeitos |
 | `set_autostart` | `enabled`, bool | Ativa ou remove a inicialização automática do usuário imediatamente |
-| `prepare_install` | `dependency`: `video_tools`, `sdk_manager` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
+| `prepare_install` | `dependency`: `video_tools`, `sdk_manager`, `nvidia_tools` ou `virtual_camera` | Prepara instalação ou câmera virtual persistente para revisão; não executa comandos administrativos |
 | `prepare_virtual_camera` | `persistent`, bool obrigatório | Prepara módulo e persistência opcional, com captura parada |
-| `prepare_uninstall` | `dependency`: `video_tools` ou `sdk_manager` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
+| `prepare_nvidia` | nenhum | Prepara componentes Ada no usuário e testa a GPU em segundo plano; exige captura parada |
+| `prepare_uninstall` | `dependency`: `video_tools`, `sdk_manager` ou `nvidia_tools` | Consulta pacotes e simula remoção restrita antes de apresentar o plano; não desinstala |
 | `confirm_install` | `id`, u64 | Confirma o plano atual e inicia instalação com autenticação do Ubuntu |
 | `cancel_install` | nenhum | Descarta o plano pendente; não interrompe uma transação APT iniciada |
 | `import_resource` | `kind`: `lut`, `image` ou `video`; `path`: arquivo local | Inicia validação e cópia para a biblioteca em segundo plano; não aplica efeitos |
@@ -52,6 +53,14 @@ Exemplos de linhas de protocolo:
 `Reply` contém `ok`, `message` e `state`. O estado inclui configuração, dispositivos,
 modos e controles, disponibilidade, erro, flags de captura, contagem do preview,
 revisão de exibição e suporte compilado a IA. Frames não são serializados no JSON.
+`ai_backend` informa o backend efetivamente validado (`onnx` ou `nvidia`) e um
+`warning` opcional de fallback. `nvidia_prepared` indica presença dos componentes,
+sem substituir uma inferência. `preparing_nvidia`, `nvidia_progress` e `nvidia_log`
+acompanham a preparação. `--prepare-nvidia` inicia o mesmo pedido pelo controlador
+ativo; aguarde `preparing_nvidia: false` e confira `error` e o resultado. Quit e
+captura são recusados durante a preparação; falhas não substituem o bundle anterior.
+Sem as ferramentas de extração/download, `prepare_nvidia` retorna um plano APT
+`nvidia_tools` antes de começar. Confirme-o e repita o pedido após a conclusão.
 `autostart_enabled` informa a presença de um cadastro ativo, ou null se a consulta
 falhou. A abertura, atualização, consulta periódica e conclusão de `set_autostart`
 releem o arquivo. `--install-autostart` e `--remove-autostart` usam esse comando

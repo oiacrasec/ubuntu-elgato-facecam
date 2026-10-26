@@ -6,6 +6,12 @@ Este documento preserva o levantamento anterior à migração. A implementação
 Rust atual está descrita em [ARQUITETURA.md](ARQUITETURA.md), com verificações em [TESTES.md](TESTES.md).
 A equivalência integral com o Camera Hub continua pendente.
 
+Registro histórico: em 25/10/2026, o `.pkg`, a extração XAR, o payload macOS e
+os relatórios exclusivos desse artefato foram removidos de `package/` a pedido
+do usuário. Os caminhos abaixo identificam evidências da etapa inicial e não
+arquivos atualmente disponíveis. Leituras de hardware/V4L2 foram mantidas.
+A referência ativa da migração passou a ser a versão Windows.
+
 A [investigação do MSI Windows](REFERENCIA_WINDOWS.md) complementa este registro
 e documenta a preparação posterior de um Ghidra 12.1.4 compatível com o REA.
 

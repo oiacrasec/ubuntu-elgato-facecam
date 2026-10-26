@@ -42,19 +42,23 @@ a saída virtual, que usa yuv420p.
 
 Na aba **Effects**, ajuste cor, redução de ruído e LUT `.cube`, ou configure
 **AI Background**. **Aplicar e salvar** reinicia brevemente a captura e aplica
-os efeitos às duas saídas. A grade e o botão de espelho abaixo do preview são
-ferramentas locais de visualização.
+os efeitos às duas saídas. **Mirror** espelha ambas; **Grid** é uma guia local.
 
-A IA segmenta a pessoa e desfoca ou substitui o fundo por cor, cenário ilustrado
-ou imagem PNG/JPEG/WebP própria. O provider **NVIDIA CUDA** usa ONNX
-Runtime GPU; **CPU** é uma escolha explícita. Modelo, runtime e dependências
-CUDA/cuDNN são externos e carregados somente ao ativar IA. Nenhum arquivo é
-baixado ao abrir a aplicação. Consulte [EFEITOS.md](docs/EFEITOS.md) para
-preparação, JSON, comandos e limites. Essa implementação não usa o SDK
-proprietário da NVIDIA nem exige conta NGC.
+A IA segmenta a pessoa e desfoca ou substitui o fundo por cor, cenário, imagem
+ou vídeo próprio. Para RTX 40/Ada, use **Configurações** › **Efeitos NVIDIA RTX** ›
+**Preparar IA RTX** com captura parada. O app prepara componentes no usuário
+e testa a GPU. A seleção automática usa a segmentação temporal NVIDIA quando
+validada, com alternativa ONNX no mesmo provider se a inicialização falhar.
+**CPU** continua sendo uma escolha explícita. Não há download ao abrir o app.
+Com CUDA, redimensionamento, desfoque e composição também usam a GPU, conservando
+a máscara e as imagens intermediárias nela.
+Consulte [Efeitos](docs/EFEITOS.md) para uso e [Análise RTX](docs/ANALISE_RTX.md)
+para versões, evidências e limites. A execução foi exercitada na RTX 4070 SUPER;
+correção de olhar e paridade integral com Windows continuam pendentes.
 
-Somente preview processa 640×360 a até 15 fps. Com IA na saída virtual, a
-resolução escolhida é mantida e **FPS da IA** limita a taxa a 30 por padrão.
+Preview e câmera virtual compartilham imagem, resolução e FPS. Com IA,
+**FPS da IA** limita ambas a 30 por padrão. A janela ajusta o tamanho visual
+preservando a proporção; o rodapé **Output** informa resolução e taxa de saída.
 
 Modelo e runtime disponíveis são detectados na abertura normal, incluindo os
 arquivos preparados em `target/ai-runtime`. Instalações personalizadas são

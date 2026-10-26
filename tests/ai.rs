@@ -8,6 +8,93 @@ mod inference {
     const BIN: &str = env!("CARGO_BIN_EXE_elgato-virtualcam");
 
     #[test]
+    #[ignore = "requires prepared NVIDIA Ada components; synthetic frames only, no camera"]
+    fn nvidia_worker_composes_backgrounds_resets_state_and_rejects_partial_frames() {
+        let manifest = std::env::var_os("FACECAM_NVIDIA_MANIFEST")
+            .map(std::path::PathBuf::from)
+            .expect("set FACECAM_NVIDIA_MANIFEST to the prepared manifest.json");
+        let root = manifest.parent().unwrap();
+        let data: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+        let libraries = std::env::join_paths(
+            data["libraries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| root.join(p.as_str().unwrap())),
+        )
+        .unwrap();
+        let run = |mode: &str, partial: bool| {
+            let effects = serde_json::json!({"background_blur":true,"background_mode":mode,"background_color":[211,37,59],"ai_backend":"nvidia","ai_provider":"cuda"});
+            let mut worker = Command::new(BIN)
+                .args(["--ai-worker", &effects.to_string(), "--ai-size", "64x36"])
+                .env("FACECAM_NVIDIA_MANIFEST", &manifest)
+                .env("LD_LIBRARY_PATH", &libraries)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let mut input = worker.stdin.take().unwrap();
+            let writer = std::thread::spawn(move || {
+                input
+                    .write_all(&vec![
+                        0;
+                        if partial {
+                            64 * 36 * 3 - 1
+                        } else {
+                            64 * 36 * 3 * 8
+                        }
+                    ])
+                    .unwrap();
+            });
+            let output = worker.wait_with_output().unwrap();
+            writer.join().unwrap();
+            output
+        };
+        let first = run("solid", false);
+        assert!(
+            first.status.success(),
+            "{}",
+            String::from_utf8_lossy(&first.stderr)
+        );
+        assert_eq!(first.stdout.len(), 64 * 36 * 3 * 8);
+        assert!(
+            first
+                .stdout
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .all(|p| *p == [211, 37, 59])
+        );
+        let restarted = run("solid", false);
+        assert!(restarted.status.success());
+        assert_eq!(first.stdout, restarted.stdout);
+        let mut scenarios = Vec::new();
+        for mode in ["blur", "studio", "office", "landscape"] {
+            let result = run(mode, false);
+            assert!(
+                result.status.success(),
+                "{mode}: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            assert_eq!(result.stdout.len(), first.stdout.len());
+            if mode == "blur" {
+                assert!(result.stdout.iter().all(|&v| v == 0));
+            } else {
+                assert_ne!(result.stdout, first.stdout);
+                scenarios.push(result.stdout);
+            }
+        }
+        assert_ne!(scenarios[0], scenarios[1]);
+        assert_ne!(scenarios[1], scenarios[2]);
+        let truncated = run("solid", true);
+        assert!(!truncated.status.success());
+        assert!(String::from_utf8_lossy(&truncated.stderr).contains("Frame RGB incompleto"));
+        assert!(truncated.stdout.is_empty());
+    }
+
+    #[test]
     #[ignore = "requires FFmpeg, FACECAM_AI_MODEL and FACECAM_AI_RUNTIME; uses synthetic media, no camera"]
     fn ai_video_background_reaps_decoder_and_kills_it_when_owner_dies() {
         use std::{
@@ -37,6 +124,7 @@ mod inference {
         assert!(generated.status.success());
         let effects = serde_json::json!({
             "background_blur":true, "background_mode":"video", "background_video":video,
+            "ai_backend":"onnx",
             "ai_model":std::env::var("FACECAM_AI_MODEL").expect("set FACECAM_AI_MODEL"),
             "ai_runtime":std::env::var("FACECAM_AI_RUNTIME").expect("set FACECAM_AI_RUNTIME"),
             "ai_provider":std::env::var("FACECAM_AI_PROVIDER").unwrap_or_else(|_| "cpu".into()),
@@ -133,7 +221,7 @@ mod inference {
         let model = std::env::var("FACECAM_AI_MODEL").expect("set FACECAM_AI_MODEL");
         let provider = std::env::var("FACECAM_AI_PROVIDER").unwrap_or_else(|_| "cpu".into());
         let path = dir.path().join("config.json");
-        std::fs::write(&path, serde_json::json!({"effects":{"background_blur":true,"ai_provider":provider,"ai_model":model,"ai_runtime":runtime}}).to_string()).unwrap();
+        std::fs::write(&path, serde_json::json!({"effects":{"background_blur":true,"ai_backend":"onnx","ai_provider":provider,"ai_model":model,"ai_runtime":runtime}}).to_string()).unwrap();
         struct Controller(std::process::Child);
         impl Drop for Controller {
             fn drop(&mut self) {
@@ -226,7 +314,7 @@ mod inference {
         let runtime = std::env::var("FACECAM_AI_RUNTIME").expect("set FACECAM_AI_RUNTIME");
         let model = std::env::var("FACECAM_AI_MODEL").expect("set FACECAM_AI_MODEL");
         let provider = std::env::var("FACECAM_AI_PROVIDER").unwrap_or_else(|_| "cpu".into());
-        let effects = serde_json::json!({"background_blur":true,"ai_provider":provider,"ai_model":model,"ai_runtime":runtime});
+        let effects = serde_json::json!({"background_blur":true,"ai_backend":"onnx","ai_provider":provider,"ai_model":model,"ai_runtime":runtime});
         let mut frame = vec![0u8; 64 * 64 * 3];
         for (i, pixel) in frame.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             pixel.fill(if (i % 64 / 4 + i / 64 / 4) % 2 == 0 {

@@ -4,7 +4,10 @@ Ambiente observado: Ubuntu 24.04.5, X11, Facecam MK.2 USB2 e NVIDIA GeForce
 RTX 4070 SUPER, driver 595.99.02. Estes resultados descrevem este host; não são
 uma matriz de compatibilidade nem um benchmark controlado.
 
-## Verificações concluídas
+O registro acumula baterias de etapas diferentes. Os resultados atuais da
+segmentação NVIDIA estão em [Segmentação temporal integrada](#segmentação-temporal-nvidia-integrada--25102026).
+
+## Primeira bateria de verificações
 
 - Formatação e Clippy sem avisos, com recursos padrão e sem recursos padrão.
 - 26 testes automáticos no build padrão: 22 testes unitários e 4 contratos CLI/IPC.
@@ -383,11 +386,10 @@ O teste físico permanece ignorado por padrão. Logs e métricas locais estão e
 `target/virtual-camera-review/`, ignorado pelo Git.
 
 OBS, sessão Wayland, operação prolongada e persistência após reiniciar continuam
-pendentes. A investigação seguinte confirmou a distribuição separada de Core e
-recursos VFX/AR e o limite oficial de suporte a aplicações cliente no Linux;
-[NVIDIA Maxine](NVIDIA_MAXINE.md) registra fontes e condições para avançar.
-Não foram encontrados os pacotes de runtime/modelos necessários no host, nem
-foi implementado ou anunciado um backend Maxine nesta revisão.
+pendentes. A referência de integração NVIDIA passou a ser os redistribuíveis
+Video Effects 0.7.6 e AR 0.8.2 para RTX 40/Ada associados ao Camera Hub no
+[guia dos runtimes NVIDIA](NVIDIA_MAXINE.md). Não foi implementado ou anunciado
+um backend VFX/AR nativo nesta revisão.
 
 ## Checkbox de início automático — 25/10/2026
 
@@ -441,3 +443,413 @@ centralizado, desenhado pelo egui. A revisão visual em 1343×856 confirmou o í
 e a ajuda ao passar o mouse, com preview pausado. As imagens ficam em
 `target/settings-help-icon-ui-check/`. Formatação, Clippy, documentação e build
 release passaram nesta alteração de apresentação.
+
+## Redistribuíveis NVIDIA de referência — 25/10/2026
+
+A origem foi corrigida para o [NVIDIA Broadcast Download Center](https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/),
+acessado pelo link do [guia Elgato](https://help.elgato.com/hc/en-us/articles/7665140128653-Elgato-Camera-Hub-How-to-use-AI-Background-Effects).
+Os pacotes selecionados são Video Effects 0.7.6 e AR 0.8.2 para RTX 40/Ada.
+A página associa Camera Hub a essas versões; a versão carregada por uma instalação
+específica ainda precisa ser conferida. A documentação de uso, efeitos, roadmap
+e investigação passou a seguir esses redistribuíveis como referência.
+
+Os dois downloads HTTPS retornaram HTTP 200. Os tamanhos locais coincidiram com
+o Content-Length informado pelo servidor, e os arquivos foram identificados
+como executáveis PE32 com arquivo autoextraível NSIS. Isso identifica o contêiner
+do instalador; não determina a arquitetura de cada DLL interna.
+
+| Arquivo em `/home/cesar/Downloads/NVIDEA/` | Bytes | SHA-256 local |
+| --- | --- | --- |
+| `nvidia_video_effects_sdk_installer_v0.7.6_ada.exe` | 767.555.072 | `4761fe1579e82de6d45efec8dc09492cf2cc601867269955e129707ac8ea8546` |
+| `nvidia_ar_sdk_installer_v0.8.2_ada.exe` | 1.167.071.912 | `cf1eb45839d4b0131bbc08c7205bb9ccc2989e6d91ec2da28e8ee0e515da28e1` |
+
+`SHA256SUMS` e `download-manifest.json` no mesmo diretório registram os hashes e
+a procedência. Os digests foram calculados localmente, sem um hash independente
+publicado pelo fornecedor para comparação. `7z l` reconheceu o conteúdo dos dois
+instaladores, incluindo DLLs NVIDIA; os `.exe` não foram executados ou instalados.
+Os cabeçalhos HTTP, métricas de transferência e listagens ficam em
+`target/nvidia-redistributables/`, ignorado pelo Git. Essa inspeção não equivale
+a análise REA/Ghidra completa nem à execução dos efeitos no Ubuntu.
+
+A listagem VFX contém `NVVideoEffects.dll`, dependências CUDA 12 e modelos
+`AIGS_288x512_89_m*.engine.trtpkg`. A listagem AR contém `nvARPose.dll`,
+`cudart64_110.dll`, TensorRT e modelos `gazeredir_*_fp16_89.engine.trtpkg`.
+Esses arquivos não foram tratados como modelos ONNX do worker atual.
+
+## Remoção dos artefatos macOS do `.pkg` — 25/10/2026
+
+Foram removidos `CameraHub_2.3.0.7295.pkg`, os diretórios
+`camerahub-2.3.0.7295-xar` e `camerahub-2.3.0.7295-payload`, e os relatórios
+exclusivos de macOS: dependências Mach-O, strings nativas, inventário do payload,
+inspeção REA e hashes do pacote/aplicativo. Também foi removido
+`analysis-windows-2.3.0.7295/mac-ai-strings.txt`.
+
+O MSI, sua extração e investigação Windows, medições Rust, auditoria documental
+e ferramentas compartilhadas foram mantidos. Em `analysis-2.3.0.7295`, continuam
+as leituras de USB/V4L2 e o diagnóstico genérico da ferramenta REA. Os relatórios
+mistos da investigação Windows continuam como registro histórico.
+O inventário da limpeza está em `target/nvidia-redistributables/macos-pkg-cleanup.json`.
+O documento de levantamento inicial foi identificado como histórico para não
+apresentar os caminhos removidos como arquivos disponíveis.
+
+## Análise estática RTX e organização por versão — 25/10/2026
+
+Foram extraídas duas amostras de modelos, as DLLs principais, dependências
+selecionadas e licenças dos pacotes Ada já baixados. Os arquivos ficam em
+`package/nvidia-reference/windows-x86_64/{vfx/0.7.6,ar/0.8.2}/ada/`.
+As evidências foram preservadas em `package/analysis-nvidia/`, separado por
+plataforma, SDK, versão e família, fora da distribuição e do Git.
+
+REA 6.7.0, executado pelo Node.js 24.22.1 local, analisou as importações PE:
+
+| DLL | SHA-256 | Cobertura da tabela de importações |
+| --- | --- | --- |
+| `NVVideoEffects.dll` | `2a78effae55e9e3791bbe66f312f0bd08a2ede2c94fd8f820933badfa0a6cd8c` | 22 DLLs, 245 funções, sem delay imports |
+| `nvARPose.dll` | `659f4c30f1d7c5a459e25b9f62fe0d49282079872260c8f7ec16b0f4b3101010` | 24 DLLs, 311 funções, sem delay imports |
+
+Os IDs das evidências são, respectivamente,
+`ev_057e4b6313e8d4df43b19a3572ca7d38fb4a79f9bf57606e2bb87f1463da5395`
+e `ev_9f4af8c7de9d2ccc74ff398694eb7c55e8b5642f37ba2723af60a31f788e6fdf`.
+A cobertura completa se refere às tabelas examinadas, sem abranger todas as
+bibliotecas carregadas dinamicamente ou o comportamento do efeito.
+
+Ghidra 12.1.4 com OpenJDK 21.0.12.1 decompilou `GetVersion`, criação e `Load`
+de cada SDK, além de quatro auxiliares chamados pela criação. Foram usados
+`-noanalysis`, `-max-cpu 2` e `-deleteProject`; as fontes Java e logs ficaram
+preservados. Os logs registraram dez funções concluídas. Os resultados contêm
+tipos não recuperados, chamadas indiretas e avisos; não são código reconstruído
+pronto para compilação.
+
+O export `NvVFX_GetVersion` escreve `0x00070600` no endereço `0x180009930`;
+`NvAR_GetVersion` escreve `0x00080200` em `0x180005a60`. A desmontagem estática
+de `getInferLibVersion` mostrou 100400 em `0x180681b60` no TensorRT VFX e 8402
+em `0x180ac2f50` no TensorRT AR. As fórmulas oficiais permitem derivar 10.4.0
+e 8.4.2; nenhuma dessas funções foi executada.
+
+As amostras `AIGS_288x512_89_m1.engine.trtpkg` (8.773.968 bytes) e
+`gaze_landmarks_fp16_89.engine.trtpkg` (3.561.076 bytes) começam por `NVnn`.
+Seus hashes e os dos runtimes estão no [catálogo documental](nvidia-runtime-catalog.json).
+Não foi recuperado um modelo ONNX ou engine Linux utilizável. As licenças dos
+instaladores foram extraídas para leitura local; os fontes públicos dos proxies
+foram consultados em revisões fixadas, preservando seus avisos originais.
+
+`nvidia-smi --query-gpu=name,pci.device_id,driver_version,compute_cap --format=csv,noheader`
+confirmou RTX 4070 SUPER, ID `0x278310DE`, driver 595.99.02 e compute capability
+8.9. A consulta `ldconfig -p` não listou `libnvinfer`, `libcudart` ou
+`libonnxruntime`; esse resultado abrange apenas o cache do carregador, sem
+excluir bibliotecas em diretórios privados. Não houve instalação APT, execução
+dos SDKs Windows, captura de imagem ou alteração de controles da câmera.
+
+[Análise RTX](ANALISE_RTX.md) registra a viabilidade ainda não demonstrada do
+backend nativo, os contratos recuperados e os critérios da
+próxima prova. Os efeitos existentes e a configuração do aplicativo não foram
+alterados por essa investigação.
+
+Validação desta etapa: `cargo test --locked --test documentation` passou nos dois
+testes de links e cobertura, e `git diff --check` passou. A conferência local do
+catálogo comparou seis hashes/tamanhos com os arquivos extraídos, a arquitetura
+PE x64, os dois relatórios REA e as dez conclusões dos scripts Ghidra. O resultado
+ficou em `target/nvidia-redistributables/catalog-validation.json`. Os diretórios
+de binários e análise foram confirmados como ignorados pelo Git.
+
+## Pesquisa focada na segmentação Rust — 25/10/2026
+
+A direção passou a usar somente as referências Windows e implementação própria
+em Rust. A pesquisa deve fechar o contrato necessário a segmentação, desfoque e
+substituição de fundo no worker existente; a reconstrução completa dos SDKs e a
+obtenção de SDKs NVIDIA Linux não são pré-requisitos.
+
+Foram examinadas mais quinze funções selecionadas com Ghidra, sem análise global
+ou execução dos binários. O caminho VFX identifica a criação de `GreenScreen`,
+as funções reais de `Load` e `Run`, a seleção do modelo e a inicialização dos
+tensores. A tabela de modelos contém quatro entradas Ada `m0` a `m3`, com
+valores `[288, 512, 89, 89]`. Os layouts e tipos dos tensores não foram inferidos
+somente desses valores.
+
+A leitura limitada dos metadados dos dois modelos confirmou registros `trt`
+de 136 e 76 bytes no offset 28. A tabela `dpvi` contém cinco campos e quatro
+linhas no VFX, uma no AR. Essa leitura não decodifica os pesos nem executa a rede.
+
+O inventário REA de código GPU foi concluído antes de restringir o escopo ao
+recurso de fundo. Encontrou declarações de CUBIN/PTX e permitiu inspecionar
+metadados selecionados `sm_89` no VFX e `sm_86` no AR. Esses resultados são
+estáticos: não demonstram inferência nem suporte de todas as funções da DLL.
+Nenhum kernel proprietário foi integrado ao produto.
+
+As evidências estão em `package/analysis-nvidia/segmentation-reconstruction/`:
+`scope.json` associa as quinze funções a endereços, papéis e hashes;
+`greenscreen-model-table.json` conserva as entradas lidas; `model-metadata.json`
+conserva os metadados. O nome exploratório `segmentation-select` foi preservado
+como arquivo de evidência, mas seu papel foi corrigido no inventário para reset.
+O documento [Análise RTX](ANALISE_RTX.md#escopo-necessário-à-implementação) define
+as perguntas restantes e o critério para passar da pesquisa à implementação.
+
+## Segmentação temporal NVIDIA integrada — 25/10/2026
+
+Esta etapa substitui o estado de pesquisa pendente dos registros anteriores:
+o worker Rust executou o modelo m1 do Video Effects 0.7.6 Ada com TensorRT
+10.4.0.26 e ONNX Runtime GPU 1.20.1. Ambiente: o mesmo Ubuntu 24.04.5, RTX 4070
+SUPER compute capability 8.9 e driver 595.99.02, árvore de desenvolvimento após
+`7b1c55e`, sem nova versão publicada. AR e paridade completa com Windows não
+foram demonstrados.
+
+A recuperação local conferiu DLL e contêiner por SHA-256, leu AES-256-CBC e
+produziu o engine de 8.773.772 bytes. TensorRT recusou primeiro a plataforma
+Windows; a adaptação dos quatro bytes de marcador descrita em
+[Análise RTX](ANALISE_RTX.md) permitiu carregar esse engine exato. A inspeção nativa
+confirmou os 14 tensores, incluindo seis pares de estados. Uma prova Rust usando
+apenas APIs seguras executou a mesma rede antes da integração ao worker.
+
+A preparação pelo comando público `--prepare-nvidia`, com controlador headless
+e configuração temporária, reutilizou os downloads locais conferidos. Extraiu
+os componentes no usuário, criou EPContext próprio e testou uma inferência real
+antes da publicação. O destino normal do usuário ficou disponível para descoberta
+sem argumentos extras; a configuração pessoal não foi modificada. Nenhum pacote
+do sistema, driver, fonte APT ou senha foi alterado. O diretório preparado ocupa
+cerca de 3,4 GiB; parte de CUDA foi reutilizada por hardlinks, sem duplicar esses
+blocos físicos. Cache de downloads e binário são medidas separadas.
+
+A primeira execução em debug chegou à inferência, mas uma recompilação durante
+o preparo havia substituído seu executável: o teste final falhou e os arquivos
+parciais não foram publicados. A correção usa `/proc/PID/exe` para testar a própria
+versão em execução. A repetição em release concluiu. Esse caso também verificou
+a preservação do destino ativo após falha de preparação.
+
+### Saída, recursos e seleção de backend
+
+O teste optativo `nvidia_worker_composes_backgrounds_resets_state_and_rejects_partial_frames`
+passou na GPU: oito quadros pretos por rodada, composição opaca exata, três
+cenários distintos, desfoque preto, reinício determinístico e recusa de quadro
+truncado sem publicar saída parcial. Testes comuns conferem manifesto incompleto,
+versão desconhecida, tamanho excessivo, contêiner truncado, probabilidades
+negativas/zero/positivas/não finitas e interpolação retangular contra referência
+escalar. O teste de ferramentas ausentes usa GPU simulada, oferece somente o
+plano APT e cancela sem downloads ou instalação.
+
+Uma [imagem pública de teste](https://storage.googleapis.com/mediapipe-assets/portrait.jpg)
+foi mantida apenas em `target/`, fora do Git. Vinte quadros por modo verificaram
+cor sólida, imagem azul e vídeo sintético: o fundo mudou e a pessoa permaneceu
+visível, incluindo rosto, braços e roupa. Os resultados foram inspecionados.
+Isso é uma amostra visual, sem métricas de precisão de borda, cabelo ou movimento.
+
+Sete verificações independentes de `--check-ai` confirmaram:
+
+| Caso | Resultado |
+| --- | --- |
+| `auto` + componentes preparados + CUDA | NVIDIA, inferência real |
+| Componentes ausentes + fallback disponível | ONNX/CUDA |
+| Componente NVIDIA inválido + fallback disponível | ONNX/CUDA, aviso com motivo |
+| NVIDIA explícita + componente inválido | Erro, sem troca de backend |
+| CUDA explícita + runtime ONNX somente CPU | Erro, sem fallback CPU |
+| CPU explícita + componentes NVIDIA presentes | ONNX/CPU |
+| NVIDIA explícita + CPU | Configuração recusada |
+
+### Amostra de desempenho do worker release
+
+Medição sem captura: 120 repetições de uma imagem RGB, pipes de entrada/saída,
+redimensionamento, inferência, máscara e composição incluídos. A taxa abaixo usa
+os 110 quadros após os dez primeiros; o tempo até o primeiro inclui carregamento
+e aquecimento. Não havia outro teste NVIDIA simultâneo. O consumidor reutilizou
+um buffer de quadro, evitando cópias cumulativas que distorceram uma medição
+exploratória anterior. Não houve limitador de tempo real nessa prova.
+
+| Backend | Saída | Fundo | Taxa observada | Primeiro quadro | Pico RSS amostrado |
+| --- | --- | --- | --- | --- | --- |
+| NVIDIA temporal | 640×360 | Cor sólida | 105,2 fps | 447 ms | 689 MiB |
+| NVIDIA temporal | 640×360 | Desfoque | 71,1 fps | 402 ms | 694 MiB |
+| NVIDIA temporal | 1280×720 | Cor sólida | 68,5 fps | 403 ms | 695 MiB |
+| NVIDIA temporal | 1280×720 | Desfoque | 49,1 fps | 412 ms | 693 MiB |
+| ONNX/CUDA anterior | 640×360 | Desfoque | 104,1 fps | 532 ms | 832 MiB |
+
+As redes têm contratos e qualidade distintos; essa tabela não demonstra que
+NVIDIA seja mais rápida que ONNX em todos os cenários. RSS inclui bibliotecas
+nativas e não representa somente memória do modelo ou memória GPU. O probe
+inicial mediu 20 inferências sintéticas da rede em 18,95 ms, sem a aplicação;
+a taxa de aproximadamente 1.055 inferências/s desse probe não é FPS do produto.
+
+### Câmera virtual e interface
+
+Com captura física MJPEG 1280×720/30, desfoque NVIDIA, preview e saída virtual
+ativos, um consumidor FFmpeg recebeu 90 quadros yuv420p de `/dev/video10` em
+2,94 s. O snapshot publicou backend `nvidia`, sem fallback. Stop encerrou a
+captura e o reinício de preview produziu mais de três quadros (22 na consulta).
+Nenhuma imagem da câmera foi salva nem controle V4L2 escrito. O consumidor
+registrou avisos de DTS repetidos ao remapear os timestamps para sua base 1/30;
+a prova verifica entrega e retomada, não precisão temporal ou uma sessão longa.
+OBS, WebRTC com este novo backend e comparação com Windows não foram repetidos.
+
+A janela X11 real foi aberta com configuração privada e preview pausado. O bloco
+**Efeitos NVIDIA RTX** coube no painel centralizado de configurações, preservou
+os dois botões APT na mesma linha e **Encerrar aplicativo** à direita.
+A [captura da janela](screenshots/facecam-rtx-settings.png) não contém vídeo da câmera.
+A aba Effects também foi inspecionada. Wayland e outras escalas não foram testados.
+
+Evidências locais: `target/nvidia-redistributables/native-model/` conserva probes,
+contrato do engine e decompilações focadas; `target/nvidia-acceptance/` conserva
+`prepared-state.json`, `worker-benchmark.json`, `background-validation.json`,
+`fallback-validation.json`, `controller-validation.json`, screenshots e logs.
+Esses arquivos locais não são distribuídos. O [inventário documental](COBERTURA_DOCUMENTAL.md)
+mantém as mesmas 152 fontes históricas e seus hashes.
+
+Checks finais desta entrega: `./test-desktop-app.sh` passou, incluindo formatação,
+Clippy sem avisos, 58 testes comuns com recursos padrão, três testes sintéticos
+FFmpeg e 46 testes comuns sem recursos padrão. O teste NVIDIA optativo passou
+novamente após as alterações finais. `cargo build --release --locked` concluiu;
+o binário final executou `--check-ai` com resultado `Nvidia, Cuda`. Os dois testes
+documentais e `git diff --check` passaram. As contagens iniciais deste registro
+pertencem às baterias anteriores, não à suíte atual.
+
+O reparo final pelo release, com a configuração normal e os componentes já
+existentes, também concluiu: a inferência em staging passou e o destino anterior
+foi substituído, com `nvidia_prepared: true`, `preparing_nvidia: false` e sem erro.
+O cache foi preservado no diretório padrão do usuário por hardlinks. A janela
+final permaneceu aberta com preview pausado. A compilação `--no-default-features
+--features ai` também foi conferida para o worker sem GUI ou bandeja.
+
+## Preview fiel à saída — 25/10/2026
+
+Por solicitação do usuário, o preview passou a usar a mesma resolução, taxa,
+composição e conversão yuv420p da câmera virtual. A redução fixa de 640×360/15 fps
+foi removida, inclusive quando apenas preview está ativo. Esta etapa substitui
+a política de preview reduzido registrada nas medições históricas acima.
+
+Os quadros são convertidos para yuv420p antes do split. O preview recebe RGB24
+derivado desses mesmos quadros, com dimensões próprias no pacote de entrega.
+A GUI preserva a proporção e é notificada na chegada de cada quadro; a caixa
+mantém somente o último completo. O monitor e o compositor podem limitar a
+apresentação. Isso não estabelece sincronismo de latência com outro aplicativo
+nem controla seus ajustes de cor ou espelhamento.
+
+O teste sintético
+`ffmpeg_preview_matches_decoded_virtual_pixels_resolution_and_frame_count`
+passou. Comparou todos os bytes RGB do preview com uma decodificação independente
+do arquivo yuv420p usado como saída virtual, em 160×120/60 e
+320×180/(30000/1001), com espelhamento, contraste e saturação. Foram 12 e seis
+quadros, respectivamente, em 0,2 s de vídeo. A execução somente com preview
+produziu os mesmos bytes que a execução com as duas saídas. Não abriu a câmera.
+
+A captura física, em controlador release com configuração privada, entregou
+aproximadamente 30 fps em 640×480, 60 fps em 640×360 e 30 fps em 1280×720 com
+desfoque NVIDIA. As amostras usaram diferenças de contagem em intervalos de
+2,5 s após 1,2 s iniciais; a atualização do snapshot tem granularidade de 100 ms.
+Isso mede recebimento no controlador, não FPS apresentados pelo monitor. As
+três sessões foram paradas e o controlador encerrado; nenhum controle V4L2 foi
+escrito e nenhuma imagem da câmera foi salva. O teste optativo de preview
+físico também conferiu dimensão, comprimento do frame e recolhimento do FFmpeg.
+
+A revisão X11 usou vídeo sintético por um executável de teste que substitui
+somente a captura FFmpeg, preservando os filtros e a entrega reais do aplicativo.
+O botão **Mirror** foi clicado na janela: o controlador publicou e salvou
+`effects.mirror: true` na configuração privada, e as barras apareceram invertidas.
+A revisão conferiu a janela inicial e o tamanho mínimo 960×640: imagem 4:3 sem
+distorção, rodapé **Output 640×480 · 30.00 fps** e controles acessíveis.
+A [captura da revisão](screenshots/facecam-preview-fiel.png) contém apenas vídeo
+sintético. Os processos de teste foram encerrados.
+
+`./test-desktop-app.sh` passou com os recursos padrão e sem recursos padrão,
+incluindo Clippy sem avisos e quatro verificações sintéticas FFmpeg. O build
+release concluiu. O inventário histórico conserva as mesmas 152 fontes.
+Evidências locais desta etapa: `target/preview-checks.log`,
+`target/preview-acceptance/hardware.json`, `gui-validation.json` e screenshots
+no mesmo diretório, fora do Git.
+
+A aceitação física da câmera virtual também passou após essa alteração:
+`hardware_virtual_camera_delivers_effects_and_restarts` recebeu 30 quadros por
+rodada em duas rodadas com parada/reinício, e saturação zero chegou ao consumidor
+com distância máxima de 1 do chroma neutro. Não houve gravação de imagens.
+
+## Processamento de fundo na GPU — 25/10/2026
+
+O worker CUDA passou a executar redimensionamento, normalização, desfoque,
+interpolação da máscara e composição com grafos ONNX próprios. A máscara,
+os estados temporais e as imagens intermediárias permanecem na GPU por I/O
+binding. O RGB capturado entra e o RGB composto retorna para FFmpeg, juntamente
+com três escalares de validação. Filtros convencionais, conversão YUV, pipes,
+decodificação de vídeo de fundo e apresentação ainda têm custo CPU.
+
+A medição usou Ubuntu 24.04.5/X11, Intel Core i9-9900K, RTX 4070 SUPER, driver
+595.99.02 e Rust 1.99.1. O build foi release com recursos padrão, na árvore de
+trabalho baseada em `7b1c55e`. O baseline já tinha segmentação temporal NVIDIA
+na GPU e preview fiel; resize/desfoque/composição ainda eram CPU. Ambos usaram
+VFX 0.7.6 Ada, TensorRT 10.4 e ORT 1.20.1, desfoque raio 10, RGB 1920×1080.
+
+### Capacidade do worker
+
+Cada processo recebeu 180 cópias do mesmo retrato público usado como fixture,
+sem ritmo de câmera. A medição descartou os primeiros 20 quadros para calcular
+a taxa; incluiu leitura e escrita RGB por pipes, preparação, inferência e
+composição. Excluiu captura, conversão YUV e GUI. Foram três amostras por versão,
+em ordem baseline/GPU/GPU/baseline/baseline/GPU, sem compilação simultânea.
+
+| Versão | Amostras aquecidas | Mediana |
+| --- | --- | --- |
+| Composição CPU anterior | 36,48 / 36,17 / 35,47 fps | 36,17 fps |
+| Processamento CUDA | 124,85 / 120,11 / 127,72 fps | 124,85 fps |
+
+A capacidade aumentou aproximadamente 3,45 vezes neste caso. A taxa acima de
+60 é capacidade de processamento sem limite de entrada, não FPS de uma câmera
+60 Hz. A thread principal do worker usou aproximadamente um núcleo no baseline
+e 91–93% de um núcleo no teste CUDA sem limite; maior vazão não significa CPU
+zero. Os números não são uma garantia para outra resolução, GPU ou efeito.
+
+Um segundo worker com profiling, separado das medições, processou 30 quadros
+640×360 mais aquecimento. Os perfis ORT registraram 217 eventos de kernel CUDA
+no preparo e 682 na composição, sem kernels CPU nesses grafos. Entre os
+operadores estavam Resize, AveragePool, Floor, Mul, Add e as reduções de
+validação. Isso comprova os grafos próprios; não classifica todos os operadores
+de modelos ONNX externos.
+
+### Entrega física e janela
+
+Com Facecam MK.2 em MJPEG 1920×1080/60, IA NVIDIA a 60 fps, blur raio 10 e
+Mirror ativo, o controlador headless recebeu 59,90 fps de preview em cinco
+segundos após dois segundos iniciais. Com saída virtual e preview simultâneos,
+recebeu 60,23 fps; FFmpeg consumiu 300 quadros yuv420p de `/dev/video10` em
+5,05 s. O snapshot confirmou backend `nvidia`, sem aviso de fallback.
+
+A repetição com a janela X11 aberta e ambas as saídas ativas recebeu 60,07 fps
+no controlador; o consumidor recebeu 300 quadros em 5,04 s. Uma amostra curta
+somente com janela/preview registrou 64,83 fps durante o escoamento inicial e
+não serve como taxa sustentada. Essas contagens medem entrega no controlador e
+no consumidor, não quadros apresentados pelo monitor. Os consumidores emitiram
+avisos de DTS repetidos na base de tempo do muxer, também observados antes;
+a aceitação não comprova precisão dos timestamps ou ausência de jitter.
+
+As sessões usaram configuração e socket privados, foram paradas e encerradas.
+Nenhum controle físico foi alterado e nenhuma imagem da câmera foi gravada.
+OBS, WebRTC, Wayland e estabilidade prolongada não foram repetidos nesta etapa.
+
+### Correção e regressões
+
+Os dois testes optativos `gpu::tests` passaram com pixels sintéticos: RGB/BGR,
+normalização, aumento/redução de imagem, raios 1/4/10/32, alpha 0/0,5/1,
+gradiente em dois eixos e máscara descontínua. A tolerância foi de 1/255 na
+entrada normalizada e até dois níveis por canal na composição frente à CPU,
+por diferenças de arredondamento/interpolação. Máscaras negativas, acima de 1,
+NaN e infinitos foram recusadas. O teste de fundo animado confirmou troca de
+quadros sem sobrescrever o primeiro plano.
+
+O teste NVIDIA de oito quadros, cenários, reinício e truncamento passou. Os
+testes ONNX de quadros completos/truncados e ciclo de vida do vídeo de fundo
+passaram em CPU e CUDA, com ORT 1.22. Uma primeira execução CUDA falhou porque
+o ambiente do teste misturava providers ORT 1.20/1.22; repetida com bibliotecas
+da versão correta, passou. A seleção normal do aplicativo já separa os workers.
+
+`./test-desktop-app.sh` passou: formatação, Clippy sem avisos, 58 testes comuns
+com recursos padrão, 46 sem recursos padrão e quatro verificações sintéticas
+FFmpeg. Os testes GPU continuam optativos; os checks comuns não abrem câmera
+nem carregam CUDA. A documentação preserva as 152 fontes históricas.
+
+As evidências locais em `target/gpu-acceptance/` incluem `benchmark.json`,
+`environment.json` (hashes dos binários/fixture), `hardware.json`,
+`gui-hardware.json`, perfis ORT, `oracle.log`, `checks.log` e logs dos cinco
+casos optativos de inferência. O retrato público vem do fixture descrito na
+validação anterior; nenhuma imagem pessoal foi usada no benchmark. Esses
+artefatos de teste permanecem fora do Git.
+
+O build final `cargo build --release --locked` concluiu, e
+`cargo check --locked --no-default-features --features ai` confirmou o worker
+sem interface. Os sete cenários CLI de seleção/fallback passaram novamente:
+NVIDIA disponível, ausente, corrompido, seleção forçada inválida, recusa de
+fallback CPU, CPU explícita e combinação NVIDIA/CPU inválida. Os testes
+documentais e `git diff --check` também passaram após atualizar os guias.

@@ -38,8 +38,8 @@ preservar os mesmos contratos e só ocorrer quando trouxer isolamento mensuráve
 ## Estado, operações e trabalhos demorados
 
 O controlador publica um snapshot clonado; a GUI não modifica diretamente a
-captura. Campos editados na janela são rascunhos até o envio do comando. Grade,
-espelho local e visibilidade são estado de apresentação. Efeitos que alteram o
+captura. Campos editados na janela são rascunhos até o envio do comando. Grade
+e visibilidade são estado de apresentação. Espelhamento e efeitos que alteram o
 vídeo passam pelo controlador e são compartilhados pelas saídas.
 
 O fluxo atual possui rollback de falhas síncronas ao aplicar efeitos. Não existe

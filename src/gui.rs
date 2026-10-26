@@ -3,7 +3,7 @@ use crate::{
     config::Config,
     engine::{Request, Snapshot},
     ipc::Controller,
-    stream::{PREVIEW_HEIGHT, PREVIEW_WIDTH},
+    stream::output_fps,
 };
 use anyhow::Result;
 use eframe::egui::{self, Color32, RichText, Stroke, Vec2};
@@ -148,7 +148,6 @@ struct App {
     texture: Option<egui::TextureHandle>,
     pending: HashMap<String, i64>,
     grid: bool,
-    mirror: bool,
     effects: bool,
     settings: bool,
     hidden: bool,
@@ -220,7 +219,6 @@ impl App {
             texture: None,
             pending: HashMap::new(),
             grid: false,
-            mirror: false,
             effects: false,
             settings: false,
             hidden,
@@ -432,9 +430,13 @@ impl App {
             let mut detected = self.applied_effects.clone();
             detected.ai_model = state.config.effects.ai_model.clone();
             detected.ai_runtime = state.config.effects.ai_runtime.clone();
+            detected.mirror = state.config.effects.mirror;
             if detected == state.config.effects {
                 self.config.effects.ai_model = detected.ai_model;
                 self.config.effects.ai_runtime = detected.ai_runtime;
+                if self.applied_effects.mirror != detected.mirror {
+                    self.config.effects.mirror = detected.mirror;
+                }
             } else {
                 self.config.effects = state.config.effects.clone();
             }
@@ -514,12 +516,18 @@ impl App {
                         _ => { ui.label(RichText::new("Cenário ilustrado local, sem download.").size(10.0).color(MUTED)); }
                     }
                     effect_slider(ui, "FPS da IA", &mut effects.ai_fps, 1..=60, 1.0);
-                    effect_row(ui, "Processamento", |ui| { ui.label(match effects.ai_provider {
-                        crate::effects::AiProvider::Cuda => "NVIDIA CUDA",
-                        crate::effects::AiProvider::Cpu => "CPU (ONNX)",
+                    effect_row(ui, "Processamento", |ui| { ui.label(match state.ai_backend.as_ref().map(|s| s.backend) {
+                        Some(crate::effects::AiBackend::Nvidia) => "NVIDIA RTX · temporal",
+                        _ => match effects.ai_provider {
+                            crate::effects::AiProvider::Cuda => "NVIDIA CUDA",
+                            crate::effects::AiProvider::Cpu => "CPU (ONNX)",
+                        },
                     }); });
-                    ui.label(RichText::new(if effects.ai_model.is_empty() || effects.ai_runtime.is_empty() { "IA indisponível · instalação não detectada" } else { "Modelo e runtime detectados" }).size(10.0).color(MUTED));
-                    ui.label(RichText::new("Preview: 640×360, até 15 fps.\nSaída virtual: resolução da câmera.").size(10.0).color(MUTED)).on_hover_text("FPS da IA limita a taxa da saída virtual. Somente preview é reduzido antes da inferência.");
+                    if let Some(warning) = state.ai_backend.as_ref().and_then(|s| s.warning.as_deref()) {
+                        ui.label(RichText::new(warning).size(10.0).color(MUTED));
+                    }
+                    ui.label(RichText::new(if state.nvidia_prepared { "Componentes NVIDIA RTX detectados" } else if effects.ai_model.is_empty() || effects.ai_runtime.is_empty() { "IA indisponível · prepare os componentes nas configurações" } else { "Modelo e runtime ONNX detectados" }).size(10.0).color(MUTED));
+                    ui.label(RichText::new("Preview e câmera virtual usam a mesma imagem, resolução e FPS.").size(10.0).color(MUTED)).on_hover_text("FPS da IA limita ambas as saídas. A janela ajusta apenas o tamanho de exibição, preservando a proporção.");
                 });
                 if !state.ai_compiled { ui.label(RichText::new("Esta compilação não inclui IA.").size(10.0).color(MUTED)); }
             });
@@ -534,7 +542,19 @@ impl App {
                             ui.selectable_value(&mut effects.ai_provider, crate::effects::AiProvider::Cpu, "CPU (alternativa)");
                         });
                     });
-                    ui.label(RichText::new("Implementação ONNX Runtime. CPU é uma alternativa própria; não é o backend NVIDIA VFX/AR do Camera Hub Windows.").size(10.0).color(MUTED));
+                    effect_row(ui, "Segmentação", |ui| {
+                        let label = |b| match b {
+                            crate::effects::AiBackend::Auto => "Automática",
+                            crate::effects::AiBackend::Onnx => "ONNX",
+                            crate::effects::AiBackend::Nvidia => "NVIDIA RTX",
+                        };
+                        egui::ComboBox::from_id_salt("ai-backend").width(ui.available_width()).selected_text(label(effects.ai_backend)).show_ui(ui, |ui| {
+                            for backend in [crate::effects::AiBackend::Auto, crate::effects::AiBackend::Onnx, crate::effects::AiBackend::Nvidia] {
+                                ui.selectable_value(&mut effects.ai_backend, backend, label(backend));
+                            }
+                        });
+                    });
+                    ui.label(RichText::new("Automática usa a segmentação RTX preparada para a GPU e mantém ONNX como alternativa. CPU executa somente quando selecionada.").size(10.0).color(MUTED));
                     ui.label(RichText::new("CUDA exige ONNX Runtime GPU, CUDA e cuDNN. O modelo e o runtime são carregados somente ao ativar IA.").size(10.0).color(MUTED));
                 });
             });
@@ -660,15 +680,19 @@ impl App {
         let height = (available.y - 62.0).max(100.0);
         let (rect, _) =
             ui.allocate_exact_size(Vec2::new(available.x, height), egui::Sense::hover());
-        let width = rect.width().min(rect.height() * 16.0 / 9.0);
+        let size = self.texture.as_ref().map(|t| t.size()).unwrap_or_else(|| {
+            state
+                .mode
+                .as_ref()
+                .map(|m| [m.width as usize, m.height as usize])
+                .unwrap_or([16, 9])
+        });
+        let aspect = size[0] as f32 / size[1] as f32;
+        let width = rect.width().min(rect.height() * aspect);
         let image_rect =
-            egui::Rect::from_center_size(rect.center(), Vec2::new(width, width * 9.0 / 16.0));
+            egui::Rect::from_center_size(rect.center(), Vec2::new(width, width / aspect));
         if let Some(texture) = &self.texture {
-            let uv = if self.mirror {
-                egui::Rect::from_min_max(egui::pos2(1.0, 0.0), egui::pos2(0.0, 1.0))
-            } else {
-                egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0))
-            };
+            let uv = egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0));
             ui.painter()
                 .image(texture.id(), image_rect, uv, Color32::WHITE);
             if self.grid {
@@ -747,20 +771,35 @@ impl App {
             .show(ui, |ui| {
                 ui.set_min_width((available.x - 18.0).max(0.0));
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Input Format").size(12.0));
+                    ui.label(RichText::new("Output").size(12.0))
+                        .on_hover_text("Formato compartilhado pelo preview e pela câmera virtual");
                     ui.label(
                         RichText::new(
                             state
                                 .mode
                                 .as_ref()
-                                .map(|m| format!("{}p{}", m.height, m.fps))
+                                .map(|m| {
+                                    format!(
+                                        "{}×{} · {:.2} fps",
+                                        m.width,
+                                        m.height,
+                                        output_fps(m, &state.config.effects)
+                                    )
+                                })
                                 .unwrap_or_else(|| "—".into()),
                         )
                         .size(12.0),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.toggle_value(&mut self.mirror, "Mirror")
-                            .on_hover_text("Espelhar apenas o preview");
+                        if ui
+                            .selectable_label(state.config.effects.mirror, "Mirror")
+                            .on_hover_text("Espelhar preview e câmera virtual")
+                            .clicked()
+                        {
+                            let mut effects = state.config.effects.clone();
+                            effects.mirror = !effects.mirror;
+                            self.dispatch(Request::SetEffects { effects });
+                        }
                         ui.toggle_value(&mut self.grid, "Grid")
                             .on_hover_text("Grade de enquadramento");
                         if ui
@@ -846,7 +885,7 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
         if ctx.input(|i| i.viewport().close_requested()) && !state.quit {
-            if state.installation_running || state.importing {
+            if state.installation_running || state.importing || state.preparing_nvidia {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.settings = true;
             }
@@ -871,14 +910,15 @@ impl eframe::App for App {
             self.tray_streaming = state.streaming;
         }
         if !self.hidden {
-            if let Some(bytes) = self
+            if let Some(frame) = self
                 .controller
                 .frames
+                .frame
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .take()
             {
-                let image = egui::ColorImage::from_rgb([PREVIEW_WIDTH, PREVIEW_HEIGHT], &bytes);
+                let image = egui::ColorImage::from_rgb(frame.size, &frame.rgb);
                 if let Some(texture) = &mut self.texture {
                     texture.set(image, egui::TextureOptions::LINEAR);
                 } else {
@@ -894,7 +934,14 @@ impl eframe::App for App {
             }
         }
         ctx.request_repaint_after(if state.preview && !self.hidden {
-            Duration::from_millis(67)
+            Duration::from_secs_f64(
+                1.0 / state
+                    .mode
+                    .as_ref()
+                    .map(|m| output_fps(m, &state.config.effects))
+                    .unwrap_or(30.0)
+                    .max(1.0),
+            )
         } else {
             Duration::from_secs(5)
         });
@@ -1021,6 +1068,20 @@ impl eframe::App for App {
                 if state.autostart_enabled.is_none() {
                     ui.label("Não foi possível consultar o início automático. Atualize os dispositivos e tente novamente.");
                 }
+                ui.separator();
+                ui.strong("Efeitos NVIDIA RTX");
+                ui.label("Segmentação temporal, desfoque e troca de fundo · RTX 40 (Ada).");
+                ui.label("Preparação no seu usuário: baixa os componentes e testa a GPU. Pode levar vários minutos.");
+                if ui.add_enabled(state.ai_compiled && !state.preparing_nvidia && !state.streaming && !state.preview && !state.installation_running,
+                    egui::Button::new(if state.nvidia_prepared { "Verificar / reparar IA RTX" } else { "Preparar IA RTX" })).clicked() {
+                    self.dispatch(Request::PrepareNvidia);
+                }
+                if state.preparing_nvidia {
+                    ui.horizontal(|ui| { ui.spinner(); ui.label(&state.nvidia_progress); });
+                } else if !state.nvidia_progress.is_empty() {
+                    ui.label(&state.nvidia_progress);
+                }
+                if let Some(log) = &state.nvidia_log { ui.small(format!("Log: {}", log.display())); }
                 ui.separator();
                 ui.strong("Dependências do Ubuntu");
                 ui.horizontal(|ui| {

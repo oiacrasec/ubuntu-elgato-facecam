@@ -8,9 +8,17 @@ mod dependencies;
 mod desktop;
 mod effects;
 mod engine;
+#[cfg(feature = "ai")]
+mod gpu;
 #[cfg(feature = "gui")]
 mod gui;
 mod ipc;
+#[cfg(feature = "ai")]
+mod nvidia;
+#[cfg(feature = "ai")]
+mod nvidia_model;
+#[cfg(feature = "ai")]
+mod nvidia_setup;
 mod resources;
 mod stream;
 #[cfg(feature = "tray")]
@@ -63,6 +71,11 @@ struct Args {
         help = "Check the configured AI model and runtime, including a real inference"
     )]
     check_ai: bool,
+    #[arg(
+        long,
+        help = "Download and validate user-local NVIDIA RTX segmentation components"
+    )]
+    prepare_nvidia: bool,
     #[arg(
         long,
         value_enum,
@@ -233,6 +246,9 @@ fn run() -> Result<()> {
     if args.status {
         return print_reply(ipc::send(&Request::Status)?);
     }
+    if args.prepare_nvidia {
+        return print_reply(ipc::send(&Request::PrepareNvidia)?);
+    }
     if let Some(dependency) = args.prepare_install {
         return print_reply(ipc::send(&Request::PrepareInstall { dependency })?);
     }
@@ -255,11 +271,14 @@ fn run() -> Result<()> {
     }
     if args.check_ai {
         let config = config::Config::load(&path)?;
-        ai::check(&config.effects)?;
+        let status = ai::check(&config.effects)?;
         println!(
-            "IA validada: {:?}; inferência executada",
-            config.effects.ai_provider
+            "IA validada: {:?}, {:?}; inferência executada",
+            status.backend, config.effects.ai_provider
         );
+        if let Some(warning) = status.warning {
+            eprintln!("{warning}");
+        }
         return Ok(());
     }
     if let Some(file) = args.set_effects {

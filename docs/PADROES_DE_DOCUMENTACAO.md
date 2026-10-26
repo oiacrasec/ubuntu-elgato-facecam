@@ -47,7 +47,8 @@ Para uma sequência de navegação, use **Camera** › **Device** › **SAVE**.
 Use crases para comandos, caminhos, nomes de arquivos, parâmetros e valores.
 
 Mantenha o vocabulário consistente entre botão, guia e mensagem de resultado.
-Diferencie o espelho local do preview do espelho aplicado ao vídeo. Descreva
+Descreva Mirror como espelhamento compartilhado entre preview e saída virtual;
+a grade é apenas uma guia local. Descreva
 SAVE e R como persistência local. Informe a unidade real de cada ajuste; ganho
 do driver não é ISO. Uma inferência CPU não deve ser descrita como CUDA, e um
 filtro convencional não deve ser apresentado como IA.

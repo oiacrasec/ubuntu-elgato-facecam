@@ -10,7 +10,7 @@ não são importadores implementados no Facecam Hub.
 | --- | --- |
 | Câmera física | Modos discretos realmente enumerados; não presumir resolução por nome do produto |
 | Captura | MJPEG ou formato raw suportado pelo dispositivo e pelo FFmpeg |
-| Preview | RGB24 640×360, até 15 fps, somente último frame completo |
+| Preview | RGB24 derivado dos mesmos quadros yuv420p da saída virtual, mesma resolução e FPS; somente último quadro completo |
 | Saída virtual | yuv420p, resolução negociada; com IA, taxa limitada por `ai_fps` |
 | Inferência | RGB float32 NCHW 1×3×256×256; máscara de pessoa 256×256 em [0,1] |
 | Configuração | JSON com defaults, campos extras na raiz e controles assinados |

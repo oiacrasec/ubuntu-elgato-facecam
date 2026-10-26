@@ -51,9 +51,10 @@ O `.deb` em Downloads não é usado. Para outras versões do Ubuntu, configure
 um repositório compatível antes de preparar o plano. O estado mostra o caminho
 do log, que também registra falha ou cancelamento da autenticação.
 
-SDK Manager e Maxine são componentes distintos: instalar o gerenciador não
-habilita correção de olhar nem substitui os runtimes/modelos VFX e AR Linux.
-A [referência Windows](REFERENCIA_WINDOWS.md) registra essa dependência.
+SDK Manager e os redistribuíveis NVIDIA Broadcast são componentes distintos:
+instalar o gerenciador não habilita correção de olhar nem os efeitos VFX/AR.
+O [guia dos runtimes NVIDIA](NVIDIA_MAXINE.md) registra os instaladores Windows
+indicados pela Elgato e os limites da migração para Ubuntu.
 
 ## Escolher câmera e formato
 
@@ -133,9 +134,20 @@ digitar nem conhecer o caminho. Depois clique em **Aplicar e salvar**.
 
 ## Desfocar ou substituir o fundo com IA
 
-Prepare o runtime por `./prepare-ai.sh --cuda` para NVIDIA ou `--cpu` para CPU.
-Modelo e runtime disponíveis são detectados automaticamente, sem campos de caminho
-na interface. Se instalou com a janela aberta, use **Atualizar** em **AI Background**.
+Na RTX 40/Ada, pare a captura e abra **Configurações** › **Efeitos NVIDIA RTX** ›
+**Preparar IA RTX**. Aguarde a preparação e o teste da GPU concluírem; progresso
+e log aparecem na janela. O app reutiliza o pacote de referência em Downloads
+quando disponível e obtém os componentes restantes no usuário, sem pedir caminhos
+ou senha. Downloads podem ocupar vários GB e levar alguns minutos.
+Se faltarem ferramentas, o app apresenta antes sua instalação por APT, com
+confirmação e autenticação do Ubuntu. Ao concluir, repita **Preparar IA RTX**.
+
+O modo **Automática**, em **Opções avançadas**, prefere a segmentação temporal
+NVIDIA validada. Se ela falhar ao iniciar, usa ONNX com o mesmo provider e mostra
+o motivo. Para a alternativa ONNX, prepare `./prepare-ai.sh --cuda` ou `--cpu`.
+Modelo e runtime são detectados automaticamente. Use **Atualizar** em **AI Background**
+se preparou arquivos com a janela aberta. [Análise RTX](ANALISE_RTX.md) registra
+o suporte local e as famílias ainda não reconstruídas.
 
 O padrão é NVIDIA CUDA. A alternativa CPU fica em **Opções avançadas** e usa a
 implementação ONNX própria; não é o modo dos efeitos NVIDIA no Windows.
@@ -151,10 +163,10 @@ faz uma inferência de aquecimento antes de trocar a captura. A descoberta dos
 arquivos não liga o desfoque e não comprova compatibilidade CUDA. Erros de provider
 aparecem em vez de usar CPU silenciosamente.
 
-**FPS da IA** limita a saída virtual a 30 fps por padrão, mantendo a resolução
-escolhida. Somente preview processa 640×360 a até 15 fps; não precisa compor
-1080p60 para mostrar uma imagem pequena. O rótulo **Input Format** mostra o modo
-de entrada da câmera, não a taxa processada.
+**FPS da IA** limita preview e saída virtual a 30 fps por padrão, mantendo a
+resolução escolhida. Ambos recebem os mesmos quadros, inclusive com apenas
+preview ativo. O rodapé **Output** mostra resolução e taxa configuradas para a
+saída. A janela preserva a proporção ao ajustar a imagem ao espaço disponível.
 
 A máscara atual serve ao desfoque e à substituição; não existe editor de seleção,
 pincel de máscara, inserção de texto ou relighting.
@@ -165,9 +177,13 @@ A segmentação pode errar; confira o vídeo antes de compartilhar.
 
 ## Visualizar e enviar a outro aplicativo
 
-**Grid** e **Mirror**, abaixo do preview, ajudam a inspecionar localmente. O
-espelho dentro de **Effects** também afeta a saída virtual. Alterar visualização
-não deve ser confundido com editar resolução ou FOV da câmera.
+**Mirror**, abaixo do preview, espelha preview e câmera virtual imediatamente,
+usando o mesmo efeito de **Effects**. **Grid** desenha apenas uma guia de
+enquadramento; desligue-a para ver a imagem sem sobreposição. O preview usa a
+resolução e a taxa da saída, com os mesmos efeitos e conversão de cor yuv420p.
+O tamanho da imagem na janela depende do espaço disponível; ampliar ou reduzir
+a janela não altera a resolução enviada. O monitor pode limitar os quadros
+apresentados, e OBS/navegadores podem aplicar seu próprio espelhamento ou ajustes.
 
 Faça a [preparação assistida](#preparar-a-câmera-virtual), inicie a câmera virtual
 e selecione **VirtualCam** no consumidor. Isso entrega vídeo ao aplicativo
