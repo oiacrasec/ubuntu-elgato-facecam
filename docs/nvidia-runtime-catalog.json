@@ -159,5 +159,39 @@
       "minimum_linux_driver": null,
       "native_inference_verified": false
     }
-  ]
+  ],
+  "ar_native_probe": {
+    "verified_on": "2026-10-26",
+    "sdk_version": "0.8.7",
+    "family": "ada",
+    "source": "https://international.download.nvidia.com/Windows/broadcast/sdk/AR/nvidia_ar_sdk_installer_v0.8.7_ada.exe",
+    "source_sha256": "0e2e1110065ed58b9c4a844c674fe5f50ed5fe37a0d170bd229a4bbc48861ca5",
+    "dll_sha256": "90f8b1b4747349651621bc9a991c8f856664843f5315870677c485dbaadcc9a4",
+    "compute_runtime": "TensorRT 10.4.0.26 / ONNX Runtime 1.20.1",
+    "gpu": "RTX 4070 SUPER",
+    "tensor_contracts_verified_in_rust": true,
+    "live_gaze_effect_implemented": false,
+    "models": [
+      {
+        "source": "face_detection_89.engine.trtpkg",
+        "package_sha256": "1e5fbb250e06095f4a3726bb9d1ce1cd8d52a475cba1f405cb1a3af728c95eee",
+        "engine_sha256": "b2e9a3add120a67ebfc63ec0b413a9ef95d33589af992606bf53ba5f3f18cc5c"
+      },
+      {
+        "source": "faceland_126_maxbatch1_mode0_89.engine.trtpkg",
+        "package_sha256": "41a116dcb86135323180f42fe808bea15dfa631c00115a181222f3f4ef9d0674",
+        "engine_sha256": "d60a8f81aedca36101830d869ec3455074f836938fad6251db215278375da7b9"
+      },
+      {
+        "source": "gazeredir_encoder_fp16_89.engine.trtpkg",
+        "package_sha256": "8a1224b1a2f97a46d89a984177b6a3d43e65812a9b84f0e4701d003ac3d87a7c",
+        "engine_sha256": "579a448be4a4aecf03660dabe02646804c66ce16d7b97d0632c41b81fa9bbbfa"
+      },
+      {
+        "source": "gazeredir_decoder_fp16_89.engine.trtpkg",
+        "package_sha256": "ef3b4bbd06d27052edd458317248c933d0ec1ddb8a05a48c4ae47bca24cb824a",
+        "engine_sha256": "6c6334f415c56dcdb5baeeceb48440e8239e339db897eebf5a7014bb837c5a70"
+      }
+    ]
+  }
 }

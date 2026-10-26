@@ -109,3 +109,13 @@ A implementação limitada ao modelo Ada é descrita em
 [Segmentação NVIDIA RTX](ANALISE_RTX.md). Não equivale à execução das DLLs Windows
 nem à reconstrução das demais funções VFX/AR; as etapas estáticas acima permanecem
 como histórico e critérios para futuras combinações.
+
+## Candidato AR 0.8.7 para execução nativa
+
+A investigação complementar encontrou engines TensorRT 10.4.0.26 no pacote AR
+0.8.7 Ada. Os quatro contratos executaram com tensores sintéticos no diagnóstico
+Rust `--check-ar`, reaproveitando o runtime nativo preparado para o VFX. A referência
+Windows inventariada continua AR 0.8.2; não há efeito de olhar ativo no produto.
+[Análise RTX](ANALISE_RTX.md#contratos-ar-087-ada--26102026) registra hashes,
+formas, método e limites. O pacote Windows adicional permanece local, sem execução
+do instalador ou distribuição de seus pesos/chaves no Git.

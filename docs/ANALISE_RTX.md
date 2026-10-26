@@ -158,3 +158,51 @@ sem execução reconstruída. Versões VFX e AR ficam em combinações separadas
 [Testes](TESTES.md) descreve a suíte optativa. Cabelo, movimento, baixa luz,
 outras GPUs e comparação lado a lado com Windows continuam critérios separados.
 Esta entrega implementa o recurso de fundo; não declara todo Camera Hub migrado.
+
+## Contratos AR 0.8.7 Ada — 26/10/2026
+
+Quatro engines AR foram importados e executados em Linux com entradas sintéticas,
+incluindo o caminho encoder→decoder em Rust. Isso comprova os contratos de tensores;
+correção de olhar e enquadramento ainda não estão disponíveis no vídeo do produto.
+A [central NVIDIA](https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/)
+oferece AR 0.8.7 separadamente da referência AR 0.8.2 indicada para Camera Hub.
+O pacote novo é candidato à implementação própria; não é apresentado como uma
+reconstrução já concluída do efeito Windows 0.8.2.
+
+O instalador adicional tem SHA-256
+`0e2e1110065ed58b9c4a844c674fe5f50ed5fe37a0d170bd229a4bbc48861ca5`.
+`nvARPose.dll` tem SHA-256
+`90f8b1b4747349651621bc9a991c8f856664843f5315870677c485dbaadcc9a4`.
+Os hashes de pacotes e engines estão no [catálogo](nvidia-runtime-catalog.json).
+A leitura usa dados derivados da DLL local exata, sem chave ou pesos embutidos.
+Os quatro engines declaram TensorRT 10.4.0.26, permitindo reutilizar a combinação
+nativa já exercitada pela segmentação. A adaptação do marcador de plataforma é
+limitada aos hashes e cabeçalho esperados, preservando os originais.
+
+| Modelo | Entradas float32 | Saídas float32 |
+| --- | --- | --- |
+| Face detection | `input`: 1×3×208×368 | `output_bbox`: 1×4×13×23; `output_cov/Sigmoid`: 1×1×13×23 |
+| Landmarks 126 | `input`: 1×1×80×80 | `kpts`: 1×252; `confidence`: 1×126; `headpose`: 1×3 |
+| Gaze encoder | `input_image`: 1×3×64×256 | `pseudo_labels_flat`: 1×12; `embeddings_flat`: 1×1344 |
+| Gaze decoder | `embeddings_flat`: 1×1344; `pseudo_labels_flat`: 1×12; `gaze_por`: 1×2 | `gaze_redirected_image`: 1×3×64×256; `gaze_landmarks`: 1×2×12×1 |
+
+`--check-ar` procura o instalador local, verifica SHA-256, extrai somente os
+arquivos necessários em um diretório temporário e importa cópias. O runtime vem
+da instalação RTX existente, sem download ou instalação de dependências nesse
+comando. Um worker isolado carrega descritores EPContext próprios e usa TensorRT/
+CUDA com fallback CPU recusado. Confere nomes, tipos, formas e valores finitos.
+As saídas do encoder alimentam o decoder; os dados pequenos podem voltar à CPU
+nesse diagnóstico. Isso não representa o pipeline de vídeo final sem transferências.
+
+A invocação não abre a câmera, não muda configuração e remove o staging ao terminar:
+
+```bash
+./target/release/elgato-virtualcam --check-ar
+```
+
+É uma verificação técnica experimental. Não corrige o olhar no preview, não
+instala SDK e não comprova qualidade em rostos reais ou taxa de 60 fps.
+Os próximos contratos são recorte/normalização, decodificação de detecção,
+alinhamento dos olhos, transições e composição GPU compartilhada com o fundo.
+A análise estática foi limitada às etapas e helpers correspondentes, com RTTI e
+Ghidra sem análise global; as DLLs Windows não foram executadas.

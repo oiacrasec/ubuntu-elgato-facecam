@@ -1010,3 +1010,33 @@ localmente para os testes. A instalação/remoção administrativa real ainda ex
 confirmação no app. USB 3, MK.2 Rev.2, outras Facecams e comparação de qualidade
 com Windows não foram validados. Outros controles proprietários e firmware
 continuam fora do escopo autorizado.
+
+## Quatro contratos AR Ada em execução nativa — 26/10/2026
+
+O AR 0.8.7 Ada foi obtido da central NVIDIA para investigação complementar,
+preservando o AR 0.8.2 da referência. Os engines de detecção, landmarks 126,
+encoder e decoder declararam TensorRT 10.4.0.26, a combinação já usada pelo VFX.
+Depois da importação local e adaptação restrita do marcador de plataforma,
+os quatro carregaram e executaram com trtexec 10.4.0.26 na RTX 4070 SUPER.
+
+O diagnóstico Rust `--check-ar` também passou: verificação de SHA-256 do instalador,
+DLL e modelos, extração temporária, importação, descritores próprios EPContext e
+worker isolado ONNX Runtime 1.20.1/TensorRT/CUDA. As formas e tipos corresponderam
+às tabelas em [Análise RTX](ANALISE_RTX.md); saídas foram finitas e os valores reais
+do encoder alimentaram o decoder, com alvo de gaze zero. CPU EP fallback foi
+recusado nas sessões. O diagnóstico não abriu câmera, não alterou configuração
+nem instalou pacotes no sistema.
+
+Evidências locais em `package/analysis-nvidia/windows-x86_64/ar/0.8.7/ada/`;
+log Rust em `target/ar-rust-check.log`. Esses ensaios usam tensores sintéticos e
+não provam qualidade de correção, alinhamento de olhos, composição em vídeo ou
+60 fps. O efeito e o enquadramento continuam pendentes; a GUI não anuncia os
+recursos como concluídos. Nenhum peso ou chave proprietária entrou no Git.
+
+A suíte comum da revisão AR passou com 79 testes nos recursos padrão, 66 sem
+recursos padrão e quatro verificações sintéticas FFmpeg; nenhum check comum
+abriu a câmera. O teste nativo optativo também passou em processo isolado, com
+mensagem EN-US, em 54,54 s no perfil debug. O diagnóstico release passou em
+9,83 s incluindo hash do instalador de aproximadamente 1,3 GB, extração e quatro sessões.
+Esses tempos não são startup normal nem inferência por frame. Formatação,
+Clippy sem avisos e links/inventário documental passaram; build release concluiu.

@@ -8,6 +8,25 @@ mod inference {
     const BIN: &str = env!("CARGO_BIN_EXE_elgato-virtualcam");
 
     #[test]
+    #[ignore = "requires RTX Ada, prepared VFX runtime and AR 0.8.7 Ada installer; synthetic tensors only"]
+    fn ar_models_import_and_execute_all_native_contracts_in_an_isolated_worker() {
+        let output = Command::new(BIN)
+            .arg("--check-ar")
+            .env("FACECAM_LANGUAGE", "en-US")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains("AR Ada contracts validated on the GPU")
+        );
+    }
+
+    #[test]
     #[ignore = "requires prepared NVIDIA Ada components; synthetic frames only, no camera"]
     fn nvidia_worker_composes_backgrounds_resets_state_and_rejects_partial_frames() {
         let manifest = std::env::var_os("FACECAM_NVIDIA_MANIFEST")

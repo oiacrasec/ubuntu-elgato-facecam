@@ -309,3 +309,18 @@ Requer `uvcdynctrl` instalado, ou `FACECAM_UVC_TOOL` para uma ferramenta local d
 validação e suas bibliotecas. O teste usa 1920×1080, recusa escrita sem captura,
 confere retomada dos frames após alteração, Save/Restore local e restauração no
 encerramento, inclusive após uma asserção. Não salva imagens da câmera.
+
+## Contratos experimentais AR
+
+A suíte comum confere os descritores próprios e recusa de arquivos incompatíveis,
+sem runtimes ou modelos. Para exercitar importação e quatro inferências nativas:
+
+```bash
+cargo test --locked --test ai ar_models_import -- --ignored --nocapture
+```
+
+Requer RTX Ada, runtime VFX preparado e instalador AR 0.8.7 Ada local nos diretórios
+de descoberta descritos em [Análise RTX](ANALISE_RTX.md). O comando verifica hashes
+e usa staging temporário; pode demorar mais no perfil debug. As entradas são
+sintéticas, sem captura de câmera. O resultado não equivale a um efeito de olhar
+ou enquadramento implementado.

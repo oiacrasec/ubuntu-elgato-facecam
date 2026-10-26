@@ -20,6 +20,10 @@ mod ipc;
 #[cfg(feature = "ai")]
 mod nvidia;
 #[cfg(feature = "ai")]
+mod nvidia_ar;
+#[cfg(feature = "ai")]
+mod nvidia_ar_model;
+#[cfg(feature = "ai")]
 mod nvidia_model;
 #[cfg(feature = "ai")]
 mod nvidia_setup;
@@ -51,6 +55,10 @@ use std::{
 struct Args {
     #[arg(long, hide = true)]
     virtual_camera_helper: Option<String>,
+    #[arg(long, hide = true)]
+    ar_worker: Option<PathBuf>,
+    #[arg(long, help = "Verify experimental AR Ada tensor contracts on the GPU")]
+    check_ar: bool,
     #[arg(long)]
     config: Option<PathBuf>,
     #[arg(long, help = "Detect Facecam capture devices without opening a window")]
@@ -233,7 +241,10 @@ fn background_start(path: &std::path::Path) -> Result<()> {
 fn localized_args() -> Result<Args> {
     let raw: Vec<_> = std::env::args_os().collect();
     if raw.iter().any(|arg| {
-        arg == "--virtual-camera-helper" || arg == "--ai-worker" || arg == "--decode-background"
+        arg == "--virtual-camera-helper"
+            || arg == "--ai-worker"
+            || arg == "--decode-background"
+            || arg == "--ar-worker"
     }) {
         return Ok(Args::try_parse_from(raw)?);
     }
@@ -301,6 +312,30 @@ fn localized_args() -> Result<Args> {
 
 fn run() -> Result<()> {
     let args = localized_args()?;
+    if let Some(root) = &args.ar_worker {
+        #[cfg(feature = "ai")]
+        return nvidia_ar::worker(root);
+        #[cfg(not(feature = "ai"))]
+        {
+            let _ = root;
+            bail!("Esta compilação não inclui AR");
+        }
+    }
+    if args.check_ar {
+        #[cfg(feature = "ai")]
+        {
+            nvidia_ar::check()?;
+            println!(
+                "{}",
+                i18n::tr(
+                    "Contratos AR Ada validados na GPU; efeito de olhar ainda em implementação"
+                )
+            );
+            return Ok(());
+        }
+        #[cfg(not(feature = "ai"))]
+        bail!("Esta compilação não inclui AR");
+    }
     if let Some(payload) = &args.virtual_camera_helper {
         return virtual_camera::run_privileged(payload);
     }

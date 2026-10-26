@@ -32,7 +32,7 @@ fn u32_at(bytes: &[u8], offset: usize) -> Result<u32> {
     Ok(u32::from_le_bytes(value))
 }
 
-fn encrypted_payload(package: &[u8]) -> Result<(&[u8], &[u8])> {
+pub(crate) fn encrypted_payload(package: &[u8]) -> Result<(&[u8], &[u8])> {
     if package.get(..4) != Some(b"NVnn") || u32_at(package, 4)? != 1 || u32_at(package, 8)? != 1 {
         bail!("Contêiner de segmentação NVIDIA incompatível");
     }
@@ -89,7 +89,7 @@ pub fn import(dll: &[u8], package: &[u8]) -> Result<Vec<u8>> {
     Ok(engine)
 }
 
-fn normalize_platform(engine: &mut [u8]) -> Result<()> {
+pub(crate) fn normalize_platform(engine: &mut [u8]) -> Result<()> {
     if engine.get(..4) != Some(b"ftrt")
         || engine.get(24..28) != Some(&[10, 4, 0, 26])
         || u32_at(engine, 28)? != 0x74727471

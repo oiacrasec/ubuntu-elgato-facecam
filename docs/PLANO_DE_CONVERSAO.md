@@ -13,7 +13,8 @@ não substitui seus testes.
   validado em monitor comum; integração física e recursos avançados pendentes. Veja
   [Prompter](PROMPTER.md).
 - [ ] IA: correção de olhar e enquadramento automático completos, com GPU e
-  preparação validada dos componentes necessários.
+  preparação validada dos componentes necessários. Quatro contratos AR 0.8.7
+  Ada executaram no diagnóstico Rust; o efeito em vídeo segue em implementação.
 - [x] HDR: descoberta e operação somente com contrato confirmado por modelo;
   não implementar persistência interna ou atualização de firmware nesta etapa.
   Implementado para MK.2 com contrato confirmado; execução física USB 2, limites e
