@@ -16,6 +16,9 @@ use std::{
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum Request {
     Status,
+    CheckUpdates,
+    InstallUpdate,
+    RestartApp,
     Refresh,
     Start {
         #[serde(default)]
@@ -88,6 +91,8 @@ pub enum Request {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Snapshot {
+    #[serde(default)]
+    pub update: crate::updater::Status,
     pub config: Config,
     pub cameras: Vec<Camera>,
     pub virtual_cameras: Vec<Camera>,
@@ -163,6 +168,7 @@ pub struct Engine {
     write_failures: BTreeMap<String, String>,
     installation: Option<crate::dependencies::Installation>,
     installation_revision: u64,
+    update_job: Option<crate::updater::Job>,
     import: Option<crate::resources::Import>,
     resource_root: PathBuf,
     last_dependency_refresh: Instant,
@@ -184,6 +190,7 @@ impl Engine {
             .join("resources");
         let resources = crate::resources::catalog(&resource_root, &config.effects);
         let state = Snapshot {
+            update: Default::default(),
             config,
             cameras: Vec::new(),
             virtual_cameras: Vec::new(),
@@ -235,6 +242,7 @@ impl Engine {
             last_hdr_refresh: Instant::now(),
             write_failures: BTreeMap::new(),
             installation: None,
+            update_job: None,
             import: None,
             resource_root,
             last_dependency_refresh: Instant::now(),
@@ -516,9 +524,77 @@ impl Engine {
         Ok(())
     }
 
+    fn require_update_idle(&self) -> Result<()> {
+        if self.stream.is_some()
+            || self.state.preparing_nvidia
+            || self.import.is_some()
+            || self.installation.is_some()
+        {
+            bail!(
+                "Pare a captura e aguarde as operações em andamento antes de atualizar ou reiniciar"
+            );
+        }
+        Ok(())
+    }
+
     fn execute(&mut self, request: Request) -> Result<String> {
+        if self.state.update.phase == crate::updater::Phase::Installing
+            && !matches!(
+                &request,
+                Request::Status | Request::Show | Request::Stop | Request::Quit
+            )
+        {
+            bail!("Aguarde a atualização terminar antes de alterar o aplicativo");
+        }
         match request {
             Request::Status => return Ok(self.state.message.clone()),
+            Request::CheckUpdates => {
+                if self.state.update.busy()
+                    || self.state.update.phase == crate::updater::Phase::RestartRequired
+                {
+                    bail!("Aguarde a atualização ou reinicie o aplicativo");
+                }
+                self.state.update.phase = crate::updater::Phase::Checking;
+                self.state.update.message = "Verificando atualizações…".into();
+                self.state.update.candidate = None;
+                self.update_job = Some(crate::updater::Job::check());
+                return Ok(self.state.update.message.clone());
+            }
+            Request::InstallUpdate => {
+                self.require_update_idle()?;
+                if self.update_job.is_some()
+                    || self.state.update.phase != crate::updater::Phase::Available
+                {
+                    bail!("Verifique as atualizações antes de instalar");
+                }
+                let installed = crate::installation::Installed::discover()?
+                    .context("Instale o aplicativo pelo instalador desktop antes de atualizar")?;
+                let candidate = self
+                    .state
+                    .update
+                    .candidate
+                    .clone()
+                    .context("Verifique as atualizações antes de instalar")?;
+                let log = crate::updater::log_path()?;
+                self.state.update.log = Some(log.clone());
+                self.state.update.phase = crate::updater::Phase::Installing;
+                self.state.update.message = "Baixando a atualização…".into();
+                self.update_job = Some(crate::updater::Job::install(candidate, installed, log));
+                return Ok(self.state.update.message.clone());
+            }
+            Request::RestartApp => {
+                self.require_update_idle()?;
+                if self.update_job.is_some()
+                    || self.state.update.phase != crate::updater::Phase::RestartRequired
+                {
+                    bail!("Instale uma atualização antes de reiniciar");
+                }
+                let installed = crate::installation::Installed::discover()?
+                    .context("Instalação desktop não encontrada")?;
+                crate::updater::restart(&installed, &self.path, self.state.gui)?;
+                self.state.quit = true;
+                return Ok("Reiniciando o aplicativo…".into());
+            }
             Request::UpdateSettings {
                 virtual_device,
                 start_minimized,
@@ -993,6 +1069,10 @@ impl Engine {
             }
             Request::Show => self.state.show_revision = self.state.show_revision.wrapping_add(1),
             Request::Quit => {
+                if self.state.update.phase == crate::updater::Phase::Installing {
+                    bail!("Aguarde a atualização terminar antes de encerrar o aplicativo");
+                }
+                self.update_job = None;
                 if self.state.preparing_nvidia {
                     bail!("Aguarde a preparação da IA RTX terminar antes de encerrar o aplicativo");
                 }
@@ -1066,6 +1146,13 @@ impl Engine {
 
     pub fn tick(&mut self) -> bool {
         let mut changed = self.advance_prompter();
+        while let Some(event) = self.update_job.as_ref().and_then(|job| job.poll()) {
+            if !matches!(&event, crate::updater::Event::Progress(_)) {
+                self.update_job = None;
+            }
+            self.state.update.accept(event);
+            changed = true;
+        }
         let hdr_after_start = self.stream.as_ref().is_some_and(|stream| {
             self.last_hdr_refresh < stream.started
                 && stream.started.elapsed() >= Duration::from_millis(600)
@@ -1281,6 +1368,33 @@ mod tests {
             assert!(reply.message.contains("prepara") || reply.message.contains("não inclui IA"));
             assert!(!reply.state.quit);
         }
+        assert!(!dir.path().join("config.json").exists());
+    }
+
+    #[test]
+    fn update_phases_guard_operations_and_preserve_configuration() {
+        let (dir, mut engine) = engine();
+        for request in [Request::InstallUpdate, Request::RestartApp] {
+            assert!(!engine.handle(request).ok);
+        }
+        engine.state.update.phase = crate::updater::Phase::Installing;
+        for request in [
+            Request::Preview,
+            Request::Start { preview: false },
+            Request::Quit,
+            Request::CheckUpdates,
+            Request::PrepareNvidia,
+            Request::Save,
+        ] {
+            let reply = engine.handle(request);
+            assert!(!reply.ok);
+            assert!(!reply.state.quit);
+        }
+        assert!(engine.handle(Request::Status).ok);
+        engine.state.update.phase = crate::updater::Phase::Available;
+        engine.state.preparing_nvidia = true;
+        assert!(!engine.handle(Request::InstallUpdate).ok);
+        assert!(!engine.handle(Request::RestartApp).ok);
         assert!(!dir.path().join("config.json").exists());
     }
 

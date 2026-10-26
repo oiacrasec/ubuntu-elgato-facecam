@@ -1269,3 +1269,19 @@ Manifesto e evidências estáticas ficam em `target/ar-gaze-contract/review/`.
 Não houve execução das DLLs Windows, abertura de câmera, mudança de controles
 ou nova alteração funcional neste levantamento. O código permanece em `f9939eb`;
 o estado de aceitação passa a **funcional, qualidade recusada no ensaio do usuário**.
+
+## Instalador, atualização e ícones — 26/10/2026
+
+A árvore 3.1.0 foi inspecionada em janela nativa X11, sem iniciar captura.
+**Configurações** mostra versão e ação de atualização abaixo de **Idioma**;
+a troca PT-BR/EN-US mantém o layout. A consulta em segundo plano identificou
+`master` como produção. `WM_CLASS` corresponde ao atalho `elgato-virtualcam`,
+e `_NET_WM_ICON` contém o ícone próprio. Evidências locais ficam em
+`target/desktop-update-ui/`, ignorado pelo Git.
+
+Os testes de scripts executaram instalação, upgrade com processo anterior aberto
+e remoção com executável ausente, em prefixos temporários. Configuração, modelo
+e backup de autostart foram preservados, assim como atalhos de outro prefixo.
+`desktop-file-validate` aceitou menu e autostart, inclusive com caracteres
+especiais no prefixo. Nenhum atalho pessoal, pacote APT ou controle físico foi
+alterado nessas verificações.

@@ -93,6 +93,10 @@ e permanecem na biblioteca para as próximas execuções.
 GUI, bandeja e CLI usam a mesma instância. Fechar a janela com bandeja mantém a
 saída virtual e pausa o preview. Sair encerra somente os processos da aplicação.
 O instalador aceita `--prefix /caminho/absoluto` e `--no-build`.
+Em **Configurações**, junto de **Idioma**, consulte a versão e clique em
+**Verificar atualizações**. O aplicativo instalado atualiza pela branch de
+produção (`master` atualmente), preservando configurações e modelos. Veja
+[distribuição e recuperação](docs/DISTRIBUICAO.md) para requisitos e logs.
 
 Para compilar somente CLI, use `--no-default-features`; acrescente `--features ai`
 se desejar IA nessa compilação. Não é necessário CUDA para compilar.

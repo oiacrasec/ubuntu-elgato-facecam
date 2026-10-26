@@ -11,22 +11,24 @@ pub fn autostart_path() -> Result<PathBuf> {
 
 pub fn install_autostart() -> Result<()> {
     let path = autostart_path()?;
-    let executable = std::env::current_exe()?
-        .to_string_lossy()
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('`', "\\`")
-        .replace('$', "\\$")
-        .replace('%', "%%");
+    let installed = crate::installation::Installed::discover()?;
+    let executable = installed
+        .as_ref()
+        .map(|i| i.launcher())
+        .unwrap_or(std::env::current_exe()?);
+    let prefix = installed.as_ref().map(|i| i.prefix.clone()).unwrap_or(
+        executable
+            .parent()
+            .context("Executável sem diretório")?
+            .to_path_buf(),
+    );
     fs::create_dir_all(path.parent().context("Autostart sem diretório")?)?;
     if path.exists() && !path.with_extension("desktop.backup").exists() {
         fs::copy(&path, path.with_extension("desktop.backup"))?;
     }
     fs::write(
         &path,
-        format!(
-            "[Desktop Entry]\nType=Application\nName=Facecam Hub\nComment=Facecam controller and virtual camera\nExec=\"{executable}\" --minimized\nIcon=camera-web\nTerminal=false\nStartupNotify=false\nX-GNOME-Autostart-enabled=true\n"
-        ),
+        crate::installation::desktop_entry(&executable, &prefix, true)?,
     )?;
     println!("{}", path.display());
     Ok(())

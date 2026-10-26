@@ -65,6 +65,10 @@ que relaciona configuração, modelos, normalização, controle temporal e compo
 
 ## Registros por arquivo documental
 
+Instalador, atualização pela produção e ícones próprios são descritos em
+[Distribuição](DISTRIBUICAO.md), com comandos em [Protocolo](PROTOCOLO_DE_CONTROLE.md)
+e checks isolados em [Testes](TESTES.md). Não alteram as 152 fontes históricas.
+
 Preview fiel à saída, espelhamento compartilhado e limites de apresentação estão
 em [Uso](USO.md#visualizar-e-enviar-a-outro-aplicativo), com fluxo em
 [Arquitetura](ARQUITETURA.md#captura-e-efeitos) e teste sintético em [Testes](TESTES.md).

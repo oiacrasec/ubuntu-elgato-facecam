@@ -47,6 +47,21 @@ Consulte [Localização](LOCALIZACAO.md) para descoberta, fallback e contribuiç
 
 ## Comandos e estado
 
+A atualização usa `CheckUpdates`, `InstallUpdate` e `RestartApp` no Engine.
+`updater` executa Git/Cargo em worker, com saída em arquivo, limites de tempo e
+processos próprios; `Snapshot.update` publica versão, fase, candidato e log.
+Instalar/reiniciar exige captura parada e ausência de APT, importação ou preparo
+RTX. Durante instalação, alterações operacionais e Quit são recusados. A consulta
+pode ocorrer durante captura. A GUI instalada inicia apenas a consulta ao abrir.
+
+`installation` publica um bundle imutável com manifesto e SHA-256, depois troca
+`current` atomicamente. O mesmo helper do novo executável atende o script inicial
+e o worker de atualização. Atalhos e autostart apontam ao launcher estável;
+o processo anterior conserva seu binário e recursos até reiniciar. Modelos,
+configuração e recursos pessoais ficam fora do pacote. O build headless mantém
+consulta/protocolo e recusa a instalação desktop. Detalhes em
+[Distribuição](DISTRIBUICAO.md).
+
 `Request`, em `engine.rs`, é um enum serializável com discriminador `command`.
 `Reply` traz `ok`, `message` e um `Snapshot`. O snapshot contém configuração,
 câmeras, modo negociado, controles, disponibilidade, estado de captura, contagem

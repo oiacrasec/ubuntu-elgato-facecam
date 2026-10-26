@@ -19,7 +19,34 @@ impl ksni::Tray for Tray {
         })
     }
     fn icon_name(&self) -> String {
-        "camera-web".into()
+        if self.streaming {
+            "facecam-hub-active-symbolic"
+        } else {
+            "facecam-hub-symbolic"
+        }
+        .into()
+    }
+    fn icon_pixmap(&self) -> Vec<ksni::Icon> {
+        let bytes: &[u8] = if self.streaming {
+            include_bytes!("../assets/icons/facecam-hub-active-symbolic.png")
+        } else {
+            include_bytes!("../assets/icons/facecam-hub-symbolic.png")
+        };
+        let Ok(icon) = eframe::icon_data::from_png_bytes(bytes) else {
+            return Vec::new();
+        };
+        let argb = icon
+            .rgba
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .flat_map(|p| [p[3], p[0], p[1], p[2]])
+            .collect();
+        vec![ksni::Icon {
+            width: icon.width as i32,
+            height: icon.height as i32,
+            data: argb,
+        }]
     }
     fn activate(&mut self, _: i32, _: i32) {
         let _ = self.tx.send(Request::Show);

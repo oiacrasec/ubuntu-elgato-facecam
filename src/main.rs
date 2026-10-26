@@ -20,6 +20,7 @@ mod gui;
 mod gui_test;
 mod hdr;
 mod i18n;
+mod installation;
 mod ipc;
 #[cfg(feature = "ai")]
 mod nvidia;
@@ -44,6 +45,7 @@ mod resources;
 mod stream;
 #[cfg(feature = "tray")]
 mod tray;
+mod updater;
 #[cfg(feature = "ai")]
 mod video_background;
 mod virtual_camera;
@@ -63,6 +65,20 @@ use std::{
     about = "Facecam Hub — native camera controller for Ubuntu 24.04+"
 )]
 struct Args {
+    #[arg(long, hide = true)]
+    build_info: bool,
+    #[arg(long, hide = true)]
+    install_desktop: Option<PathBuf>,
+    #[arg(long, hide = true, requires = "install_desktop")]
+    desktop_autostart: bool,
+    #[arg(long, hide = true)]
+    restart_after: Option<u32>,
+    #[arg(long, help = "Check for application updates")]
+    check_updates: bool,
+    #[arg(long, help = "Install the checked application update")]
+    update: bool,
+    #[arg(long, help = "Restart after installing an update")]
+    restart: bool,
     #[arg(long, hide = true)]
     virtual_camera_helper: Option<String>,
     #[arg(long, hide = true)]
@@ -327,6 +343,26 @@ fn localized_args() -> Result<Args> {
 
 fn run() -> Result<()> {
     let args = localized_args()?;
+    if args.build_info {
+        println!(
+            "{}",
+            serde_json::to_string(&installation::BuildInfo::default())?
+        );
+        return Ok(());
+    }
+    if let Some(prefix) = &args.install_desktop {
+        installation::install(
+            &std::env::current_exe()?,
+            &installation::BuildInfo::default(),
+            prefix,
+            &installation::data_home()?,
+            args.desktop_autostart,
+        )?;
+        return Ok(());
+    }
+    if let Some(pid) = args.restart_after {
+        updater::wait_for_parent(pid)?;
+    }
     if let Some(root) = &args.ar_worker {
         #[cfg(feature = "ai")]
         return nvidia_ar::worker(root);
@@ -397,6 +433,15 @@ fn run() -> Result<()> {
             bail!("Nenhuma Facecam encontrada");
         }
         return Ok(());
+    }
+    if args.check_updates {
+        return print_reply(ipc::send(&Request::CheckUpdates)?, &path);
+    }
+    if args.update {
+        return print_reply(ipc::send(&Request::InstallUpdate)?, &path);
+    }
+    if args.restart {
+        return print_reply(ipc::send(&Request::RestartApp)?, &path);
     }
     if args.status {
         return print_reply(ipc::send(&Request::Status)?, &path);

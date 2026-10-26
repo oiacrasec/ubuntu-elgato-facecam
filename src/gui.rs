@@ -144,6 +144,13 @@ pub fn run(path: PathBuf, minimized: bool, resume_stream: bool) -> Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Facecam Hub")
+            .with_app_id("elgato-virtualcam")
+            .with_icon(
+                eframe::icon_data::from_png_bytes(include_bytes!(
+                    "../assets/icons/facecam-hub.png"
+                ))
+                .expect("embedded app icon"),
+            )
             .with_inner_size([1240.0, 790.0])
             .with_min_inner_size([960.0, 640.0]),
         renderer: eframe::Renderer::Glow,
@@ -230,6 +237,15 @@ impl App {
             let _ = minimized;
             false
         };
+        if controller
+            .shared
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .update
+            .installed
+        {
+            let _ = controller.tx.send(Request::CheckUpdates);
+        }
         if hidden {
             cc.egui_ctx
                 .send_viewport_cmd(egui::ViewportCommand::Visible(false));
@@ -1293,6 +1309,33 @@ impl eframe::App for App {
                 if language != state.config.ui.language {
                     self.dispatch(Request::UpdateSettings { virtual_device: None, start_minimized: None, language: Some(language) });
                 }
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("{} {}", t("Versão"), state.update.build.version)).color(MUTED))
+                        .on_hover_text(format!("{}{}", state.update.build.revision, if state.update.build.dirty { " (dev)" } else { "" }));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        use crate::updater::Phase;
+                        let (label, request) = match state.update.phase {
+                            Phase::Available if state.update.installed => ("Atualizar agora", Request::InstallUpdate),
+                            Phase::RestartRequired => ("Reiniciar agora", Request::RestartApp),
+                            _ => ("Verificar atualizações", Request::CheckUpdates),
+                        };
+                        let idle = !state.streaming && !state.preview && !state.preparing_nvidia && !state.installation_running && !state.importing;
+                        let enabled = !state.update.busy() && (matches!(request, Request::CheckUpdates) || idle);
+                        if ui.add_enabled(enabled, egui::Button::new(t(label))).clicked() { self.dispatch(request); }
+                        if state.update.busy() { ui.spinner(); }
+                    });
+                });
+                if !state.update.message.is_empty() {
+                    ui.label(RichText::new(t(&state.update.message)).size(12.0).color(if state.update.phase == crate::updater::Phase::Failed { Color32::from_rgb(245, 140, 130) } else { MUTED }));
+                }
+                if state.update.phase == crate::updater::Phase::Available && !state.update.installed {
+                    ui.small(t("Use o instalador desktop para habilitar as atualizações."));
+                }
+                if matches!(state.update.phase, crate::updater::Phase::Available | crate::updater::Phase::RestartRequired) && (state.streaming || state.preview) {
+                    ui.small(t("Pare a captura para atualizar ou reiniciar."));
+                }
+                ui.add_space(8.0);
                 ui.separator();
                 ui.horizontal(|ui| {
                     ui.strong(t("Câmera virtual"));

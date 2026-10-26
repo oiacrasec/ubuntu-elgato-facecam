@@ -16,37 +16,22 @@ done
 if [[ "$INSTALL_PREFIX" != /* || "$INSTALL_PREFIX" == / ]]; then
     echo 'Use um prefixo absoluto dedicado, como ~/.local.' >&2; exit 1
 fi
+cd -- "$PROJECT_DIR"
 if "$BUILD"; then
-    command -v cargo >/dev/null || { echo 'Instale Rust e adicione ~/.cargo/bin ao PATH.' >&2; exit 1; }
-    (cd "$PROJECT_DIR" && cargo build --release --locked)
+    CARGO="$(command -v cargo || true)"
+    [[ -n "$CARGO" ]] || CARGO="$HOME/.cargo/bin/cargo"
+    [[ -x "$CARGO" ]] || { echo 'Instale Rust 1.95 ou posterior.' >&2; exit 1; }
+    CARGO_INCREMENTAL=0 "$CARGO" build --release --locked
 fi
-BINARY="$PROJECT_DIR/target/release/elgato-virtualcam"
+TARGET_DIR="${CARGO_TARGET_DIR:-$PROJECT_DIR/target}"
+BINARY="$TARGET_DIR/release/elgato-virtualcam"
 [[ -x "$BINARY" ]] || { echo 'Binário ausente. Execute cargo build --release --locked.' >&2; exit 1; }
-install -Dm755 "$BINARY" "$INSTALL_PREFIX/bin/elgato-virtualcam"
-for LOCALE in pt-BR en-US; do
-    install -Dm644 "$PROJECT_DIR/locales/$LOCALE.json" "$INSTALL_PREFIX/share/facecam-hub/locales/$LOCALE.json"
-done
-DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-mkdir -p "$DESKTOP_DIR"
-# Escape a path for the Desktop Entry Exec grammar (not shell syntax).
-EXECUTABLE="$INSTALL_PREFIX/bin/elgato-virtualcam"
-EXECUTABLE="${EXECUTABLE//\\/\\\\}"
-EXECUTABLE="${EXECUTABLE//\"/\\\"}"
-EXECUTABLE="${EXECUTABLE//\$/\\\$}"
-EXECUTABLE="${EXECUTABLE//\`/\\\`}"
-EXECUTABLE="${EXECUTABLE//%/%%}"
-cat > "$DESKTOP_DIR/elgato-virtualcam.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Facecam Hub
-Comment=Controle da Facecam e câmera virtual
-Exec="$EXECUTABLE"
-Icon=camera-web
-Terminal=false
-Categories=AudioVideo;Video;
-StartupNotify=true
-EOF
-if "$AUTOSTART"; then "$INSTALL_PREFIX/bin/elgato-virtualcam" --install-autostart; fi
+ARGS=(--install-desktop "$INSTALL_PREFIX")
+if "$AUTOSTART"; then ARGS+=(--desktop-autostart); fi
+"$BINARY" "${ARGS[@]}"
+if command -v update-desktop-database >/dev/null; then
+    update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" >/dev/null 2>&1 || true
+fi
 echo "Instalado: $INSTALL_PREFIX/bin/elgato-virtualcam"
-echo 'Dependências de execução: ffmpeg, v4l-utils e v4l2loopback-dkms.'
-echo 'Prepare a saída virtual conforme README.md; o instalador não modifica módulos ou permissões do sistema.'
+echo 'Abra Facecam Hub no menu de aplicativos. Atualizações ficam em Configurações.'
+echo 'Dependências de vídeo e módulos do sistema são preparados separadamente; consulte README.md.'

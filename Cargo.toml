@@ -1,6 +1,6 @@
 [package]
 name = "elgato-virtualcam"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Native Facecam controller and virtual camera for Ubuntu 24.04+"
@@ -8,7 +8,7 @@ license = "MIT"
 
 [features]
 default = ["gui", "tray", "ai"]
-ai = ["dep:ort", "dep:ort-sys", "dep:image", "dep:aes", "dep:cbc", "dep:sha2", "dep:tempfile"]
+ai = ["dep:ort", "dep:ort-sys", "dep:image", "dep:aes", "dep:cbc"]
 gui = ["dep:eframe", "dep:rfd"]
 tray = ["gui", "dep:ksni"]
 
@@ -26,8 +26,8 @@ ort-sys = { version = "=2.0.0-rc.9", default-features = false, optional = true }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp"], optional = true }
 aes = { version = "0.8", optional = true }
 cbc = { version = "0.1", optional = true }
-sha2 = { version = "0.10", optional = true }
-tempfile = { version = "3", optional = true }
+sha2 = "0.10"
+tempfile = "3"
 eframe = { version = "0.36", default-features = false, features = ["default_fonts", "glow", "wayland", "x11", "accesskit"], optional = true }
 rfd = { version = "0.17.2", default-features = false, features = ["xdg-portal"], optional = true }
 ksni = { version = "0.3.7", default-features = false, features = ["async-io", "blocking"], optional = true }

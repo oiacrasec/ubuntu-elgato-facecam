@@ -22,6 +22,9 @@ A proteção atual depende do usuário e das permissões locais.
 | `command` | Campos | Efeito |
 | --- | --- | --- |
 | `status` | nenhum | Retorna o snapshot atual |
+| `check_updates` | nenhum | Consulta o HEAD de produção em segundo plano |
+| `install_update` | nenhum | Instala o candidato consultado, com captura e operações paradas |
+| `restart_app` | nenhum | Após atualização concluída, abre o launcher instalado e encerra esta instância |
 | `refresh` | nenhum | Atualiza câmeras, modos, controles e pistas de IA; libera nova tentativa de controles recusados |
 | `start` | `preview`, bool, padrão false | Inicia a saída virtual, com preview opcional |
 | `preview` | nenhum | Inicia somente a visualização |
@@ -45,6 +48,16 @@ A proteção atual depende do usuário e das permissões locais.
 | `restore` | nenhum | Restaura controles locais disponíveis |
 | `show` | nenhum | Solicita visibilidade da janela |
 | `quit` | nenhum | Encerra captura e controlador |
+
+A CLI oferece `--check-updates`, `--update` e `--restart` para esses pedidos.
+`state.update` contém `build` (versão, revisão, dirty e features), `phase`
+(`idle`, `checking`, `current`, `available`, `installing`, `restart_required`
+ou `failed`), `candidate`, `installed`, `message` e `log`.
+A resposta inicial confirma o início do trabalho; consulte `--status` para o
+resultado. Falhas conservam o pacote ativo; uma nova consulta permite tentar
+novamente. Consulta não instala nem reinicia. Durante instalação, apenas status,
+show e stop continuam disponíveis; Quit retorna erro até concluir.
+`--build-info` informa JSON local sem abrir controlador ou câmera.
 
 Exemplos de linhas de protocolo:
 

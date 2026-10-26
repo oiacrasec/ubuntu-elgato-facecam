@@ -93,6 +93,21 @@ gravar o JSON da câmera. Não altera o autostart real do usuário.
 gravação imediata ao marcar/desmarcar, troca de saída, preservação de efeitos e
 campos adicionais e estado inalterado após valor inválido ou falha de escrita.
 
+## Instalação desktop e atualização
+
+Os testes de `installation` verificam publicação, rollback após destino ocupado,
+recusa de headless e diretório sem registro, hash e preservação do bundle anterior.
+`tests/desktop_installation.rs` executa os scripts reais com prefixos/XDG
+isolados: ícones, catálogos, autostart, caminhos com espaços e caracteres especiais,
+upgrade com processo anterior aberto, remoção sem binário, idempotência e
+preservação de dados e atalhos de outro prefixo. O controlador permanece sem captura.
+
+Os testes de `updater` usam Git local sem rede: HEAD main/master, rejeição de
+outras branches/revisões, worker assíncrono, fases e timeout de grupo de processos.
+Não instalam pacotes nem consultam GitHub nos checks comuns. Uma atualização real
+a partir de produção e a reinicialização da janela são verificações manuais
+separadas, conforme [Distribuição](DISTRIBUICAO.md).
+
 ## Instalação APT
 
 Os testes comuns verificam preparação/cancelamento sem iniciar instalação,

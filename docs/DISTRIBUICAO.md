@@ -1,7 +1,7 @@
 # Distribuição e publicação
 
-A entrega atual é um binário Linux e scripts de instalação no usuário. Não há
-instalador oficial de outros sistemas ou atualizador automático implementado.
+Instale o Facecam Hub no usuário e atualize em **Configurações**, perto de
+**Idioma**. A atualização usa a branch padrão de produção do repositório.
 
 ## Artefatos existentes
 
@@ -12,7 +12,7 @@ sem download na inicialização.
 
 `install-desktop-app.sh` compila e instala em `~/.local` por padrão, aceita
 `--prefix` absoluto, `--no-build` e autostart opcional. O desinstalador preserva
-configurações e backups. Os scripts não concedem sudoers, não instalam módulos
+configurações, modelos, recursos e backups. Os scripts não concedem sudoers, não instalam módulos
 nem mudam grupos. A CI Ubuntu 24.04 verifica código e produz um artefato de build;
 isso não é evidência de publicação, assinatura ou teste de todos os consumidores.
 
@@ -51,8 +51,47 @@ um frontend não fornece automaticamente um backend de câmera compatível.
 
 ## Atualização e recuperação
 
-Não há consulta de novas versões dentro do aplicativo. Uma proposta de atualizador
-precisa verificar origem e integridade, manter a versão utilizável após falha,
-respeitar o canal escolhido e impedir substituição parcial de componentes.
-Configurações e modelos têm ciclos de versão diferentes; não apagar presets ou
-bibliotecas opcionais para completar um upgrade do binário.
+Em **Configurações**, a versão aparece abaixo de **Idioma**. Clique em
+**Verificar atualizações**, **Atualizar agora** e, após concluir, **Reiniciar agora**.
+A janela instalada também consulta atualizações ao abrir, sem instalar nada.
+Pare a captura antes de instalar ou reiniciar. Uma execução direta de
+`target/release` pode consultar, mas precisa do instalador para atualizar.
+
+O canal é o HEAD remoto de
+[ubuntu-elgato-facecam](https://github.com/oiacrasec/ubuntu-elgato-facecam),
+cuja branch padrão é `master` nesta entrega. `main` e `master` são nomes
+alternativos para o mesmo papel de produção: não há dois canais nem fallback
+para outra branch. HEAD em qualquer outro nome é recusado.
+
+A consulta usa Git em segundo plano. Ao instalar, o aplicativo fixa o commit
+consultado, baixa para um diretório temporário, exige continuidade do histórico
+da versão instalada e compila com `cargo build --locked --release`, preservando
+as features GUI/bandeja/IA da instalação. São necessários Git, Rust 1.95 ou
+posterior, as dependências de build do [README](../README.md) e espaço livre.
+Não há instalação APT implícita, assinatura de release ou download de binário
+pré-compilado nesse fluxo. O padrão de interação foi inspirado no
+[Arctis Sound Manager](https://github.com/loteran/Arctis-Sound-Manager);
+a implementação é própria em Rust.
+
+O pacote inclui binário, catálogos, ícones próprios e registro de versão, commit,
+features e SHA-256. Fica em `PREFIX/lib/facecam-hub/versions/`. O link `current`
+só muda após preparar todos os arquivos; `PREFIX/bin/elgato-virtualcam`, o menu
+e o autostart usam esse link estável. Arquivos alterados são restaurados se a
+publicação falhar. Bundles anteriores permanecem disponíveis, inclusive para um
+processo que ainda esteja aberto; falha de download/build não troca a instalação.
+Os diretórios de configuração, modelos e recursos não fazem parte da substituição.
+
+O log é `$XDG_CACHE_HOME/facecam-hub/updates/update.log`, ou
+`~/.cache/facecam-hub/updates/update.log`. O mesmo diretório guarda o cache de
+compilação; clones temporários são removidos ao terminar. Quit aguarda uma
+instalação em andamento. Reiniciar cria a nova instância e espera a anterior
+liberar o controlador; não inicia captura automaticamente.
+
+O instalador aceita `--autostart`, `--no-build`, `--prefix` e respeita
+`CARGO_TARGET_DIR`. O desinstalador usa o registro do prefixo e remove os atalhos
+e ícones pertencentes a ele, mesmo sem o executável. Entradas de outro prefixo,
+backups, bibliotecas do usuário e pacotes do sistema são preservados.
+
+Para recuperação manual, com o aplicativo fechado, aponte `current` para um
+bundle anterior em `versions`, ou execute novamente o instalador a partir de uma
+revisão conhecida. Os bundles antigos contêm também seus catálogos e ícones.
