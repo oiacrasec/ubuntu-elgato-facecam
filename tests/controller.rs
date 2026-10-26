@@ -735,13 +735,19 @@ fn effects_cli_accepts_signed_values_and_preserves_disk_and_state_on_rejection()
         assert_eq!(saved["effects"]["ai_fps"], 24);
     }
     let before = std::fs::read(&config).unwrap();
-    std::fs::write(&file, r#"{"brightness":2.0}"#).unwrap();
-    assert!(
-        !cli(dir.path(), &["--set-effects", file.to_str().unwrap()])
-            .status
-            .success()
-    );
-    assert_eq!(std::fs::read(&config).unwrap(), before);
+    for invalid in [
+        r#"{"brightness":2.0}"#,
+        r#"{"eye_contact":true,"ai_provider":"cpu"}"#,
+        r#"{"eye_contact":true,"ai_backend":"onnx"}"#,
+    ] {
+        std::fs::write(&file, invalid).unwrap();
+        assert!(
+            !cli(dir.path(), &["--set-effects", file.to_str().unwrap()])
+                .status
+                .success()
+        );
+        assert_eq!(std::fs::read(&config).unwrap(), before);
+    }
     let status: Value = serde_json::from_slice(&cli(dir.path(), &["--status"]).stdout).unwrap();
     assert_eq!(status["state"]["config"]["effects"]["brightness"], 0.25);
     assert!(cli(dir.path(), &["--quit"]).status.success());

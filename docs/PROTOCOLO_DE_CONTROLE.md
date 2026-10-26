@@ -71,6 +71,13 @@ com runtime disponível; hashes e inferências são conferidos ao executar o wor
 A preparação AR requer IA RTX previamente preparada. Ela não grava configuração
 nem instala dependências administrativas. Veja [Análise RTX](ANALISE_RTX.md)
 para cache, publicação e diagnóstico `--check-ar`.
+`effects.eye_contact` é booleano, padrão false, e usa `set_effects`/`--set-effects`.
+Exige preparação AR, CUDA e backend `auto` ou `nvidia`; o aquecimento acontece
+antes da troca. Atua com ou sem `background_blur`. `ai_backend` publica `nvidia`
+também no modo apenas correção de olhar, sem indicar segmentação temporal ativa.
+`ai_fps` limita ambos os modos. Não há comando de PTZ ou seleção de rosto nesse fluxo.
+O antigo `auto_frame` é aceito na leitura, ignorado operacionalmente e omitido ao
+serializar; não é um alias para `eye_contact` nem ativa o novo efeito automaticamente.
 `autostart_enabled` informa a presença de um cadastro ativo, ou null se a consulta
 falhou. A abertura, atualização, consulta periódica e conclusão de `set_autostart`
 releem o arquivo. `--install-autostart` e `--remove-autostart` usam esse comando

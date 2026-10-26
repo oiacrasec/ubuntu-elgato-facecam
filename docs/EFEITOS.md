@@ -264,18 +264,49 @@ instaladores Windows e servem à investigação da integração de referência.
 
 O [guia dos runtimes NVIDIA](NVIDIA_MAXINE.md) registra downloads, versões e
 critérios da migração. O worker executa o modelo temporal VFX 0.7.6 Ada com
-TensorRT nativo Linux, validado localmente na RTX 4070 SUPER. AR não foi integrado.
+TensorRT nativo Linux, validado localmente na RTX 4070 SUPER. O detector AR 0.8.7
+Ada alimenta a correção de olhar, com landmarks e composição próprios.
 Isso não demonstra paridade de qualidade ou suporte de todas as GPUs.
 
 O Facecam Hub implementa sua própria composição; o binário e o repositório não
 embutem SDK, modelos da NVIDIA ou recursos do Camera Hub. A preparação importa
 o modelo local e conserva as licenças externas no diretório do usuário.
 Desfoque, cor sólida, cenários locais e troca por imagem estão implementados.
-Correção de olhar, reenquadramento automático e relighting não estão implementados.
+Correção de olhar está implementada para rostos frontais; relighting continua proposto.
 Os quatro contratos AR Ada podem ser preparados persistentemente pela CLI,
 conforme [Análise RTX](ANALISE_RTX.md#preparar-os-contratos-ar-no-usuário),
-para diagnóstico sintético; o preparo não ativa esses efeitos.
+para diagnóstico; ativar a correção de olhar requer aplicar seu controle separadamente.
 Denoise comum é um filtro convencional e não usa IA.
+
+## Ativar correção de olhar
+
+A correção de olhar altera a região dos olhos para simular contato com a lente,
+preservando o enquadramento. Requer RTX 40/Ada, **NVIDIA CUDA** e segmentação
+**Automática** ou **NVIDIA RTX**. A detecção do rosto é interna ao efeito.
+
+1. Pare o preview e a câmera virtual.
+2. Em **Configurações**, prepare a IA RTX se necessário e clique em
+   **Preparar correção de olhar**. Aguarde a conclusão sem erro.
+3. Em **Efeitos** › **Correção de olhar**, marque **Olhar para a câmera**.
+4. Clique em **Aplicar e salvar** e inicie o preview ou a câmera virtual.
+
+O efeito funciona sozinho ou junto do fundo com IA, antes dos efeitos comuns
+e da divisão entre saídas. Resolução, proporção e enquadramento são preservados.
+**FPS da IA** limita igualmente preview e câmera virtual. A troca de efeitos
+reinicia a transição de intensidade. O controlador valida os modelos antes de
+substituir os efeitos confirmados; falha mantém a configuração anterior.
+
+Mantenha o rosto de frente e iluminado. A correção é suspensa quando faltam
+detecção ou confiança, a cabeça está muito virada ou ambos os olhos estão fechados.
+Um olho fechado fica fora da composição. Com vários rostos, o efeito prefere
+o rosto anterior enquanto há sobreposição e, na ausência dele, escolhe o maior.
+Não há seleção manual de pessoa nem recuperação automática após perda da GPU.
+
+A integração atual usa alinhamento 2D próprio para rostos frontais. Ângulos
+grandes, óculos, reflexos, oclusões, baixa luz e movimento real exigem aceitação
+de qualidade adicional; não há paridade visual demonstrada com Windows.
+CPU e backend ONNX explícitos são recusados para esse recurso. Não existe
+fallback CPU silencioso nem movimento de PTZ físico.
 
 Os efeitos de IA acrescentam transferência RGB e inferência por frame. O modelo
 é pequeno, mas o runtime CUDA e suas dependências ocupam muito mais espaço que

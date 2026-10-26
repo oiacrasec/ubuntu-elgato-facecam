@@ -1,7 +1,7 @@
 # Algoritmos de efeitos e processamento
 
-O fluxo implementado oferece cor, espelho, LUT, denoise convencional e desfoque
-ou substituição de fundo por segmentação. Os demais tópicos desta página são contratos de estudo
+O fluxo implementado oferece cor, espelho, LUT, denoise convencional, correção
+de olhar e desfoque ou substituição de fundo por segmentação. Os demais tópicos desta página são contratos de estudo
 para extensões; não acrescentam efeitos ao binário atual.
 
 ## Pipeline existente
@@ -29,6 +29,52 @@ Os efeitos comuns ocorrem após a etapa opcional de IA, antes do split entre as
 saídas. Espelho é `hflip`, cor usa `eq`, denoise usa `hqdn3d` e a LUT usa `lut3d`
 com interpolação tetraédrica. Não há equivalência anunciada com algoritmos
 proprietários de nitidez, HDR ou redução de ruído da câmera.
+
+## Detecção e correção de olhar
+
+O detector AR Ada recebe BGR float32 NCHW 1×3×208×368, dividido por 255. O resize
+bilinear preserva proporção e completa o destino com preto; a mesma geometria
+remove as bordas na decodificação. As saídas têm 299 células (13×23), com quatro
+planos de distâncias e um de confiança. O centro de cada célula é
+`(16×coluna+0,5, 16×linha+0,5)`; distâncias multiplicadas por 35 produzem os
+cantos esquerdo/superior por subtração e direito/inferior por adição. A origem do
+contrato está em [Análise RTX](ANALISE_RTX.md#contrato-de-detecção-fechado-e-recorte-digital).
+A implementação própria usa confiança mínima 0,7, supressão por IoU 0,3 e até
+32 caixas, recusando formas/probabilidades inválidas e valores não finitos.
+
+O rosto selecionado fornece um recorte quadrado com margem 1,5×, amostrado na GPU
+para 80×80. Os landmarks usam cinza float32 em [0,255], com pesos RGB
+0,299/0,587/0,114. O tensor de 252 coordenadas contém primeiro 126 valores X e
+depois 126 valores Y, em unidades do recorte 80×80. Somente coordenadas, confiança
+e head pose retornam à CPU. Os seis pontos de cada olho usam os índices fixados
+do contrato 126; não há template 3D ou recurso proprietário incorporado.
+
+A geometria própria usa uma transformação de similaridade 2D: centros dos olhos
+em (64,32) e (192,32) no recorte RGB 256×64. Escala e rotação vêm da distância
+entre os olhos; a transformação inversa leva o resultado ao mesmo local na imagem
+original. O encoder recebe RGB NCHW dividido por 255. Embeddings e labels passam
+diretamente ao decoder na GPU, com alvo de olhar (0,0). A saída finita pode ter
+overshoot; a composição limita os canais a [0,1] antes de convertê-los em RGB.
+
+A correção exige confiança média de pelo menos 0,45 e mínima de 0,30 nos pontos
+usados, valores absolutos do tensor de pose até 0,45 e distância ocular suficiente.
+Esse limiar não estabelece a unidade física da saída do modelo.
+A abertura das pálpebras dividida pela largura do olho precisa superar 0,13;
+um olho fechado recebe máscara zero. Dados não finitos ou saída nativa inválida
+geram erro; ausência de rosto, pose inadequada ou baixa confiança preservam a
+imagem e zeram a transição.
+
+A composição usa elipses locais com borda suave por smoothstep. O ganho sobe com
+constante de 0,18 segundo de vídeo processado até intensidade 0,85. Fora das
+elipses, os pixels permanecem inalterados. Não há zoom, reenquadramento ou ajuste
+físico de PTZ. O alinhamento é voltado a rostos frontais e não reproduz o pipeline
+3D proprietário do Windows.
+
+Os grafos próprios usam [`GridSample` ONNX](https://onnx.ai/onnx/operators/onnx__GridSample.html),
+bilinear, `align_corners=0` e borda replicada; o operador é suportado pelo
+[provider CUDA 1.20.1](https://github.com/microsoft/onnxruntime/blob/v1.20.1/docs/OperatorKernels.md#cudaexecutionprovider).
+Imagem, embeddings e composição ficam na GPU entre etapas. O modo somente fundo
+não abre os modelos AR. Preview e câmera virtual recebem o mesmo RGB processado.
 
 ## Cor, curvas, histograma e scopes — proposto
 

@@ -32,7 +32,8 @@ registra commits, arquivos, validações e a sequência para continuar a integra
 | Prompter | Implementado, paridade parcial | Roteiro, leitura, espelho, atalhos, monitor e CLI; dispositivo físico e integrações avançadas pendentes; [guia](PROMPTER.md) |
 | HDR da Facecam MK.2 | Implementado, validação local | Unidade e seletor confirmados; escrita/retorno, APT e persistência local; ensaio USB 2 em 1080p30/60; [guia](HDR.md) |
 | Firmware e demais controles proprietários | Fora do escopo autorizado | Persistência interna e atualização de firmware adiadas pelo usuário |
-| Correção de olhar e enquadramento automático | Em implementação, indisponível no vídeo | Quatro contratos AR 0.8.7 Ada com preparação persistente e diagnóstico Rust; detecção, recorte, transições e composição pendentes |
+| Detecção de rosto | Implementado, interno | Alimenta a correção dos olhos; o controle independente de acompanhar/recortar o rosto foi retirado a pedido do usuário |
+| Correção de olhar | Implementado, aceitação parcial | Landmarks, alinhamento 2D frontal, encoder/decoder e composição GPU local; testes sintéticos e fotografia pública, sem paridade visual ou aceitação prolongada em câmera/consumidor |
 | Relighting | Proposto, fora do escopo atual | Presença e alcance na referência ainda precisam de confirmação |
 | Plugins, batch, MCP e web | Proposto | Não são recursos da entrega Linux atual |
 
@@ -62,7 +63,7 @@ completa ainda depende dos grupos abaixo; não há uma porcentagem global valida
 
 | Grupo | Trabalho restante |
 | --- | --- |
-| IA da referência Windows | Correção de olhar e enquadramento automático, incluindo modelo, estado temporal, parâmetros e qualidade comparativa; AR 0.8.7 tem diagnóstico de quatro modelos nativos, sem efeito integrado ao vídeo |
+| IA da referência Windows | Correção de olhar frontal implementada; faltam comparação de qualidade, movimento real, óculos/oclusão e aceitação em câmera/consumidor; o recorte independente foi retirado do produto |
 | Famílias RTX | Reconstruir e testar combinações para Turing, Ampere e Blackwell; o caminho temporal nativo atual só foi exercitado em Ada/RTX 4070 SUPER |
 | Controles e hardware proprietário | HDR MK.2 implementado; validar USB 3 e demais modelos/revisões antes de habilitar; outros processamentos, persistência interna e firmware continuam adiados |
 | Prompter e integrações | Roteiro/rolagem/monitor/CLI implementados; faltam dispositivo físico, Voice Sync, Twitch e biblioteca de roteiros; confirmar o alcance de NDI e da automação antes de prometer compatibilidade |
@@ -70,9 +71,9 @@ completa ainda depende dos grupos abaixo; não há uma porcentagem global valida
 | Aceitação e confiabilidade | OBS e navegador nas taxas/resoluções alvo, sessões prolongadas, desconexão/reconexão, suspensão e perda de GPU; conferir módulo e autostart após reiniciar |
 | Distribuição | Build reproduzível, pacote e dependências, atualização/remoção e matriz de suporte para Ubuntu 24.04+ |
 
-Para avançar na paridade de IA desta RTX, a próxima implementação é a correção
-de olhar, seguida do enquadramento automático. Cada uma exige contrato e
-aceitação próprios. Recursos específicos de outro modelo de câmera ou Prompter
+Para avançar na paridade de IA desta RTX, validar qualidade e comportamento da
+correção de olhar em captura e consumidor reais. O detector é uma etapa interna;
+o efeito exige aceitação própria. Recursos específicos de outro modelo de câmera ou Prompter
 precisam de hardware correspondente para validação. Relighting continua uma
 proposta; sua presença e alcance no alvo Windows ainda precisam de confirmação.
 

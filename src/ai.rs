@@ -25,7 +25,7 @@ pub fn native_available(effects: &Effects) -> bool {
 
 pub fn command(effects: &Effects) -> Result<(std::process::Command, BackendStatus)> {
     let mut warning = None;
-    let backend = if effects.ai_backend == AiBackend::Nvidia {
+    let backend = if effects.eye_contact || effects.ai_backend == AiBackend::Nvidia {
         AiBackend::Nvidia
     } else if native_available(effects) {
         let output = command_for(effects, AiBackend::Nvidia)?
@@ -60,8 +60,13 @@ fn command_for(effects: &Effects, backend: AiBackend) -> Result<std::process::Co
     let mut libraries = Vec::new();
     #[cfg(feature = "ai")]
     if backend == AiBackend::Nvidia {
-        let installation = crate::nvidia::Installation::discover()
-            .ok_or_else(|| anyhow::anyhow!("Componentes da segmentação RTX não encontrados"))?;
+        let installation = if effects.eye_contact {
+            crate::nvidia_ar_setup::Installation::load(&crate::nvidia_ar_setup::root()?)?
+                .runtime()?
+        } else {
+            crate::nvidia::Installation::discover()
+                .ok_or_else(|| anyhow::anyhow!("Componentes da segmentação RTX não encontrados"))?
+        };
         libraries.extend(installation.libraries);
     }
     if let Some(lib) = runtime.parent() {
@@ -87,8 +92,8 @@ fn command_for(effects: &Effects, backend: AiBackend) -> Result<std::process::Co
 
 pub fn check(effects: &Effects) -> Result<BackendStatus> {
     effects.preflight()?;
-    if !effects.background_blur {
-        bail!("Ative background_blur para verificar a IA");
+    if !effects.ai_enabled() {
+        bail!("Ative um efeito de IA para verificar o processamento");
     }
     let (mut command, status) = command(effects)?;
     let output = command.stdin(std::process::Stdio::null()).output()?;
@@ -290,8 +295,27 @@ pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Resul
     use anyhow::Context;
     use std::io::{Read, Write};
     effects.preflight()?;
-    let mut model = Segmentation::open(effects)?;
-    let (mask_width, mask_height) = model.size();
+    let mut model = if effects.background_blur {
+        Some(if effects.eye_contact {
+            let installation =
+                crate::nvidia_ar_setup::Installation::load(&crate::nvidia_ar_setup::root()?)?;
+            Segmentation::Nvidia(Box::new(crate::nvidia::Segmentation::open(
+                &installation.runtime()?,
+            )?))
+        } else {
+            Segmentation::open(effects)?
+        })
+    } else {
+        None
+    };
+    if effects.eye_contact && model.is_none() {
+        let installation =
+            crate::nvidia_ar_setup::Installation::load(&crate::nvidia_ar_setup::root()?)?;
+        ort::init_from(installation.runtime()?.runtime.to_string_lossy())
+            .with_name("Facecam Hub AR")
+            .commit()?;
+    }
+    let (mask_width, mask_height) = model.as_ref().map(|m| m.size()).unwrap_or((368, 208));
     let fps = rate.unwrap_or(f64::from(effects.ai_fps));
     if !fps.is_finite() || fps <= 0.0 || fps > 60.0 {
         bail!("FPS de processamento da IA inválido");
@@ -306,8 +330,9 @@ pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Resul
         bail!("Resolução IA fora dos limites");
     }
     if effects.ai_provider == AiProvider::Cuda {
-        return gpu_worker(&mut model, effects, [w, h], fps, size.is_none());
+        return gpu_worker(model.as_mut(), effects, [w, h], fps, size.is_none());
     }
+    let mut model = model.context("Ative um efeito de IA para verificar o processamento")?;
     if size.is_none() {
         crate::background::Background::open(effects, w, h, fps)?.frame()?;
         return Ok(());
@@ -345,7 +370,7 @@ pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Resul
 
 #[cfg(feature = "ai")]
 fn gpu_worker(
-    model: &mut Segmentation,
+    mut model: Option<&mut Segmentation>,
     effects: &Effects,
     [w, h]: [usize; 2],
     fps: f64,
@@ -353,23 +378,46 @@ fn gpu_worker(
 ) -> Result<()> {
     use anyhow::Context;
     use std::io::{Read, Write};
-    let mut background = crate::background::Background::open(effects, w, h, fps)?;
+    let mut background = if effects.background_blur {
+        Some(crate::background::Background::open(effects, w, h, fps)?)
+    } else {
+        None
+    };
     let initial = match &background {
-        crate::background::Background::Static(rgb) => Some(rgb.as_slice()),
+        Some(crate::background::Background::Static(rgb)) => Some(rgb.as_slice()),
         _ => None,
     };
-    let mut gpu = crate::gpu::Processing::open(model.gpu_contract([w, h]), effects, initial)?;
+    let mut gpu = model
+        .as_ref()
+        .map(|model| crate::gpu::Processing::open(model.gpu_contract([w, h]), effects, initial))
+        .transpose()?;
+    let mut framing = if effects.eye_contact {
+        Some(crate::nvidia_framing::Framing::open(
+            &crate::nvidia_ar_setup::root()?,
+            [w, h],
+            fps,
+            crate::nvidia::ada_device()?,
+            true,
+        )?)
+    } else {
+        None
+    };
     let mut frame = vec![0; w * h * 3];
-    let prepared = gpu.prepare(&frame)?;
-    let mask = model.infer_gpu(&prepared.image)?;
     let warm_background = (effects.background_mode == crate::effects::BackgroundMode::Video)
         .then_some(frame.as_slice());
-    gpu.compose(&prepared, &mask, warm_background)?;
-    model.reset()?;
+    process_gpu_frame(&mut model, &mut gpu, &mut framing, &frame, warm_background)?;
+    if let Some(model) = model.as_mut() {
+        model.reset()?;
+    }
+    if let Some(framing) = framing.as_mut() {
+        framing.reset();
+    }
     if checking {
         // Validate real image/video decoding as well as the GPU path without
         // advancing the live video's first frame during the worker warm-up.
-        background.frame()?;
+        if let Some(background) = background.as_mut() {
+            background.frame()?;
+        }
         return Ok(());
     }
     let mut input = std::io::stdin().lock();
@@ -381,9 +429,12 @@ fn gpu_worker(
         input
             .read_exact(&mut frame[1..])
             .context("Frame RGB incompleto")?;
-        let prepared = gpu.prepare(&frame)?;
-        let mask = model.infer_gpu(&prepared.image)?;
-        let result = gpu.compose(&prepared, &mask, background.frame()?)?;
+        let bg = background
+            .as_mut()
+            .map(|b| b.frame())
+            .transpose()?
+            .flatten();
+        let result = process_gpu_frame(&mut model, &mut gpu, &mut framing, &frame, bg)?;
         let (shape, rgb) = result.try_extract_raw_tensor::<u8>()?;
         if shape != [1, h as i64, w as i64, 3] || rgb.len() != frame.len() {
             bail!("Quadro de composição GPU incompatível");
@@ -391,6 +442,35 @@ fn gpu_worker(
         output.write_all(rgb)?;
     }
     Ok(())
+}
+
+#[cfg(feature = "ai")]
+fn process_gpu_frame(
+    model: &mut Option<&mut Segmentation>,
+    gpu: &mut Option<crate::gpu::Processing>,
+    framing: &mut Option<crate::nvidia_framing::Framing>,
+    frame: &[u8],
+    background: Option<&[u8]>,
+) -> Result<ort::value::DynValue> {
+    use anyhow::Context;
+    let source = framing.as_mut().map(|ar| ar.frame(frame)).transpose()?;
+    if let Some(gpu) = gpu.as_mut() {
+        let prepared = if let Some(source) = &source {
+            gpu.prepare_source(source)?
+        } else {
+            gpu.prepare(frame)?
+        };
+        let mask = model
+            .as_mut()
+            .context("Máscara RTX ausente")?
+            .infer_gpu(&prepared.image)?;
+        gpu.compose(&prepared, &mask, background)
+    } else {
+        framing
+            .as_mut()
+            .context("Ative um efeito de IA para verificar o processamento")?
+            .pack(&source.context("Ative um efeito de IA para verificar o processamento")?)
+    }
 }
 
 #[cfg(feature = "ai")]

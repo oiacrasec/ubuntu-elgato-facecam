@@ -184,8 +184,8 @@ de execução concorrente à [arquitetura Rust](ARQUITETURA.md).
 | Desfoque e substituição estática | Caminhos VFX e catálogo de fundos | Implementado com ONNX/CUDA e composição própria |
 | Fundo animado | Sete MP4 presentes em ambos os pacotes | Implementado com MP4/MOV/WebM próprio, loop e decoder com memória limitada |
 | Backend NVIDIA VFX | API dinâmica e SDK externo | Segmentação temporal m1 Ada em Rust/TensorRT Linux; preparação guiada e fallback ONNX, validado na RTX 4070 SUPER |
-| Correção de olhar | Integração AR e GazeRedirection | Não implementado; precisa de modelo/backend e teste de qualidade próprios |
-| Enquadramento automático | FaceTrack e parâmetros de transição | Não implementado; definir detecção, suavização, crop e interação com PTZ físico |
+| Correção de olhar | Integração AR e GazeRedirection | Implementado para alinhamento frontal 2D próprio com AR 0.8.7 Ada; paridade visual e qualidade em captura real ainda não demonstradas |
+| Enquadramento automático | FaceTrack e parâmetros de transição | Detector reutilizado internamente pela correção de olhar; o controle independente de recorte foi retirado a pedido do usuário |
 | HDR e processamento proprietário | HDR da webcam usa CElgatoWebcamBaseSupport; outros getters CCUVC pertencem a capturadoras | HDR MK.2 implementado por GUID/seletor confirmado e leitura de retorno; outros controles continuam em investigação |
 | Prompter | XML, textos e componentes DisplayLink | Roteiro, rolagem, espelho e apresentação implementados; transporte DisplayLink, Voice Sync, Twitch e biblioteca de roteiros ainda pendentes |
 | NDI | Três DLLs distribuídas no MSI | Alcance funcional não confirmado; não anunciar transmissão NDI existente |

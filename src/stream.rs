@@ -32,7 +32,7 @@ pub struct PreviewFrames {
 pub type LatestFrame = Arc<PreviewFrames>;
 
 pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
-    if effects.background_blur {
+    if effects.ai_enabled() {
         mode.fps.min(f64::from(effects.ai_fps))
     } else {
         mode.fps
@@ -194,7 +194,7 @@ impl Stream {
         let mut upstream = Children::default();
         let mut ai_backend = None;
         let mut args = ffmpeg_args(device, mode, config, virtual_output, preview);
-        let stdin = if config.effects.background_blur {
+        let stdin = if config.effects.ai_enabled() {
             let (ai_width, ai_height) = (mode.width, mode.height);
             let ai_fps = output_fps(mode, &config.effects);
             let end = args.iter().position(|a| a == "-i").unwrap() + 2;
@@ -358,6 +358,12 @@ mod tests {
             ..effects
         };
         assert_eq!(output_fps(&mode, &effects), 30.0);
+        let framing = crate::effects::Effects {
+            eye_contact: true,
+            background_blur: false,
+            ..effects.clone()
+        };
+        assert_eq!(output_fps(&mode, &framing), 30.0);
         let effects = crate::effects::Effects {
             ai_fps: 60,
             ..effects

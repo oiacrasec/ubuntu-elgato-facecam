@@ -122,3 +122,48 @@ de threads, execução, duração, estatística e hash da saída. Validar consis
 entre JSON e tabela derivada; manter exemplos gerados fora do tempo medido.
 Medições de texto, compressão, máscaras e filtros especializados têm métodos em
 [Algoritmos](ALGORITMOS_DE_EFEITOS.md), sem prometer esses efeitos na UI atual.
+
+## Amostra curta do worker com enquadramento
+
+Registro histórico do protótipo de recorte retirado da interface. Estes números
+não medem o efeito de correção dos olhos, que executa mais modelos.
+
+Em 26/10/2026, a árvore baseada em `14b76e8` processou 120 quadros RGB24 pretos
+1920×1080 por cenário no release, em RTX 4070 SUPER, ONNX Runtime 1.20.1 e
+TensorRT 10.4.0.26. A entrada foi enviada sem temporização, respeitando backpressure
+dos pipes; a saída foi contada em memória, sem gravar imagens. Não houve câmera,
+conversão YUV, apresentação GUI ou consumidor virtual.
+
+| Cenário | Primeiro quadro, incluindo aquecimento | Janela entre primeiro/último quadro | Throughput dos 119 intervalos |
+| --- | --- | --- | --- |
+| Somente fundo com desfoque | 537 ms | 916 ms | 129,98 fps |
+| Somente enquadramento | 660 ms | 869 ms | 136,96 fps |
+| Enquadramento e fundo | 732 ms | 956 ms | 124,48 fps |
+
+A amostra é curta e usa uma imagem sem rosto. Não estabelece percentis, budget,
+regressão estatística ou taxa entregue ao OBS. O limite operacional continua
+em `ai_fps`, padrão 30 e máximo 60. Não elevar o limite com base nessa medição.
+O modo somente fundo conserva seus grafos; o enquadramento acrescenta detecção
+e recorte sem download/upload intermediário de imagem. O teste de regressão do
+fundo e os oráculos GPU/CPU passaram, conforme [Validação local](VALIDACAO_LOCAL.md).
+Dados locais: `target/ar-face-contract/throughput.log`; procedimento usado:
+`target/ar-face-contract/throughput.cjs`, ambos fora da distribuição.
+
+## Amostra curta do worker com correção de olhar
+
+Em 26/10/2026, na mesma RTX 4070 SUPER, o release processou 120 frames RGB24
+1920×1080 com a fotografia pública `astronaut` redimensionada e preenchida para
+essa resolução. Origem e hash constam em [Testes](TESTES.md#correção-de-olhar).
+A entrada não teve temporização; a saída permaneceu em memória. Foram usados
+ONNX Runtime 1.20.1 e TensorRT 10.4.0.26, sem câmera ou consumidor externo.
+
+| Cenário | Primeiro quadro, incluindo aquecimento | Janela entre primeiro/último quadro | Throughput dos 119 intervalos |
+| --- | --- | --- | --- |
+| Somente correção de olhar | 773 ms | 1.093 ms | 108,88 fps |
+| Correção de olhar e fundo | 855 ms | 1.302 ms | 91,37 fps |
+
+O caso somente olhos confirmou alterações restritas às elipses oculares e
+preservação do restante da imagem. A amostra curta de uma fotografia não mede
+qualidade temporal, apresentação GUI ou FPS entregue ao OBS. O limite continua
+em `ai_fps`, padrão 30 e máximo 60. Procedimento e resultados locais em
+`target/ar-gaze-contract/throughput.cjs` e `throughput.log`, fora da distribuição.

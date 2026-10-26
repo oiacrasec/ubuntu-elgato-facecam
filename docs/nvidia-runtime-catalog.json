@@ -170,7 +170,7 @@
     "compute_runtime": "TensorRT 10.4.0.26 / ONNX Runtime 1.20.1",
     "gpu": "RTX 4070 SUPER",
     "tensor_contracts_verified_in_rust": true,
-    "live_gaze_effect_implemented": false,
+    "live_gaze_effect_implemented": true,
     "models": [
       {
         "source": "face_detection_89.engine.trtpkg",
@@ -197,6 +197,17 @@
         "native_engine_sha256": "a35a6e347c6edb091e1e0bc13e94d65f0876a6fabb69bc21be14856a4cbae2e2"
       }
     ],
-    "persistent_preparation_implemented": true
+    "persistent_preparation_implemented": true,
+    "live_auto_framing_implemented": false,
+    "face_box_contract": {
+      "grid": [
+        23,
+        13
+      ],
+      "stride": 16,
+      "center_offset": 0.5,
+      "distance_scale": 35
+    },
+    "gaze_alignment": "owned_2d_frontal"
   }
 }

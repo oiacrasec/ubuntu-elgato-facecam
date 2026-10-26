@@ -164,8 +164,22 @@ e raiz do runtime. Descoberta limitada não carrega bibliotecas; o worker confer
 os hashes dos engines normalizados e executa as quatro inferências antes da
 publicação. Licenças acompanham os arquivos no usuário. Falha mantém o diretório
 anterior; rename recusado tenta restaurá-lo. `Snapshot.ar_prepared` representa
-presença, sem afirmar efeito AR integrado ao vídeo. O diagnóstico usa a preparação
+presença, sem substituir inferência ou aceitação visual. O diagnóstico usa a preparação
 persistente quando existe e conserva a alternativa temporária sem instalação.
+
+`effects.eye_contact` ativa a correção de olhar no mesmo worker Rust.
+`nvidia_framing` envia o RGB uma vez à GPU, prepara BGR com letterbox, executa a
+detecção e devolve somente dois tensores pequenos à CPU. `framing` decodifica
+caixas e suprime sobreposições. `gaze` valida landmarks, confiança e alinhamento
+2D; `nvidia_gaze` executa amostragem, encoder/decoder e composição local na GPU.
+Somente caixas, landmarks e diagnósticos escalares voltam à CPU. A imagem
+corrigida alimenta diretamente a segmentação/composição quando o fundo está ativo;
+sozinha, retorna RGB ao FFmpeg. O modo somente fundo mantém os grafos anteriores.
+O aquecimento executa os modelos e zera o histórico antes dos frames reais.
+O controlador valida e salva esse campo por `SetEffects`, preservando o mesmo
+split, limite de FPS e rollback de falhas síncronas. Não recorta o vídeo nem
+escreve PTZ físico. O antigo `auto_frame` é lido por compatibilidade, ignorado
+operacionalmente e omitido na serialização; ele não liga a correção implicitamente.
 
 `dependencies` prepara um plano APT sem modificar o sistema. `PrepareInstall`, `PrepareUninstall`,
 `ConfirmInstall` e `CancelInstall` passam pelo mesmo controlador em GUI/CLI.

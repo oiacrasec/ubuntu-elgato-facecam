@@ -1,4 +1,4 @@
-//! Native AR tensor validation. This is not yet a live gaze-correction pipeline.
+//! Native AR tensor validation and session contracts shared by eye-contact processing.
 use crate::nvidia_ar_model::{DLL_SHA, MODELS, SDK_SHA, SDK_URL};
 use anyhow::{Context, Result, bail};
 use ort::{
@@ -134,41 +134,7 @@ pub fn worker(root: &Path) -> Result<()> {
         .commit()?;
     let mut encoded: BTreeMap<String, Vec<f32>> = BTreeMap::new();
     for model in MODELS {
-        let session = Session::builder()?
-            .with_intra_threads(1)?
-            .with_config_entry("session.disable_cpu_ep_fallback", "1")?
-            .with_execution_providers([
-                TensorRTExecutionProvider::default()
-                    .with_device_id(device)
-                    .build()
-                    .error_on_failure(),
-                CUDAExecutionProvider::default()
-                    .with_device_id(device)
-                    .build()
-                    .error_on_failure(),
-            ])?
-            .commit_from_file(root.join(format!("{}.onnx", model.id)))?;
-        if session.inputs.len() != model.inputs.len()
-            || session.outputs.len() != model.outputs.len()
-        {
-            bail!("Contrato AR incompatível: {}", model.id);
-        }
-        for spec in model.inputs {
-            let input = session
-                .inputs
-                .iter()
-                .find(|i| i.name == spec.name)
-                .context("Entrada AR ausente")?;
-            verify(&input.input_type, spec.shape)?;
-        }
-        for spec in model.outputs {
-            let output = session
-                .outputs
-                .iter()
-                .find(|o| o.name == spec.name)
-                .context("Saída AR ausente")?;
-            verify(&output.output_type, spec.shape)?;
-        }
+        let session = session(root, &model, device)?;
         let host = model
             .inputs
             .iter()
@@ -205,6 +171,47 @@ pub fn worker(root: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub(crate) fn session(
+    root: &Path,
+    model: &crate::nvidia_ar_model::Model,
+    device: i32,
+) -> Result<Session> {
+    let session = Session::builder()?
+        .with_intra_threads(1)?
+        .with_config_entry("session.disable_cpu_ep_fallback", "1")?
+        .with_execution_providers([
+            TensorRTExecutionProvider::default()
+                .with_device_id(device)
+                .build()
+                .error_on_failure(),
+            CUDAExecutionProvider::default()
+                .with_device_id(device)
+                .build()
+                .error_on_failure(),
+        ])?
+        .commit_from_file(root.join(format!("{}.onnx", model.id)))?;
+    if session.inputs.len() != model.inputs.len() || session.outputs.len() != model.outputs.len() {
+        bail!("Contrato AR incompatível: {}", model.id);
+    }
+    for spec in model.inputs {
+        let input = session
+            .inputs
+            .iter()
+            .find(|i| i.name == spec.name)
+            .context("Entrada AR ausente")?;
+        verify(&input.input_type, spec.shape)?;
+    }
+    for spec in model.outputs {
+        let output = session
+            .outputs
+            .iter()
+            .find(|o| o.name == spec.name)
+            .context("Saída AR ausente")?;
+        verify(&output.output_type, spec.shape)?;
+    }
+    Ok(session)
 }
 fn verify(value: &ValueType, expected: &[usize]) -> Result<()> {
     if let ValueType::Tensor {

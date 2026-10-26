@@ -874,7 +874,7 @@ impl Engine {
                 effects.validate()?;
                 crate::resources::materialize(&self.resource_root, &effects.lut)?;
                 effects.preflight()?;
-                let checked_backend = if effects.background_blur {
+                let checked_backend = if effects.ai_enabled() {
                     Some(crate::ai::check(&effects)?)
                 } else {
                     None

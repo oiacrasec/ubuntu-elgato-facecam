@@ -14,8 +14,8 @@ exige obter um SDK NVIDIA VFX Linux. CUDA, cuDNN e TensorRT são dependências d
 computação, carregadas somente pelo worker isolado.
 
 A pesquisa foi limitada a segmentação, estado temporal, preparação dos tensores
-e máscara. Não foi reconstruído todo o SDK. Correção de olhar, relighting,
-reenquadramento e AR têm contratos próprios e continuam indisponíveis.
+e máscara. Não foi reconstruído todo o SDK. A continuação AR abaixo acrescenta
+detecção e correção de olhar frontal; relighting continua proposto.
 
 ## Escopo necessário à implementação
 
@@ -163,7 +163,7 @@ Esta entrega implementa o recurso de fundo; não declara todo Camera Hub migrado
 
 Quatro engines AR foram importados e executados em Linux com entradas sintéticas,
 incluindo o caminho encoder→decoder em Rust. Isso comprova os contratos de tensores;
-correção de olhar e enquadramento ainda não estão disponíveis no vídeo do produto.
+naquela etapa, correção de olhar e enquadramento não estavam disponíveis no vídeo.
 A [central NVIDIA](https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-sdk/resources/)
 oferece AR 0.8.7 separadamente da referência AR 0.8.2 indicada para Camera Hub.
 O pacote novo é candidato à implementação própria; não é apresentado como uma
@@ -248,4 +248,55 @@ A leitura dos helpers `0x1800a81b0` e `0x1800304b0` confirmou a seleção por
 confiança e montagem de caixas pelas diferenças entre coordenadas. O primeiro
 helper apenas despacha a rotina GPU `0x1800a8090`; sua normalização de coordenadas
 ainda não foi fechada. Essa constante permanece pendente antes da integração
-da detecção ao vídeo.
+da detecção ao vídeo naquele ponto. A continuação a seguir fecha esse contrato.
+
+## Contrato de detecção fechado e recorte digital
+
+A rotina de registro em `nvARPose.dll` associa o stub `0x1800a8090` ao kernel
+`_Z14gridbox_kernelPfS_ffi`. A leitura estática focada do PTX comprimido no
+fatbin confirmou centros em `16×índice+0,5` e escala 35 das quatro distâncias.
+A procedência continua sendo a DLL exata identificada pelos hashes acima.
+O processo não executou a DLL Windows nem copiou o shader para o produto.
+Evidências locais: `target/ar-face-contract/ghidra.log`,
+`direct-face-bbox-launch.c.txt` e `gridbox.ptx.txt` no mesmo diretório ignorado.
+O projeto temporário Ghidra foi removido após a análise.
+
+`framing.rs` implementa decodificação e supressão de sobreposições próprias.
+O protótipo inicial de recorte foi retirado do produto a pedido do usuário:
+detectar o rosto é parte interna da correção dos olhos. `nvidia_framing.rs`
+prepara o detector e compartilha a imagem GPU com a correção e com o fundo.
+O modo apenas fundo conserva o processamento anterior e não carrega AR.
+
+Os contratos matemáticos e escolhas do aplicativo estão em
+[Algoritmos](ALGORITMOS_DE_EFEITOS.md#detecção-e-correção-de-olhar).
+[Efeitos](EFEITOS.md#ativar-correção-de-olhar) descreve operação e limites.
+As verificações incluem comparação GPU/CPU, imagem sem rosto, fotografia pública
+com rosto, composição com fundo e recusa de frame truncado. Isso não demonstra
+paridade de qualidade com Windows nem aceitação prolongada na câmera real.
+Landmarks e alinhamento dos olhos foram integrados na continuação abaixo.
+
+## Correção de olhar frontal na GPU
+
+`effects.eye_contact` executa detector, landmarks 126, encoder e decoder no mesmo
+worker isolado. O input de landmarks é cinza float32 80×80 em [0,255]; as saídas
+X/Y agrupadas foram verificadas na fotografia pública de teste. Os índices dos
+dois contornos oculares pertencem ao contrato do modelo. O alinhamento usa uma
+similaridade 2D própria para olhos em (64,32)/(192,32) no input RGB 256×64 do encoder.
+Não usa o template 3D, o alinhador nem shaders proprietários do SDK Windows.
+
+Embeddings e labels ficam na GPU e alimentam o decoder com alvo (0,0). A saída
+é recomposta somente em elipses dos olhos, com borda suave e transição de ganho.
+O caminho recusa dados não finitos, protege olhos fechados e suspende o efeito
+com baixa confiança ou pose acentuada. O vídeo conserva seu enquadramento.
+Fundo, preview e saída virtual compartilham o RGB resultante.
+
+O efeito é funcional para o contrato frontal exercitado; qualidade em vídeo real,
+óculos, oclusão, iluminação e comparação com Camera Hub exigem aceitação adicional.
+A GUI expõe **Correção de olhar** › **Olhar para a câmera** e prepara os componentes
+por **Preparar correção de olhar**, sem expor um controle de acompanhamento facial.
+Resultados e limites estão em [Validação local](VALIDACAO_LOCAL.md).
+
+A preparação reutiliza diretamente o instalador local validado por hash quando
+disponível. Não cria outra cópia de aproximadamente 1,3 GB no cache; um download
+para cache acontece somente sem origem local válida. A limpeza de duplicatas
+preservou os manifestos e modelos já preparados, conforme o registro local.

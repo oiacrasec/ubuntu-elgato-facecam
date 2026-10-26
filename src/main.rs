@@ -9,6 +9,10 @@ mod desktop;
 mod effects;
 mod engine;
 #[cfg(feature = "ai")]
+mod framing;
+#[cfg(feature = "ai")]
+mod gaze;
+#[cfg(feature = "ai")]
 mod gpu;
 #[cfg(feature = "gui")]
 mod gui;
@@ -25,6 +29,10 @@ mod nvidia_ar;
 mod nvidia_ar_model;
 #[cfg(feature = "ai")]
 mod nvidia_ar_setup;
+#[cfg(feature = "ai")]
+mod nvidia_framing;
+#[cfg(feature = "ai")]
+mod nvidia_gaze;
 #[cfg(feature = "ai")]
 mod nvidia_model;
 #[cfg(feature = "ai")]
@@ -332,12 +340,7 @@ fn run() -> Result<()> {
         #[cfg(feature = "ai")]
         {
             nvidia_ar::check()?;
-            println!(
-                "{}",
-                i18n::tr(
-                    "Contratos AR Ada validados na GPU; efeito de olhar ainda em implementação"
-                )
-            );
+            println!("{}", i18n::tr("Contratos AR Ada validados na GPU"));
             return Ok(());
         }
         #[cfg(not(feature = "ai"))]

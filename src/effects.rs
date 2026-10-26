@@ -56,6 +56,10 @@ pub struct Effects {
     pub denoise: f64,
     pub lut: String,
     pub background_blur: bool,
+    /// Read the retired prototype flag without enabling eye contact implicitly.
+    #[serde(skip_serializing)]
+    pub auto_frame: bool,
+    pub eye_contact: bool,
     pub background_mode: BackgroundMode,
     pub background_color: [u8; 3],
     pub background_image: String,
@@ -78,6 +82,8 @@ impl Default for Effects {
             denoise: 0.0,
             lut: String::new(),
             background_blur: false,
+            auto_frame: false,
+            eye_contact: false,
             background_mode: BackgroundMode::Blur,
             background_color: [32, 38, 48],
             background_image: String::new(),
@@ -93,7 +99,24 @@ impl Default for Effects {
 }
 
 impl Effects {
+    pub fn ai_enabled(&self) -> bool {
+        self.background_blur || self.eye_contact
+    }
+
     pub fn validate(&self) -> Result<()> {
+        if self.eye_contact
+            && (self.ai_provider != AiProvider::Cuda || self.ai_backend == AiBackend::Onnx)
+        {
+            bail!("A correção de olhar requer NVIDIA CUDA e segmentação Automática ou NVIDIA RTX");
+        }
+        if self.eye_contact {
+            #[cfg(feature = "ai")]
+            if !crate::nvidia_ar_setup::available() {
+                bail!("Prepare a correção de olhar nas configurações antes de ativar o efeito");
+            }
+            #[cfg(not(feature = "ai"))]
+            bail!("Esta compilação não inclui IA; use uma compilação com o recurso ai");
+        }
         if self.ai_backend == AiBackend::Nvidia && self.ai_provider != AiProvider::Cuda {
             bail!("A segmentação RTX requer processamento NVIDIA CUDA");
         }
@@ -204,6 +227,18 @@ fn filter_path(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn retired_framing_flag_does_not_enable_eye_contact_or_hidden_processing() {
+        let effects: Effects = serde_json::from_str(r#"{"auto_frame":true}"#).unwrap();
+        assert!(!effects.eye_contact);
+        assert!(!effects.ai_enabled());
+        assert!(
+            serde_json::to_value(&effects)
+                .unwrap()
+                .get("auto_frame")
+                .is_none()
+        );
+    }
 
     #[test]
     fn numeric_effects_cover_negative_zero_positive_and_non_finite_values() {

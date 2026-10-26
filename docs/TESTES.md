@@ -343,3 +343,48 @@ A publicação testa destino sem marcador, restauração após rename recusado e
 de uma versão identificada. A CLI verifica plano APT e falta de runtime RTX sem
 downloads, usando ferramentas simuladas; captura, Quit e novo preparo são recusados
 enquanto o job está ativo. Esses checks não carregam CUDA nem abrem a câmera.
+
+## Correção de olhar
+
+Checks comuns conferem decodificação de caixas, probabilidades e formas inválidas,
+negativos, zero, extremos, NaN/infinito, matrizes degeneradas, inversão de rotação,
+confiança, head pose e pálpebras fechadas. A CLI recusa CPU/ONNX para
+`eye_contact` sem alterar a configuração anterior. O campo antigo `auto_frame`
+é aceito sem ligar processamento e não volta à serialização. Esses testes não
+carregam CUDA nem abrem a câmera.
+
+Com os componentes preparados e `LD_LIBRARY_PATH` apontando às bibliotecas do
+manifesto VFX 1.20.1, execute os checks GPU optativos:
+
+```bash
+cargo test --locked --bin elgato-virtualcam nvidia_framing::tests::gpu_face_input -- --ignored --nocapture
+cargo test --locked --bin elgato-virtualcam nvidia_gaze::tests::gpu_eye_warp -- --ignored --nocapture
+FACECAM_NVIDIA_MANIFEST="${XDG_DATA_HOME:-$HOME/.local/share}/facecam-hub/runtimes/linux-x86_64/vfx/0.7.6/ada/manifest.json" cargo test --locked --test ai eye_contact_worker -- --ignored --nocapture
+```
+
+O input do detector aceita 1/255 de diferença por arredondamento; o alinhamento
+bilinear dos olhos aceita 0,001 em cinza [0,255] e 0,00001 em RGB [0,1] contra
+oracles escalares. O worker exercita quatro frames completos, EOF e truncamento,
+com correção sozinha e junto de fundo sólido. O aquecimento passa pelos modelos
+mesmo sem detectar rosto no quadro preto.
+
+O teste positivo usa a fotografia externa de Eileen Collins do conjunto
+[astronaut do scikit-image](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut),
+originalmente NASA e declarada de domínio público nesse catálogo. O arquivo não
+acompanha a distribuição; o teste confere seu SHA-256 antes de salvar derivados.
+
+```bash
+curl --fail --location --output /tmp/facecam-astronaut.png https://raw.githubusercontent.com/scikit-image/scikit-image/v0.24.0/skimage/data/astronaut.png
+FACECAM_AR_TEST_IMAGE=/tmp/facecam-astronaut.png cargo test --locked --bin elgato-virtualcam nvidia_gaze::tests::public_face -- --ignored --nocapture
+```
+
+SHA-256: `88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5`.
+O ensaio alinha os olhos, conecta encoder→decoder e verifica que o alvo muda a
+imagem gerada. A composição precisa alterar a região ocular e conservar todos
+os valores fora das elipses. NaN, infinito e intensidade fora do limite geram
+recusa. Sem rosto, a correção retorna a imagem original. Derivados públicos de
+inspeção ficam em `target/ar-gaze-contract/`, ignorado pelo Git.
+
+O teste não substitui aceitação de movimento real, óculos, oclusão, iluminação,
+comparação com Windows ou consumo em OBS/navegador. Inspeções GUI usam preview
+pausado; imagens pessoais de testes físicos não podem ser gravadas.

@@ -1076,3 +1076,111 @@ filesystem exercitaram destino sem marcador, falha de rename com restauração,
 manifesto truncado/incompatível, descritor alterado e licenças ausentes. Isso
 não demonstra durabilidade após queda de energia, qualidade em rostos reais ou
 integração AR ao vídeo; detecção, alinhamento e composição continuam pendentes.
+
+## Detector AR e enquadramento digital no vídeo — 26/10/2026
+
+Registro do protótipo anterior, retirado a pedido do usuário na continuação de
+correção de olhar. Os resultados abaixo descrevem esse estado intermediário.
+
+Na árvore baseada em `14b76e8`, o enquadramento digital passou no worker Rust
+isolado com RTX 4070 SUPER, ONNX Runtime 1.20.1 e TensorRT 10.4.0.26 preparados.
+O contrato de caixas foi fechado por inspeção estática do kernel, sem executar
+DLL Windows nem incorporar seu código ao produto.
+
+O teste GPU/CPU passou em 6,59 s, com imagens sintéticas paisagem, retrato e
+quadradas: letterbox BGR normalizado e recorte bilinear, conforme tolerâncias em
+[Testes](TESTES.md#correção-de-olhar). A fotografia pública `astronaut`
+produziu um rosto e escala de recorte 0,5793 após 90 avanços do acompanhamento;
+esse teste passou em 2,41 s. O arquivo permanece fora do Git, com origem e hash
+documentados. Não foi usada imagem pessoal ou captura de câmera.
+
+O teste do worker passou em 9,81 s: enquadramento sozinho, combinação com fundo
+sólido, quatro frames completos por caso e recusa de frames truncados. A regressão
+do modo anterior de fundo também passou em 4,49 s, incluindo reinício e cenários.
+Logs em `target/ar-face-contract/gpu-oracle.log`, `positive-face.log`,
+`worker-native.log` e `background-regression.log` no mesmo diretório.
+
+`./test-desktop-app.sh` passou com 83 testes comuns padrão, 66 no build mínimo e
+quatro checks FFmpeg. Clippy sem avisos nos dois builds, formatação, links e
+inventário passaram. A revisão adicional de negativos, zero, extremos e NaN nas
+caixas passou; Clippy foi repetido após esse ajuste de teste. O build headless com
+`--no-default-features --features ai` e o build release também passaram.
+Logs: `target/ar-face-contract/checks.log`, `geometry-final.log`,
+`clippy-final.log`, `headless-ai.log` e `release.log`.
+O diagnóstico release `--check-ar` também passou após o reaproveitamento do
+construtor de sessões: os quatro contratos continuam válidos. Log em
+`target/ar-face-contract/ar-diagnostic-final.log`.
+
+A janela debug foi inspecionada com preview pausado, em PT-BR e EN-US. O novo
+controle ficou legível na coluna de efeitos e **Aplicar e salvar** persistiu
+`auto_frame: true` pelo controlador privado, com backend `nvidia`, sem erro,
+`preview: false` e `streaming: false`. Capturas em
+`target/ar-face-contract/ui-effects.png` e `ui-effects-en.png`; resposta em
+`ui-controller-result.json`. A configuração temporária foi removida ao terminar.
+
+O ensaio curto de throughput usa 120 frames RGB pretos 1920×1080 por cenário,
+sem câmera ou ritmo de captura, contando somente bytes completos do stdout:
+129,98 fps no modo fundo; 136,96 fps no enquadramento; 124,48 fps combinados.
+As janelas medidas entre primeiro e último frame duraram 0,916 s, 0,869 s e
+0,956 s respectivamente. Isso mede o worker e seus pipes, sem conversão YUV,
+renderização ou consumidor externo. Detalhes em [Desempenho](DESEMPENHO.md#amostra-curta-do-worker-com-enquadramento).
+
+Naquele protótipo, o enquadramento digital tinha aceitação parcial. Não foram
+exercitados câmera em movimento real, múltiplas pessoas, baixa luz, sessão longa,
+OBS ou navegador nesta etapa. O teste comum não abre a câmera nem altera seus
+controles. Correção dos olhos continua pendente de landmarks, alinhamento e
+composição; o novo controle não a anuncia como disponível.
+
+## Correção de olhar e limpeza local — 26/10/2026
+
+Este resultado substitui o protótipo de enquadramento descrito acima. A interface
+oferece **Efeitos** › **Correção de olhar** › **Olhar para a câmera**, com aplicação
+pelo controlador. A detecção fica interna; o vídeo mantém seu enquadramento.
+O campo antigo `auto_frame` é aceito na leitura, ignorado e omitido ao salvar.
+Ele não ativa automaticamente o novo efeito `eye_contact`.
+
+Na RTX 4070 SUPER, os testes optativos validaram amostragem bilinear GPU contra
+referência escalar, landmarks, alinhamento 2D próprio, encoder/decoder com alvos
+distintos e composição restrita às elipses dos olhos. A fotografia pública
+`astronaut`, com hash fixado em [Testes](TESTES.md#correção-de-olhar), foi a única
+imagem de pessoa usada; nenhuma câmera foi aberta. NaN, infinito e saída fora dos
+limites foram recusados. Os dois testes GPU passaram em 4,92 s.
+
+O worker passou em 10,09 s nos casos somente olhos e olhos com fundo sólido,
+com preservação de frames sem rosto e recusa de entrada truncada. A amostra
+release com 120 frames públicos 1080p mediu 108,88 fps somente olhos e 91,37 fps
+com fundo; seus limites estão em [Desempenho](DESEMPENHO.md#amostra-curta-do-worker-com-correção-de-olhar).
+Evidências locais: `target/ar-gaze-contract/gpu-final.log`, `worker-native.log`,
+`eye-strip-comparison.png`, `corrected-public-face.png` e `throughput.log`.
+
+`./test-desktop-app.sh` passou com 85 testes comuns padrão, 67 no build mínimo
+e quatro checks FFmpeg, incluindo Clippy sem avisos, formatação, links e
+inventário. O build headless com `--no-default-features --features ai`, o build
+release e o diagnóstico release `--check-ar` também passaram.
+Logs locais: `target/ar-gaze-contract/checks-final.log`, `headless-ai-final.log`,
+`release.log` e `ar-diagnostic-final.log`.
+
+A GUI debug foi inspecionada com configuração e controlador privados, preview
+pausado e sem streaming. **Aplicar e salvar** persistiu `eye_contact: true`,
+com backend `nvidia` e sem erro; o JSON salvo omitiu `auto_frame`. A configuração
+temporária partiu do campo legado habilitado, mas o novo efeito iniciou desligado.
+Capturas e resposta: `target/ar-gaze-contract/ui-eye-pt.png`, `ui-eye-en.png` e
+`ui-controller-result.json`. A inspeção cobre PT-BR e EN-US.
+
+A limpeza recuperou 10.273.435.648 bytes (9,57 GiB) imediatamente após remover
+32 caminhos de caches, extrações duplicadas, arquivos compactados e builds
+obsoletos. Foram preservados a configuração ativa, seu modelo/runtime ONNX,
+os componentes VFX/AR preparados, instaladores originais e evidências de análise.
+O diagnóstico AR passou após a limpeza. O recibo local é
+`target/cleanup-2026-10-26.json`; esses arquivos ignorados não são distribuídos.
+A preparação AR agora usa diretamente o instalador local com SHA verificado,
+evitando recriar sua cópia de aproximadamente 1,3 GB em cache.
+O teste optativo do controlador preparou os componentes em diretório temporário,
+validou persistência, reabertura sem instalador e recusa de engine corrompido em
+70,53 s. O cache do instalador continuou ausente. Log local:
+`target/ar-gaze-contract/preparation-local-installer.log`.
+
+O alinhamento é frontal 2D próprio, sem paridade demonstrada com o alinhamento
+3D do SDK Windows. Câmera real, movimentos, óculos, iluminação variável, sessões
+longas, OBS e navegador continuam pendentes de aceitação. A imagem pública e os
+testes de contrato não comprovam qualidade em todos esses cenários.

@@ -28,8 +28,10 @@ existente; reconstruir todo o SDK não é pré-requisito.
 - `nvidia.rs`: segmentação temporal Ada por TensorRT, com estados na GPU.
 - `nvidia_model.rs`: importação local do modelo exato e descritor EPContext próprio.
 - `nvidia_setup.rs`: preparação no usuário, hashes e inferência antes da publicação.
-- `nvidia_ar_model.rs` e `nvidia_ar.rs`: quatro contratos AR Ada fixados, importação local e diagnóstico isolado, sem efeito AR no vídeo.
+- `nvidia_ar_model.rs` e `nvidia_ar.rs`: quatro contratos AR Ada fixados, importação local e diagnóstico isolado.
 - `nvidia_ar_setup.rs`: preparo AR persistente pelo controlador, runtime VFX reutilizado, licenças e publicação após inferência.
+- `framing.rs` e `nvidia_framing.rs`: detecção interna de rosto e upload GPU compartilhado com a correção de olhar.
+- `gaze.rs` e `nvidia_gaze.rs`: landmarks, alinhamento dos olhos, encoder/decoder e composição local; preservar enquadramento, piscadas e imagem fora dos olhos.
 - `ai_paths.rs`: descoberta local de modelo/runtime, preservando caminhos manuais.
 - `background.rs`: cenários locais e decodificação limitada de fundos próprios, uma vez por worker.
 - `video_background.rs`: fundo animado com decoder FFmpeg em loop, FPS de processamento e morte junto do worker.

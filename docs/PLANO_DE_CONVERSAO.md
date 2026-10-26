@@ -14,7 +14,9 @@ não substitui seus testes.
   [Prompter](PROMPTER.md).
 - [ ] IA: correção de olhar e enquadramento automático completos, com GPU e
   preparação validada dos componentes necessários. Quatro contratos AR 0.8.7
-  Ada executaram no diagnóstico Rust; o efeito em vídeo segue em implementação.
+  Ada executaram no diagnóstico Rust; correção de olhar frontal implementada, com
+  aceitação de qualidade em captura/consumidor ainda pendente. O recorte facial
+  independente foi retirado a pedido do usuário.
 - [x] HDR: descoberta e operação somente com contrato confirmado por modelo;
   não implementar persistência interna ou atualização de firmware nesta etapa.
   Implementado para MK.2 com contrato confirmado; execução física USB 2, limites e
@@ -48,7 +50,7 @@ desta página. Não reiniciar a investigação dos SDKs do zero.
 Fundo RTX, remoção de imagem própria e preview/saída virtual compartilhados já
 existiam antes dessas entregas. Os resultados e limites estão em
 [Validação local](VALIDACAO_LOCAL.md). Não confundir esses recursos com correção
-de olhar ou enquadramento automático, que continuam indisponíveis na captura.
+de olhar ou enquadramento automático, indisponíveis na captura naquele registro inicial.
 
 ## Estado técnico registrado antes da continuação
 
@@ -196,4 +198,38 @@ física de Prompter e as demais lacunas anteriores permanecem pendentes.
 Os componentes AR também foram preparados no diretório real do usuário,
 `~/.local/share/facecam-hub/runtimes/linux-x86_64/ar/0.8.7/ada/`, e passaram
 no diagnóstico release persistente. A próxima sessão pode reutilizar esse
-manifesto sem extrair o instalador. Nenhum efeito AR está ligado à captura.
+manifesto sem extrair o instalador. Naquela entrega, nenhum efeito AR estava ligado à captura.
+
+## Protótipo de detecção e recorte — 26/10/2026 (retirado)
+
+O contrato de caixas foi fechado por leitura estática: stride 16, centro +0,5
+pixel e escala 35. Um primeiro protótipo expôs acompanhamento por recorte e foi
+exercitado com oráculos GPU/CPU e fotografia pública. O usuário esclareceu que
+a opção desejada é corrigir os olhos; o controle de acompanhamento e o recorte
+foram retirados. Detector e upload GPU foram reaproveitados internamente.
+
+## Correção de olhar e limpeza de temporários — 26/10/2026
+
+O efeito agora usa landmarks, alinhamento 2D próprio, encoder/decoder com alvo
+(0,0) e composição local dos olhos. Funciona sozinho ou antes do fundo, sem
+reenquadrar o vídeo. A GUI oferece **Efeitos** › **Correção de olhar** ›
+**Olhar para a câmera**; a preparação chama **Preparar correção de olhar**.
+O antigo campo `auto_frame` é lido sem efeito e não volta ao JSON salvo.
+O campo atual é `eye_contact`, padrão false. GUI/CLI usam `SetEffects`.
+
+A detecção de rosto, seleção de pontos e modelos são detalhes internos. Não
+adicionar outro controle de acompanhar o rosto à interface. Os testes verificam
+alinhamento, resposta ao alvo de olhar, composição limitada aos olhos, proteção
+de piscadas/confiança/pose, composição com fundo e recusa de entrada truncada.
+A aceitação em câmera real, óculos, movimento, consumidores e comparação visual
+com Windows permanece pendente; o limite atual é alinhamento frontal 2D.
+
+A limpeza autorizada removeu caches de builds antigos, runtimes de ensaios
+substituídos, pacotes extraídos e cópias redundantes de instaladores. Recuperação
+medida: 9,57 GiB, com configuração, runtime ONNX configurado e modelos AR/VFX
+preservados. Recibo local: `target/cleanup-2026-10-26.json`. A preparação AR passou
+a reutilizar o instalador local diretamente, evitando recriar uma cópia de 1,3 GB.
+
+O próximo trabalho é validar a correção em captura e consumidor reais, com
+qualidade, piscadas, confiança, resolução e FPS medidos separadamente. Preserve
+os ensaios sem gravação de imagens pessoais e os limites do [Roadmap](ROADMAP.md).

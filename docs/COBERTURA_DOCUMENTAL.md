@@ -53,7 +53,12 @@ validação e os catálogos evoluem sem alterar IDs ou hashes das 152 fontes his
 A preparação persistente dos contratos AR fica em [Análise RTX](ANALISE_RTX.md),
 com comando e estado em [Protocolo](PROTOCOLO_DE_CONTROLE.md), ciclo de publicação
 em [Arquitetura](ARQUITETURA.md) e verificações em [Testes](TESTES.md). Essa entrega
-não representa efeito AR no vídeo nem altera o inventário histórico.
+por si só não ativa o efeito no vídeo nem altera o inventário histórico.
+
+Correção de olhar evolui essa base: operação em [Efeitos](EFEITOS.md),
+contratos em [Algoritmos](ALGORITMOS_DE_EFEITOS.md) e [Arquitetura](ARQUITETURA.md),
+com limites de aceitação em [Roadmap](ROADMAP.md). Os testes de rosto e a origem
+da fotografia pública ficam em [Testes](TESTES.md), sem alterar as 152 fontes históricas.
 
 ## Registros por arquivo documental
 

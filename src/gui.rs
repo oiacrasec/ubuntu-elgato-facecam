@@ -702,6 +702,13 @@ impl App {
                     ui.checkbox(&mut effects.mirror, "").on_hover_text(t("Espelha o preview e a saída virtual."));
                 });
             });
+            effect_card(ui, "Correção de olhar", true, |ui| {
+                ui.add_enabled(state.ai_compiled, egui::Checkbox::new(&mut effects.eye_contact, t("Olhar para a câmera")));
+                ui.label(RichText::new(t("Ajusta a direção dos olhos. Para melhor resultado, mantenha o rosto de frente.")).size(10.0).color(MUTED));
+                if !state.ar_prepared {
+                    ui.label(RichText::new(t("Prepare a correção de olhar nas configurações antes de ativar o efeito")).size(10.0).color(MUTED));
+                }
+            });
             effect_card(ui, "AI Background", true, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_enabled(state.ai_compiled, egui::Checkbox::new(&mut effects.background_blur, t("Ativar fundo com IA")));
@@ -751,7 +758,8 @@ impl App {
                     }
                     effect_slider(ui, "FPS da IA", &mut effects.ai_fps, 1..=60, 1.0);
                     effect_row(ui, "Processamento", |ui| { ui.label(t(match state.ai_backend.as_ref().map(|s| s.backend) {
-                        Some(crate::effects::AiBackend::Nvidia) => "NVIDIA RTX · temporal",
+                        Some(crate::effects::AiBackend::Nvidia) if effects.background_blur => "NVIDIA RTX · temporal",
+                        Some(crate::effects::AiBackend::Nvidia) => "NVIDIA CUDA",
                         _ => match effects.ai_provider {
                             crate::effects::AiProvider::Cuda => "NVIDIA CUDA",
                             crate::effects::AiProvider::Cpu => "CPU (ONNX)",
@@ -1368,6 +1376,11 @@ impl eframe::App for App {
                 if ui.add_enabled(state.ai_compiled && !state.preparing_nvidia && !state.streaming && !state.preview && !state.installation_running,
                     egui::Button::new(t(if state.nvidia_prepared { "Verificar / reparar IA RTX" } else { "Preparar IA RTX" }))).clicked() {
                     self.dispatch(Request::PrepareNvidia);
+                }
+                ui.label(t("Correção de olhar · NVIDIA RTX. Prepare a IA RTX primeiro."));
+                if ui.add_enabled(state.ai_compiled && state.nvidia_prepared && !state.preparing_nvidia && !state.streaming && !state.preview && !state.installation_running,
+                    egui::Button::new(t(if state.ar_prepared { "Verificar / reparar correção de olhar" } else { "Preparar correção de olhar" }))).clicked() {
+                    self.dispatch(Request::PrepareAr);
                 }
                 if state.preparing_nvidia {
                     ui.horizontal(|ui| { ui.spinner(); ui.label(t(&state.nvidia_progress)); });

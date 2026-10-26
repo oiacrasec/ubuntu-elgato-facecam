@@ -115,7 +115,8 @@ como histórico e critérios para futuras combinações.
 A investigação complementar encontrou engines TensorRT 10.4.0.26 no pacote AR
 0.8.7 Ada. Os quatro contratos executaram com tensores sintéticos no diagnóstico
 Rust `--check-ar`, reaproveitando o runtime nativo preparado para o VFX. A referência
-Windows inventariada continua AR 0.8.2; não há efeito de olhar ativo no produto.
+Windows inventariada continua AR 0.8.2; a integração própria de olhar frontal
+usa AR 0.8.7 e tem aceitação de qualidade parcial.
 [Análise RTX](ANALISE_RTX.md#contratos-ar-087-ada--26102026) registra hashes,
 formas, método e limites. O pacote Windows adicional permanece local, sem execução
 do instalador ou distribuição de seus pesos/chaves no Git.

@@ -1,4 +1,4 @@
-//! Persistent, user-local AR contracts. This does not enable AR effects in video.
+//! Persistent, user-local AR components used by eye-contact correction.
 use crate::{
     nvidia::Installation as Runtime,
     nvidia_ar_model::{MODELS, SDK_SHA, SDK_URL},
@@ -124,17 +124,18 @@ pub(crate) fn prepare(work: &mut Work<'_>) -> Result<String> {
     let cache = user_root("XDG_CACHE_HOME", ".cache")?.join("facecam-hub/nvidia-ar-0.8.7-ada");
     fs::create_dir_all(&cache)?;
     let installer = cache.join("nvidia_ar_sdk_installer_v0.8.7_ada.exe");
-    work.phase("Conferindo o pacote AR 0.8.7 Ada")?;
-    if !checksum(&installer).is_ok_and(|s| s == SDK_SHA)
-        && let Ok(source) = crate::nvidia_ar::installer()
-        && source != installer
-    {
-        fs::copy(source, &installer)?;
-    }
-    fetch(work, SDK_URL, &installer, SDK_SHA, false)?;
+    work.phase("Conferindo os componentes da correção de olhar")?;
+    // Reuse a hash-verified local installer directly; do not duplicate its 1.3 GB.
+    let installer = match crate::nvidia_ar::installer() {
+        Ok(source) => source,
+        Err(_) => {
+            fetch(work, SDK_URL, &installer, SDK_SHA, false)?;
+            installer
+        }
+    };
     let sdk = stage.path().join("sdk");
     fs::create_dir(&sdk)?;
-    work.phase("Importando os quatro contratos AR para o usuário")?;
+    work.phase("Preparando a correção de olhar")?;
     let mut args = vec![
         "x".into(),
         "-y".into(),
@@ -162,7 +163,7 @@ pub(crate) fn prepare(work: &mut Work<'_>) -> Result<String> {
     )?;
     fs::write(stage.path().join(MARKER), b"1\n")?;
     let prepared = Installation::load(stage.path())?;
-    work.phase("Validando os quatro contratos AR na GPU")?;
+    work.phase("Testando a correção de olhar na GPU")?;
     let executable = format!("/proc/{}/exe", std::process::id());
     let status = work
         .command(&executable)?
@@ -178,7 +179,7 @@ pub(crate) fn prepare(work: &mut Work<'_>) -> Result<String> {
         bail!("A validação AR falhou; os componentes anteriores foram preservados");
     }
     publish(stage.path(), &root, MARKER)?;
-    Ok("Contratos AR preparados e validados; efeitos no vídeo ainda em implementação".into())
+    Ok("Correção de olhar preparada e validada na GPU".into())
 }
 
 #[cfg(test)]

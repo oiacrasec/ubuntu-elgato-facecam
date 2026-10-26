@@ -8,6 +8,69 @@ mod inference {
     const BIN: &str = env!("CARGO_BIN_EXE_elgato-virtualcam");
 
     #[test]
+    #[ignore = "requires prepared AR Ada and VFX manifest; synthetic frames only, no camera"]
+    fn eye_contact_worker_preserves_empty_frames_combines_background_and_rejects_truncation() {
+        let manifest = std::env::var_os("FACECAM_NVIDIA_MANIFEST")
+            .map(std::path::PathBuf::from)
+            .expect("set FACECAM_NVIDIA_MANIFEST");
+        let root = manifest.parent().unwrap();
+        let data: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+        let libraries = std::env::join_paths(
+            data["libraries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| root.join(p.as_str().unwrap())),
+        )
+        .unwrap();
+        for background in [false, true] {
+            for partial in [false, true] {
+                let effects = serde_json::json!({"eye_contact":true,"background_blur":background,"background_mode":"solid","background_color":[211,37,59]});
+                let mut worker = Command::new(BIN)
+                    .args(["--ai-worker", &effects.to_string(), "--ai-size", "64x36"])
+                    .env("FACECAM_NVIDIA_MANIFEST", &manifest)
+                    .env("LD_LIBRARY_PATH", &libraries)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .unwrap();
+                let mut input = worker.stdin.take().unwrap();
+                let writer = std::thread::spawn(move || {
+                    input
+                        .write_all(&vec![
+                            0_u8;
+                            if partial {
+                                64 * 36 * 3 - 1
+                            } else {
+                                64 * 36 * 3 * 4
+                            }
+                        ])
+                        .unwrap()
+                });
+                let output = worker.wait_with_output().unwrap();
+                writer.join().unwrap();
+                if partial {
+                    assert!(!output.status.success());
+                    assert!(
+                        String::from_utf8_lossy(&output.stderr).contains("Frame RGB incompleto")
+                    );
+                } else {
+                    assert!(
+                        output.status.success(),
+                        "{}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                    assert_eq!(output.stdout.len(), 64 * 36 * 3 * 4);
+                    let pixel = if background { [211, 37, 59] } else { [0, 0, 0] };
+                    assert!(output.stdout.as_chunks::<3>().0.iter().all(|p| *p == pixel));
+                }
+            }
+        }
+    }
+
+    #[test]
     #[ignore = "requires RTX Ada, prepared VFX runtime and AR 0.8.7 Ada installer; synthetic tensors only"]
     fn ar_models_import_and_execute_all_native_contracts_in_an_isolated_worker() {
         let output = Command::new(BIN)

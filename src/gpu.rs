@@ -52,7 +52,7 @@ impl Processing {
         let [w, h] = size;
         let mut result = Self {
             prepare: Stage::open(
-                &prepare_model(size, mask, native),
+                &prepare_model(size, mask, native, effects.eye_contact),
                 &["rgb", "small", "image"],
                 &[],
                 device,
@@ -116,6 +116,15 @@ impl Processing {
         }
         host.copy_from_slice(rgb);
         self.prepare.binding.bind_input("bytes", &self.host)?;
+        self.prepared()
+    }
+
+    pub fn prepare_source(&mut self, source: &DynValue) -> Result<Prepared> {
+        self.prepare.binding.bind_input("rgb", source)?;
+        self.prepared()
+    }
+
+    fn prepared(&mut self) -> Result<Prepared> {
         let mut outputs = self.prepare.run()?;
         Ok(Prepared {
             source: take(&mut outputs, "rgb")?,
@@ -161,14 +170,17 @@ impl Processing {
     }
 }
 
-fn take(outputs: &mut BTreeMap<&'static str, DynValue>, name: &'static str) -> Result<DynValue> {
+pub(crate) fn take(
+    outputs: &mut BTreeMap<&'static str, DynValue>,
+    name: &'static str,
+) -> Result<DynValue> {
     outputs
         .remove(name)
         .with_context(|| format!("Saída GPU ausente: {name}"))
 }
 
-struct Stage {
-    binding: IoBinding,
+pub(crate) struct Stage {
+    pub(crate) binding: IoBinding,
     session: Session,
     gpu: MemoryInfo,
     cpu: MemoryInfo,
@@ -177,7 +189,7 @@ struct Stage {
     profiling: bool,
 }
 impl Stage {
-    fn open(
+    pub(crate) fn open(
         model: &[u8],
         gpu_outputs: &[&'static str],
         cpu_outputs: &[&'static str],
@@ -219,7 +231,7 @@ impl Stage {
             profiling: profile.is_some(),
         })
     }
-    fn run(&mut self) -> Result<BTreeMap<&'static str, DynValue>> {
+    pub(crate) fn run(&mut self) -> Result<BTreeMap<&'static str, DynValue>> {
         // Each result can remain bound as an input to another session. Rebind to
         // device memory instead of overwriting an earlier frame/background.
         self.binding.clear_outputs();
@@ -255,14 +267,14 @@ impl Drop for Stage {
 // Small, fixed-shape graphs owned by this application. No model weights,
 // downloaded code or Python runtime are used to build these descriptors.
 #[derive(Default)]
-struct Graph(Vec<u8>);
-fn integer(name: &str, value: u64) -> Vec<u8> {
+pub(crate) struct Graph(Vec<u8>);
+pub(crate) fn integer(name: &str, value: u64) -> Vec<u8> {
     bytes(
         5,
         &[text(1, name), number(3, value), number(20, 2)].concat(),
     )
 }
-fn integers(name: &str, values: &[u64]) -> Vec<u8> {
+pub(crate) fn integers(name: &str, values: &[u64]) -> Vec<u8> {
     bytes(
         5,
         &[
@@ -273,11 +285,11 @@ fn integers(name: &str, values: &[u64]) -> Vec<u8> {
         .concat(),
     )
 }
-fn string(name: &str, value: &str) -> Vec<u8> {
+pub(crate) fn string(name: &str, value: &str) -> Vec<u8> {
     bytes(5, &[text(1, name), text(4, value), number(20, 3)].concat())
 }
 impl Graph {
-    fn node(&mut self, op: &str, inputs: &[&str], output: &str, attrs: &[Vec<u8>]) {
+    pub(crate) fn node(&mut self, op: &str, inputs: &[&str], output: &str, attrs: &[Vec<u8>]) {
         let mut n = inputs.iter().flat_map(|s| text(1, s)).collect::<Vec<_>>();
         n.extend(text(2, output));
         n.extend(text(3, output));
@@ -287,7 +299,7 @@ impl Graph {
         }
         self.0.extend(bytes(1, &n));
     }
-    fn value(&mut self, name: &str, ty: u64, shape: &[i64], input: bool) {
+    pub(crate) fn value(&mut self, name: &str, ty: u64, shape: &[i64], input: bool) {
         let dims = shape
             .iter()
             .flat_map(|&n| bytes(1, &number(1, n as u64)))
@@ -298,7 +310,7 @@ impl Graph {
             &[text(1, name), bytes(2, &tensor)].concat(),
         ));
     }
-    fn constant(&mut self, name: &str, ty: u64, shape: &[u64], raw: &[u8]) {
+    pub(crate) fn constant(&mut self, name: &str, ty: u64, shape: &[u64], raw: &[u8]) {
         let t = [
             shape.iter().flat_map(|&n| number(1, n)).collect(),
             number(2, ty),
@@ -308,7 +320,7 @@ impl Graph {
         .concat();
         self.0.extend(bytes(5, &t));
     }
-    fn ints(&mut self, name: &str, values: &[i64]) {
+    pub(crate) fn ints(&mut self, name: &str, values: &[i64]) {
         self.constant(
             name,
             7,
@@ -319,10 +331,10 @@ impl Graph {
                 .collect::<Vec<_>>(),
         );
     }
-    fn scalar(&mut self, name: &str, value: f32) {
+    pub(crate) fn scalar(&mut self, name: &str, value: f32) {
         self.constant(name, 1, &[], &value.to_le_bytes());
     }
-    fn finish(mut self) -> Vec<u8> {
+    pub(crate) fn finish(mut self) -> Vec<u8> {
         self.0.extend(text(2, "Facecam GPU"));
         [
             number(1, 9),
@@ -332,7 +344,7 @@ impl Graph {
         ]
         .concat()
     }
-    fn resize(&mut self, input: &str, output: &str, target: &str) {
+    pub(crate) fn resize(&mut self, input: &str, output: &str, target: &str) {
         self.node(
             "Resize",
             &[input, "", "", target],
@@ -356,13 +368,19 @@ fn upload_graph([w, h]: [usize; 2]) -> Graph {
     );
     g
 }
-fn upload_model(size: [usize; 2]) -> Vec<u8> {
+pub(crate) fn upload_model(size: [usize; 2]) -> Vec<u8> {
     let mut g = upload_graph(size);
     g.value("rgb", 1, &[1, 3, size[1] as i64, size[0] as i64], false);
     g.finish()
 }
-fn prepare_model(size: [usize; 2], [mw, mh]: [usize; 2], native: bool) -> Vec<u8> {
-    let mut g = upload_graph(size);
+fn prepare_model(size: [usize; 2], [mw, mh]: [usize; 2], native: bool, source: bool) -> Vec<u8> {
+    let mut g = if source {
+        let mut g = Graph::default();
+        g.value("rgb", 1, &[1, 3, size[1] as i64, size[0] as i64], true);
+        g
+    } else {
+        upload_graph(size)
+    };
     g.ints("target", &[1, 3, mh as i64, mw as i64]);
     g.scalar("half", 0.5);
     g.scalar("divisor", 255.0);

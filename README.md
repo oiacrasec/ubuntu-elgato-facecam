@@ -54,7 +54,13 @@ Com CUDA, redimensionamento, desfoque e composição também usam a GPU, conserv
 a máscara e as imagens intermediárias nela.
 Consulte [Efeitos](docs/EFEITOS.md) para uso e [Análise RTX](docs/ANALISE_RTX.md)
 para versões, evidências e limites. A execução foi exercitada na RTX 4070 SUPER;
-correção de olhar e paridade integral com Windows continuam pendentes.
+paridade integral de qualidade com Windows continua pendente.
+
+A correção de olhar ajusta os olhos para parecerem direcionados à câmera.
+Prepare o efeito em **Configurações** › **Preparar correção de olhar**, depois
+ative **Efeitos** › **Correção de olhar** › **Olhar para a câmera** e clique em
+**Aplicar e salvar**. O efeito preserva o enquadramento e aparece no preview e
+na câmera virtual. Veja [pré-requisitos e limites](docs/EFEITOS.md#ativar-correção-de-olhar).
 
 Preview e câmera virtual compartilham imagem, resolução e FPS. Com IA,
 **FPS da IA** limita ambas a 30 por padrão. A janela ajusta o tamanho visual

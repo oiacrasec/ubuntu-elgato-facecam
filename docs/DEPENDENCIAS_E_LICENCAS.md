@@ -1,5 +1,9 @@
 # Dependências, recursos e licenças
 
+O teste optativo de correção de olhar pode usar uma fotografia pública externa;
+ela não é recurso do aplicativo. A origem NASA, declaração de domínio público,
+URL versionada e hash da imagem `astronaut` estão em [Testes](TESTES.md#correção-de-olhar).
+
 O código deste projeto usa a licença [MIT](../LICENSE). Bibliotecas, modelos,
 fontes e ferramentas externas têm licenças e condições próprias.
 
