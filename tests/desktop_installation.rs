@@ -205,16 +205,18 @@ fn uninstall_does_not_remove_another_prefix_desktop_entries() {
     let first = dir.path().join("one");
     let second = dir.path().join("two");
     for prefix in [&first, &second] {
-        succeeded(
-            command(dir.path(), Path::new(BIN))
-                .arg("--install-desktop")
-                .arg(prefix)
-                .arg("--desktop-autostart")
+        let mut installer = command(dir.path(), Path::new(BIN));
+        installer
+            .arg("--install-desktop")
+            .arg(prefix)
+            .arg("--desktop-autostart");
+        // The previous production updater does not pass --desktop-resources.
+        if prefix == &first {
+            installer
                 .arg("--desktop-resources")
-                .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds"))
-                .output()
-                .unwrap(),
-        );
+                .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds"));
+        }
+        succeeded(installer.output().unwrap());
     }
     let desktop = dir
         .path()

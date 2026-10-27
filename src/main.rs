@@ -355,10 +355,17 @@ fn run() -> Result<()> {
     if let Some(prefix) = &args.install_desktop {
         let binary = std::env::current_exe()?;
         let resources = args.desktop_resources.clone().unwrap_or_else(|| {
-            binary
+            let adjacent = binary
                 .parent()
                 .unwrap_or_else(|| std::path::Path::new("."))
-                .join("resources")
+                .join("resources");
+            if adjacent.is_dir() {
+                adjacent
+            } else {
+                // Updaters predating external media pass no resource argument.
+                // Their temporary source checkout still exists during install.
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds")
+            }
         });
         installation::install(
             &binary,

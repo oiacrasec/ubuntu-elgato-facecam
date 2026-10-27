@@ -1378,3 +1378,9 @@ ou qualidade de recorte de uma pessoa real.
 Clippy, testes comuns e checks FFmpeg. Evidência local:
 `target/windows-backgrounds/mirror-full-checks.log`. A mudança não altera o
 espelho independente do texto do Prompter.
+
+O contrato de instalação também passou usando o novo binário sem argumento de
+recursos, como faz o atualizador da produção anterior. Nesse caso ele localiza
+os fundos no checkout que o compilou; uma reinstalação pelo launcher reutiliza
+os arquivos adjacentes. Foram repetidos Clippy nas duas variantes e os testes de
+instalação/documentação, sem tocar na configuração real do usuário.

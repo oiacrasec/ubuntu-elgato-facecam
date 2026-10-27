@@ -86,7 +86,10 @@ Os fundos fornecidos pelo pacote ficam em `resources/images` e `resources/videos
 junto do executável, com proveniência. A instalação verifica tamanho e SHA-256
 de cada arquivo antes da publicação. Os scripts e o atualizador passam ao instalador
 nativo a pasta `assets/backgrounds` do mesmo checkout; uma reinstalação pelo binário
-instalado pode reutilizar sua pasta `resources`. Um arquivo ausente ou alterado
+instalado pode reutilizar sua pasta `resources`. Para compatibilidade com o
+atualizador anterior, sem esse argumento, o novo binário também localiza os
+fundos no checkout que o compilou, ainda presente durante a instalação.
+Um arquivo ausente ou alterado
 recusa o pacote e preserva a versão ativa. Os arquivos não são embutidos no binário.
 
 O log é `$XDG_CACHE_HOME/facecam-hub/updates/update.log`, ou
