@@ -42,9 +42,11 @@ precisam de autorização ou licença adequada; imagens pessoais não são fixtu
 
 O usuário autorizou em 26/10/2026 a incorporação dos ícones originais do aplicativo
 e da bandeja do Camera Hub Windows. A exceção se limita aos recursos registrados
-em [Recursos visuais](../assets/README.md), com proveniência e hashes. Essas imagens
+em [Recursos visuais](../assets/README.md), com proveniência e hashes. Em 27/10/2026,
+o usuário solicitou também as mesmas imagens e vídeos de fundo: a exceção inclui
+os 22 arquivos de `BackgroundsFolder` registrados nesse inventário. Esses recursos
 de terceiros ficam fora da licença MIT do código; a exceção não se estende a
-modelos, firmware, shaders ou outros recursos do Camera Hub.
+modelos, firmware, shaders ou recursos do Camera Hub fora desses inventários.
 
 Uma linha de menu ou um controle desenhado não comprova paridade. Documente
 recurso, cenário, evidência e limitação em [Roadmap](ROADMAP.md). Não transfira

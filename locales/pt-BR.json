@@ -698,6 +698,10 @@
     "Você está usando a versão mais recente": "Você está usando a versão mais recente",
     "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.",
     "Visualização ativada": "Visualização ativada",
-    "Visualização pausada": "Visualização pausada"
+    "Visualização pausada": "Visualização pausada",
+    "Caminho inválido no catálogo de fundos": "Caminho inválido no catálogo de fundos",
+    "Fundo sem diretório": "Fundo sem diretório",
+    "Fundo original indisponível: {path}": "Fundo original indisponível: {path}",
+    "Fundo original alterado: {path}": "Fundo original alterado: {path}"
   }
 }

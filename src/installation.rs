@@ -217,6 +217,7 @@ impl Drop for Changes {
 pub fn install(
     binary: &Path,
     build: &BuildInfo,
+    resources: &Path,
     prefix: &Path,
     data: &Path,
     autostart: bool,
@@ -302,6 +303,7 @@ pub fn install(
     ] {
         fs::write(bundle.path().join("icons").join(name), bytes)?;
     }
+    install_backgrounds(resources, &bundle.path().join("resources"))?;
     let installed = Installed {
         format: 1,
         prefix: prefix.clone(),
@@ -395,9 +397,56 @@ pub fn install(
     Ok(installed)
 }
 
+/// Keep the original media outside the executable and publish it with the bundle.
+fn install_backgrounds(source: &Path, destination: &Path) -> Result<()> {
+    #[derive(Deserialize)]
+    struct Manifest {
+        files: Vec<Media>,
+    }
+    #[derive(Deserialize)]
+    struct Media {
+        path: PathBuf,
+        bytes: u64,
+        sha256: String,
+    }
+    let provenance = include_bytes!("../assets/backgrounds/provenance.json");
+    let manifest: Manifest = serde_json::from_slice(provenance)?;
+    for media in manifest.files {
+        let components: Vec<_> = media.path.components().collect();
+        if components.len() != 2
+            || !components
+                .iter()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+            || !matches!(
+                components[0].as_os_str().to_str(),
+                Some("images" | "videos")
+            )
+        {
+            bail!("Caminho inválido no catálogo de fundos");
+        }
+        let target = destination.join(&media.path);
+        fs::create_dir_all(target.parent().context("Fundo sem diretório")?)?;
+        let copied = fs::copy(source.join(&media.path), &target)
+            .with_context(|| format!("Fundo original indisponível: {}", media.path.display()))?;
+        if copied != media.bytes || checksum(&target)? != media.sha256 {
+            bail!("Fundo original alterado: {}", media.path.display());
+        }
+    }
+    fs::write(destination.join("provenance.json"), provenance)?;
+    fs::write(
+        destination.join("README.md"),
+        include_bytes!("../assets/backgrounds/README.md"),
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn backgrounds() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds")
+    }
 
     fn build() -> BuildInfo {
         BuildInfo {
@@ -413,14 +462,14 @@ mod tests {
         let data = dir.path().join("data");
         let source = dir.path().join("binary");
         fs::write(&source, b"old executable").unwrap();
-        let installed = install(&source, &build(), &prefix, &data, false).unwrap();
+        let installed = install(&source, &build(), &backgrounds(), &prefix, &data, false).unwrap();
         let first = installed.launcher().canonicalize().unwrap();
         let legacy = data.join("icons/hicolor/scalable/apps/facecam-hub.svg");
         fs::create_dir_all(legacy.parent().unwrap()).unwrap();
         let legacy_target = installed.root().join("current/icons/facecam-hub.svg");
         symlink(&legacy_target, &legacy).unwrap();
         fs::write(&source, b"new executable").unwrap();
-        install(&source, &build(), &prefix, &data, false).unwrap();
+        install(&source, &build(), &backgrounds(), &prefix, &data, false).unwrap();
         assert!(legacy.symlink_metadata().is_err());
         assert!(
             data.join("icons/hicolor/256x256/apps/facecam-hub.png")
@@ -451,7 +500,7 @@ mod tests {
         let original_entry = fs::read(&entry).unwrap();
         symlink(&legacy_target, &legacy).unwrap();
         fs::write(&source, b"failed upgrade").unwrap();
-        assert!(install(&source, &build(), &prefix, &data, false).is_err());
+        assert!(install(&source, &build(), &backgrounds(), &prefix, &data, false).is_err());
         assert_eq!(fs::read_link(&legacy).unwrap(), legacy_target);
         assert_eq!(fs::read(&entry).unwrap(), original_entry);
         assert_eq!(fs::read(&second).unwrap(), b"new executable");
@@ -474,6 +523,7 @@ mod tests {
                     gui: false,
                     ..Default::default()
                 },
+                &backgrounds(),
                 &prefix,
                 &data,
                 false
@@ -483,11 +533,32 @@ mod tests {
         assert!(!prefix.exists());
         fs::create_dir_all(prefix.join("lib/facecam-hub")).unwrap();
         fs::write(prefix.join("lib/facecam-hub/keep"), b"personal").unwrap();
-        assert!(install(&source, &build(), &prefix, &data, false).is_err());
+        assert!(install(&source, &build(), &backgrounds(), &prefix, &data, false).is_err());
         assert_eq!(
             fs::read(prefix.join("lib/facecam-hub/keep")).unwrap(),
             b"personal"
         );
         assert!(exec_quote(Path::new("/tmp/a\nb")).is_err());
+    }
+
+    #[test]
+    fn missing_or_modified_background_does_not_replace_the_installed_bundle() {
+        let dir = tempfile::tempdir().unwrap();
+        let prefix = dir.path().join("prefix");
+        let data = dir.path().join("data");
+        let binary = dir.path().join("binary");
+        fs::write(&binary, b"executable").unwrap();
+        let first = install(&binary, &build(), &backgrounds(), &prefix, &data, false).unwrap();
+        let original = first.launcher().canonicalize().unwrap();
+        let media = dir.path().join("media");
+        assert!(install(&binary, &build(), &media, &prefix, &data, false).is_err());
+        fs::create_dir_all(media.join("videos")).unwrap();
+        let mut changed = fs::read(backgrounds().join("videos/Clock_Background.mp4")).unwrap();
+        changed[0] ^= 1;
+        fs::write(media.join("videos/Clock_Background.mp4"), changed).unwrap();
+        let error = install(&binary, &build(), &media, &prefix, &data, false).unwrap_err();
+        assert!(error.to_string().contains("Fundo original alterado"));
+        assert_eq!(first.launcher().canonicalize().unwrap(), original);
+        assert_eq!(fs::read(first.launcher()).unwrap(), b"executable");
     }
 }

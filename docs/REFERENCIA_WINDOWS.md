@@ -40,7 +40,10 @@ Não foram alterados o checkout vizinho, Java do sistema ou registro MCP do clie
 O MSI, suas ações de instalação, o executável e os drivers Windows não foram
 executados. A inspeção não escreveu na câmera nem atualizou firmware.
 Pseudocódigo, projetos temporários e recursos extraídos permanecem em `package/`,
-ignorado pelo Git; não são incorporados ao produto Rust.
+ignorado pelo Git. As exceções solicitadas pelo usuário são os ícones originais
+e, em 27/10/2026, os 22 fundos de imagem/vídeo; [Recursos visuais](../assets/README.md)
+registra origem, hashes e inclusão no pacote Linux. Os demais recursos extraídos
+não são incorporados ao produto Rust.
 
 ## Comparação com o pacote macOS
 

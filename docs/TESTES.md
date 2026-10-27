@@ -436,3 +436,12 @@ links simbólicos dos ícones antigos. Uma publicação que falha restaura esses
 links. A remoção continua verificando a posse pelo prefixo, incluindo os caminhos
 antigos e os novos. As imagens de terceiros têm hashes e proveniência em
 [Recursos visuais](../assets/README.md); não exigem Qt nem a execução do Windows.
+
+## Fundos originais no pacote
+
+`tests/desktop_installation.rs` verifica os 22 arquivos publicados contra os
+originais do checkout e exercita reinstalação usando os recursos do bundle.
+O teste unitário de `installation` verifica que um fundo ausente ou alterado
+recusa a atualização antes de trocar `current`. Não usa câmera, modelos ou GPU.
+Os hashes, dimensões e durações de referência ficam no
+[inventário dos fundos](../assets/backgrounds/provenance.json).

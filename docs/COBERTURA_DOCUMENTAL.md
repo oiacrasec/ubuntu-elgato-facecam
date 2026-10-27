@@ -21,7 +21,9 @@ não concedem direitos sobre marcas ou recursos não usados.
 
 A UI tem capturas próprias. A exceção autorizada em 26/10/2026 para os ícones
 originais do aplicativo e da bandeja está em [Recursos visuais](../assets/README.md),
-com origem e hashes separados do inventário histórico.
+com origem e hashes separados do inventário histórico. A solicitação de 27/10/2026
+inclui também os [fundos originais](../assets/backgrounds/README.md), com catálogo
+próprio de 22 arquivos. O inventário histórico de 152 fontes permanece igual.
 Links a processos privados não disponíveis no acervo não são tratados como regras
 conhecidas ou como dependências existentes. Esse é o limite da revisão, sem
 inventar conteúdo que não está nos arquivos examinados.

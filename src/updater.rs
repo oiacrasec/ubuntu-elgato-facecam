@@ -401,6 +401,8 @@ fn apply(
         Command::new(&binary)
             .arg("--install-desktop")
             .arg(&installed.prefix)
+            .arg("--desktop-resources")
+            .arg(source.path().join("assets/backgrounds"))
             .env("XDG_DATA_HOME", &installed.data_home),
         Duration::from_secs(60),
         Some(log),

@@ -100,6 +100,9 @@ pub fn catalog(root: &Path, effects: &crate::effects::Effects) -> Vec<Resource> 
         && let Some(parent) = exe.parent()
     {
         roots.push(parent.join("resources"));
+        if !parent.join("installation.json").is_file() {
+            roots.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds"));
+        }
     }
     for base in roots {
         for kind in [Kind::Lut, Kind::Image, Kind::Video] {

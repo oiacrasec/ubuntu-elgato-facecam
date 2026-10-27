@@ -74,13 +74,20 @@ pré-compilado nesse fluxo. O padrão de interação foi inspirado no
 [Arctis Sound Manager](https://github.com/loteran/Arctis-Sound-Manager);
 a implementação é própria em Rust.
 
-O pacote inclui binário, catálogos, ícones originais do Camera Hub e registro de versão, commit,
+O pacote inclui binário, catálogos, ícones e os 22 fundos originais do Camera Hub,
+além do registro de versão, commit,
 features e SHA-256. Fica em `PREFIX/lib/facecam-hub/versions/`. O link `current`
 só muda após preparar todos os arquivos; `PREFIX/bin/elgato-virtualcam`, o menu
 e o autostart usam esse link estável. Arquivos alterados são restaurados se a
 publicação falhar. Bundles anteriores permanecem disponíveis, inclusive para um
 processo que ainda esteja aberto; falha de download/build não troca a instalação.
-Os diretórios de configuração, modelos e recursos não fazem parte da substituição.
+Os diretórios pessoais de configuração, modelos e recursos não fazem parte da substituição.
+Os fundos fornecidos pelo pacote ficam em `resources/images` e `resources/videos`
+junto do executável, com proveniência. A instalação verifica tamanho e SHA-256
+de cada arquivo antes da publicação. Os scripts e o atualizador passam ao instalador
+nativo a pasta `assets/backgrounds` do mesmo checkout; uma reinstalação pelo binário
+instalado pode reutilizar sua pasta `resources`. Um arquivo ausente ou alterado
+recusa o pacote e preserva a versão ativa. Os arquivos não são embutidos no binário.
 
 O log é `$XDG_CACHE_HOME/facecam-hub/updates/update.log`, ou
 `~/.cache/facecam-hub/updates/update.log`. O mesmo diretório guarda o cache de

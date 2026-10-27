@@ -11,7 +11,9 @@ fontes e ferramentas externas têm licenças e condições próprias.
 
 Os Looks Quente, Frio e Contraste suave são código e transformações próprios,
 sob MIT. Recursos importados pelo usuário mantêm sua licença de origem; o app
-não inclui LUTs, fundos, ícones ou shaders extraídos do Camera Hub.
+inclui os ícones e fundos originais expressamente solicitados pelo usuário,
+com proveniência e condições próprias descritas abaixo. Não inclui LUTs ou shaders
+extraídos do Camera Hub.
 
 | Componente | Uso atual |
 | --- | --- |
@@ -65,6 +67,12 @@ três ícones originais do Camera Hub Windows 2.3.0.7295, de Elgato/Corsair.
 SHA-256; os ICOs são preservados e os PNGs usados no Linux têm proveniência.
 Essas imagens de terceiros ficam excluídas da licença MIT do código, e não
 receberam uma licença permissiva. O instalador inclui a atribuição no bundle.
+
+Em 27/10/2026, o usuário solicitou também os fundos originais: 15 PNGs e sete
+MP4s do diretório MSI `BackgroundsFolder`. Os arquivos permanecem idênticos,
+com SHA-256 e metadados em [Fundos originais](../assets/backgrounds/README.md).
+O pacote os mantém fora do executável. Também são recursos de terceiros,
+excluídos da licença MIT e sem licença permissiva atribuída pelo projeto.
 
 O modelo de segmentação possui origem e licença descritas em [Efeitos](EFEITOS.md).
 O preparador mantém o texto da licença do modelo, os arquivos de licença do

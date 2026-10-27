@@ -8,7 +8,8 @@ Implemente ações operacionais no controlador; preserve o build headless e o c�
 Rust sem `unsafe`. Não copie recursos proprietários ou declare como implementado
 um projeto de extensão. [Contribuição](docs/CONTRIBUICAO.md) define o fluxo de revisão.
 O usuário autorizou especificamente os ícones originais de aplicativo e bandeja
-do Camera Hub; origem e escopo estão em [Recursos visuais](assets/README.md).
+do Camera Hub e seus fundos originais de imagem/vídeo; origem e escopo estão
+em [Recursos visuais](assets/README.md).
 
 Para documentação, mantenha o inventário de cobertura e os links íntegros. Testes
 com hardware são optativos e não devem alterar controles reais nos checks comuns.

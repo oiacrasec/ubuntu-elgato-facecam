@@ -86,6 +86,23 @@ fn desktop_installation_preserves_data_and_removes_orphaned_autostart() {
         );
     }
     let first = launcher.canonicalize().unwrap();
+    let resources = first.parent().unwrap().join("resources");
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(resources.join("provenance.json")).unwrap()).unwrap();
+    let media = manifest["files"].as_array().unwrap();
+    assert_eq!(media.len(), 22);
+    for item in media {
+        let relative = item["path"].as_str().unwrap();
+        assert_eq!(
+            fs::read(resources.join(relative)).unwrap(),
+            fs::read(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("assets/backgrounds")
+                    .join(relative)
+            )
+            .unwrap(),
+        );
+    }
     assert_eq!(
         succeeded(
             command(root, &launcher)
@@ -193,6 +210,8 @@ fn uninstall_does_not_remove_another_prefix_desktop_entries() {
                 .arg("--install-desktop")
                 .arg(prefix)
                 .arg("--desktop-autostart")
+                .arg("--desktop-resources")
+                .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/backgrounds"))
                 .output()
                 .unwrap(),
         );

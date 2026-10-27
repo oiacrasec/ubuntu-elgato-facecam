@@ -26,7 +26,7 @@ fi
 TARGET_DIR="${CARGO_TARGET_DIR:-$PROJECT_DIR/target}"
 BINARY="$TARGET_DIR/release/elgato-virtualcam"
 [[ -x "$BINARY" ]] || { echo 'Binário ausente. Execute cargo build --release --locked.' >&2; exit 1; }
-ARGS=(--install-desktop "$INSTALL_PREFIX")
+ARGS=(--install-desktop "$INSTALL_PREFIX" --desktop-resources "$PROJECT_DIR/assets/backgrounds")
 if "$AUTOSTART"; then ARGS+=(--desktop-autostart); fi
 "$BINARY" "${ARGS[@]}"
 echo "Instalado: $INSTALL_PREFIX/bin/elgato-virtualcam"

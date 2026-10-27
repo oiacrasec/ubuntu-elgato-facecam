@@ -71,6 +71,8 @@ struct Args {
     install_desktop: Option<PathBuf>,
     #[arg(long, hide = true, requires = "install_desktop")]
     desktop_autostart: bool,
+    #[arg(long, hide = true, requires = "install_desktop")]
+    desktop_resources: Option<PathBuf>,
     #[arg(long, hide = true)]
     restart_after: Option<u32>,
     #[arg(long, help = "Check for application updates")]
@@ -351,9 +353,17 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if let Some(prefix) = &args.install_desktop {
+        let binary = std::env::current_exe()?;
+        let resources = args.desktop_resources.clone().unwrap_or_else(|| {
+            binary
+                .parent()
+                .unwrap_or_else(|| std::path::Path::new("."))
+                .join("resources")
+        });
         installation::install(
-            &std::env::current_exe()?,
+            &binary,
             &installation::BuildInfo::default(),
+            &resources,
             prefix,
             &installation::data_home()?,
             args.desktop_autostart,

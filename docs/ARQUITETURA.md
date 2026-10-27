@@ -58,7 +58,10 @@ pode ocorrer durante captura. A GUI instalada inicia apenas a consulta ao abrir.
 `current` atomicamente. O mesmo helper do novo executável atende o script inicial
 e o worker de atualização. Atalhos e autostart apontam ao launcher estável;
 o processo anterior conserva seu binário e recursos até reiniciar. Modelos,
-configuração e recursos pessoais ficam fora do pacote. O build headless mantém
+configuração e recursos pessoais ficam fora do pacote. Os 22 fundos originais
+solicitados pelo usuário ficam em `resources/images` e `resources/videos` no bundle,
+fora do executável. O instalador confere cada tamanho e SHA-256 antes da publicação;
+script e atualizador fornecem os arquivos do mesmo checkout. O build headless mantém
 consulta/protocolo e recusa a instalação desktop. Detalhes em
 [Distribuição](DISTRIBUICAO.md).
 

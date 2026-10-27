@@ -71,8 +71,11 @@ Nenhuma falha de CUDA muda automaticamente para CPU.
 ## Escolher o fundo e a taxa de processamento
 
 Ative **Ativar fundo com IA**. O seletor oferece desfoque, cor sólida, três
-cenários ilustrados locais, imagem própria e vídeo próprio. Os cenários não são fotos nem
-recursos extraídos de outro aplicativo. A composição usa a mesma máscara de
+cenários ilustrados locais, **Minha imagem** e **Meu vídeo**. Esses dois últimos
+seletores incluem as 15 imagens e os sete vídeos originais do Camera Hub Windows
+2.3.0.7295, conforme solicitado pelo usuário. Escolha o nome do arquivo e clique
+em **Aplicar e salvar**. A [proveniência dos fundos](../assets/backgrounds/README.md)
+registra os arquivos sem conversão. Os três cenários ilustrados são opções próprias. A composição usa a mesma máscara de
 pessoa, antes do split entre preview e saída virtual. Imagens estáticas são
 decodificados uma vez por worker, redimensionados para preencher a saída com
 recorte central e mantidos em memória; não são lidos novamente por frame.

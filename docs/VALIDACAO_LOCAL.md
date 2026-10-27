@@ -1343,3 +1343,23 @@ chamada Google Meet não foi iniciada pelo agente.
 ficam em `target/preview-toggle/`: `hardware-result.json`, logs e bateria de checks.
 Logs do encerramento explícito ainda podem conter Broken pipe entre etapas;
 um erro novo publica apenas o trecho correspondente à captura atual.
+
+## Fundos originais do Camera Hub — 27/10/2026
+
+O MSI Windows 2.3.0.7295 identifica 22 componentes em `BackgroundsFolder`:
+15 imagens PNG e sete vídeos MP4, 51.333.459 bytes. Os arquivos incluídos no
+pacote Linux mantêm tamanho e SHA-256 dos originais; resoluções e durações estão
+no [registro de proveniência](../assets/backgrounds/provenance.json). Nenhum
+instalador Windows foi executado. `LUTs_base.png` não pertence a esse catálogo.
+
+`./test-desktop-app.sh` passou com GUI/IA e sem recursos padrão, incluindo os
+checks FFmpeg sintéticos. Os contratos de instalação verificaram cópia integral,
+reinstalação, remoção e preservação dos dados pessoais. O teste de recurso
+corrompido foi reforçado para alterar um byte sem mudar o tamanho; passou com
+Clippy e checks de documentação/localização após a alteração.
+
+A janela real, com configuração temporária isolada e captura parada, publicou
+15 imagens e sete vídeos. A aba Efeitos mostrou `Livingroom Night` com a miniatura
+original. Evidências locais: `target/windows-backgrounds/`. Os anexos de referência
+fornecidos em `/tmp` não estavam mais disponíveis nesta retomada; sua comparação
+visual depende do reenvio dos arquivos.

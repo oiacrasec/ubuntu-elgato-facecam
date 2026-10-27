@@ -698,6 +698,10 @@
     "Você está usando a versão mais recente": "You are using the latest version",
     "Prepara Elgato Facecam Virtual em {}, com compatibilidade para navegadores. Uma autorização do Ubuntu executa as etapas abaixo. Aproveita o módulo do kernel quando disponível; caso necessário, instala o pacote oficial do kernel por APT. Não altera a câmera física nem descarrega módulos.": "Sets up Elgato Facecam Virtual at {}, with browser compatibility. One Ubuntu authorization runs the steps below. Uses the kernel module when available; otherwise installs the official kernel package using APT. Does not change the physical camera or unload modules.",
     "Visualização ativada": "Preview enabled",
-    "Visualização pausada": "Preview paused"
+    "Visualização pausada": "Preview paused",
+    "Caminho inválido no catálogo de fundos": "Invalid path in the background catalog",
+    "Fundo sem diretório": "Background has no directory",
+    "Fundo original indisponível: {path}": "Original background unavailable: {path}",
+    "Fundo original alterado: {path}": "Original background modified: {path}"
   }
 }
