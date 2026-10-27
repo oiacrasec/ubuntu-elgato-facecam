@@ -21,12 +21,16 @@ fundo, e alpha um mantém o pixel original. Fundos estáticos são preparados
 uma vez na resolução de saída e não passam pelo blur em cada frame.
 
 O raio atual é medido na imagem reduzida. Ele não representa automaticamente o
-mesmo número de pixels no vídeo completo. RGB, máscara e fundo compartilham a
-mesma transformação geométrica; trocar orientação ou crop em apenas um deles
-produziria um recorte deslocado.
+mesmo número de pixels no vídeo completo. RGB da câmera e máscara compartilham
+a mesma geometria; mudar orientação ou recorte de apenas um deles deslocaria
+o recorte da pessoa. O fundo substituto é dimensionado separadamente para a saída
+e mantém sua orientação original.
 
-Os efeitos comuns ocorrem após a etapa opcional de IA, antes do split entre as
-saídas. Espelho é `hflip`, cor usa `eq`, denoise usa `hqdn3d` e a LUT usa `lut3d`
+O espelho usa `hflip` na câmera antes da segmentação e da composição com IA.
+Assim a máscara acompanha a pessoa, e imagens/vídeos substitutos não são
+espelhados. Sem IA, `hflip` ocorre no grafo comum. Os demais efeitos comuns
+ocorrem após a etapa opcional de IA, antes do split entre as saídas:
+cor usa `eq`, denoise usa `hqdn3d` e a LUT usa `lut3d`
 com interpolação tetraédrica. Não há equivalência anunciada com algoritmos
 proprietários de nitidez, HDR ou redução de ruído da câmera.
 

@@ -445,3 +445,13 @@ O teste unitário de `installation` verifica que um fundo ausente ou alterado
 recusa a atualização antes de trocar `current`. Não usa câmera, modelos ou GPU.
 Os hashes, dimensões e durações de referência ficam no
 [inventário dos fundos](../assets/backgrounds/provenance.json).
+
+## Espelho da câmera com fundo preservado
+
+`stream::tests::ai_mirror_is_applied_to_capture_and_never_to_the_composed_frame`
+verifica o estágio do espelho com fundo, correção de olhar e ambos. O check
+optativo `ffmpeg_mirror_`, incluído por `./test-desktop-app.sh` quando há FFmpeg,
+usa câmera sintética assimétrica e máscara determinística. Confirma o deslocamento
+da câmera, a orientação preservada do fundo e igualdade byte a byte entre preview
+RGB e saída virtual sintética YUV420 decodificada, com espelho ligado e desligado.
+Não depende de hardware ou inferência; os testes de modelo continuam separados.

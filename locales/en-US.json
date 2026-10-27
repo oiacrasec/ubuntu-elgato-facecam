@@ -702,6 +702,7 @@
     "Caminho inválido no catálogo de fundos": "Invalid path in the background catalog",
     "Fundo sem diretório": "Background has no directory",
     "Fundo original indisponível: {path}": "Original background unavailable: {path}",
-    "Fundo original alterado: {path}": "Original background modified: {path}"
+    "Fundo original alterado: {path}": "Original background modified: {path}",
+    "Espelha a câmera no preview e na saída virtual, sem espelhar o fundo.": "Mirrors the camera in both preview and virtual output, without mirroring the background."
   }
 }

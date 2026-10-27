@@ -74,7 +74,8 @@ biblioteca gravável. Seu tooltip informa a troca para desfoque se estiver aplic
 A seleção e a miniatura são limpas após a confirmação da remoção no catálogo.
 
 O botão **Espelhar** abaixo do preview aplica e salva o espelho pelo controlador,
-afetando preview e saída virtual. Ele reflete o mesmo parâmetro de **Efeitos**.
+afetando a câmera no preview e na saída virtual, antes da composição. O fundo
+substituto mantém a orientação original. Ele reflete o mesmo parâmetro de **Efeitos**.
 **Grade** desenha uma sobreposição de visualização. A
 saída para outro aplicativo não deve receber acidentalmente grade ou controles.
 

@@ -702,6 +702,7 @@
     "Caminho inválido no catálogo de fundos": "Caminho inválido no catálogo de fundos",
     "Fundo sem diretório": "Fundo sem diretório",
     "Fundo original indisponível: {path}": "Fundo original indisponível: {path}",
-    "Fundo original alterado: {path}": "Fundo original alterado: {path}"
+    "Fundo original alterado: {path}": "Fundo original alterado: {path}",
+    "Espelha a câmera no preview e na saída virtual, sem espelhar o fundo.": "Espelha a câmera no preview e na saída virtual, sem espelhar o fundo."
   }
 }

@@ -53,7 +53,8 @@ mesmas chaves e placeholders; nomes de arquivos, câmeras e conteúdo pessoal
 não devem ser traduzidos. Preserve datas e rótulos observados em relatos históricos.
 
 Mantenha o vocabulário consistente entre botão, guia e mensagem de resultado.
-Descreva **Espelhar** como espelhamento compartilhado entre preview e saída virtual;
+Descreva **Espelhar** como espelhamento da câmera compartilhado entre preview e saída virtual,
+preservando a orientação do fundo substituto;
 a grade é apenas uma guia local. Descreva
 **Salvar** e **R** como persistência local. Informe a unidade real de cada ajuste; ganho
 do driver não é ISO. Uma inferência CPU não deve ser descrita como CUDA, e um

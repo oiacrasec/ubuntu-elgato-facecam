@@ -51,7 +51,8 @@ Mantenha `unsafe_code = "forbid"` no código da aplicação.
 
 A interface mantém controles à esquerda e preview à direita. Efeitos de vídeo
 são aplicados antes da divisão entre preview e saída virtual. A grade
-é uma guia local; Mirror e o espelho da aba Effects afetam ambas as saídas.
+é uma guia local; Mirror e o espelho da aba Effects afetam a câmera em ambas
+as saídas, antes da composição com fundo. Imagens e vídeos de fundo não são espelhados.
 Não apresentar filtros convencionais como IA. Nunca ocultar falha de CUDA
 usando CPU automaticamente. Verificar uma inferência antes de trocar a captura.
 Com IA, limitar FPS explicitamente e igualmente para preview e saída virtual.

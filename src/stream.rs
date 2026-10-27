@@ -39,6 +39,15 @@ pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
     }
 }
 
+fn ai_capture_filter(mode: &Mode, effects: &crate::effects::Effects) -> String {
+    let fps = output_fps(mode, effects);
+    if effects.mirror {
+        format!("fps={fps},hflip")
+    } else {
+        format!("fps={fps}")
+    }
+}
+
 pub struct Outputs {
     pub virtual_output: bool,
     pub preview: bool,
@@ -216,7 +225,7 @@ impl Stream {
             let ai_fps = output_fps(mode, &config.effects);
             let end = args.iter().position(|a| a == "-i").unwrap() + 2;
             let mut capture = args[..end].to_vec();
-            capture.extend(["-vf".into(), format!("fps={ai_fps}")]);
+            capture.extend(["-vf".into(), ai_capture_filter(mode, &config.effects)]);
             capture.extend(
                 [
                     "-an", "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
@@ -512,6 +521,182 @@ mod tests {
         let args = ffmpeg_args("/dev/video0", &mode, &Config::default(), true, false);
         assert!(!args.iter().any(|a| a == "rawvideo" || a == "pipe:1"));
         assert_eq!(args.last().unwrap(), "/dev/video10");
+    }
+
+    #[test]
+    fn ai_mirror_is_applied_to_capture_and_never_to_the_composed_frame() {
+        let mode = Mode {
+            format: "rgb24".into(),
+            width: 64,
+            height: 32,
+            fps: 30.0,
+        };
+        for (background_blur, eye_contact) in [(true, false), (false, true), (true, true)] {
+            let effects = crate::effects::Effects {
+                mirror: true,
+                background_blur,
+                eye_contact,
+                ai_fps: 24,
+                ..Default::default()
+            };
+            assert_eq!(ai_capture_filter(&mode, &effects), "fps=24,hflip");
+            assert!(!effects.filters().iter().any(|f| f == "hflip"));
+        }
+        let effects = crate::effects::Effects {
+            mirror: true,
+            ..Default::default()
+        };
+        assert!(effects.filters().iter().any(|f| f == "hflip"));
+    }
+
+    #[test]
+    #[ignore = "requires FFmpeg; synthetic camera and asymmetric background, no model or hardware"]
+    fn ffmpeg_mirror_keeps_background_orientation_and_preview_matches_virtual_pixels() {
+        let dir = tempfile::tempdir().unwrap();
+        let mode = Mode {
+            format: "rgb24".into(),
+            width: 64,
+            height: 32,
+            fps: 5.0,
+        };
+        let camera_file = dir.path().join("camera.rgb");
+        let mut camera = vec![0_u8; 64 * 32 * 3];
+        for y in 0..16 {
+            for x in 8..16 {
+                camera[(y * 64 + x) * 3] = 255;
+            }
+        }
+        fs::write(&camera_file, camera).unwrap();
+        for mirror in [false, true] {
+            let config = Config {
+                effects: crate::effects::Effects {
+                    mirror,
+                    background_blur: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let captured = Command::new("ffmpeg")
+                .args([
+                    "-v",
+                    "error",
+                    "-filter_threads",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pixel_format",
+                    "rgb24",
+                    "-video_size",
+                    "64x32",
+                    "-framerate",
+                    "5",
+                    "-i",
+                ])
+                .arg(&camera_file)
+                .args([
+                    "-vf",
+                    &ai_capture_filter(&mode, &config.effects),
+                    "-frames:v",
+                    "1",
+                    "-pix_fmt",
+                    "rgb24",
+                    "-threads",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "pipe:1",
+                ])
+                .output()
+                .unwrap();
+            assert!(
+                captured.status.success(),
+                "{}",
+                String::from_utf8_lossy(&captured.stderr)
+            );
+            assert_eq!(captured.stdout.len(), 64 * 32 * 3);
+            let mut composed = captured.stdout;
+            // A deterministic mask isolates the top half as camera/person.
+            // The replacement background has distinct left and right colors.
+            for y in 16..32 {
+                for x in 0..64 {
+                    composed[(y * 64 + x) * 3..(y * 64 + x) * 3 + 3].copy_from_slice(if x < 32 {
+                        &[0, 0, 255]
+                    } else {
+                        &[255, 255, 0]
+                    });
+                }
+            }
+            let input = dir.path().join("composed.rgb");
+            fs::write(&input, composed).unwrap();
+            let virtual_file = dir.path().join(format!("virtual-{mirror}.yuv"));
+            let mut args = ffmpeg_args("unused", &mode, &config, true, true);
+            let filter = args.iter().position(|a| a == "-filter_complex").unwrap();
+            args.drain(..filter);
+            let sink = args
+                .iter()
+                .position(|a| a == &config.virtual_device)
+                .unwrap();
+            args[sink - 1] = "rawvideo".into();
+            args[sink] = virtual_file.to_str().unwrap().into();
+            let output = Command::new("ffmpeg")
+                .args([
+                    "-v",
+                    "error",
+                    "-filter_complex_threads",
+                    "1",
+                    "-f",
+                    "rawvideo",
+                    "-pixel_format",
+                    "rgb24",
+                    "-video_size",
+                    "64x32",
+                    "-framerate",
+                    "5",
+                    "-i",
+                ])
+                .arg(&input)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let decoded = Command::new("ffmpeg")
+                .args([
+                    "-v",
+                    "error",
+                    "-f",
+                    "rawvideo",
+                    "-pixel_format",
+                    "yuv420p",
+                    "-video_size",
+                    "64x32",
+                    "-i",
+                ])
+                .arg(&virtual_file)
+                .args([
+                    "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
+                ])
+                .output()
+                .unwrap();
+            assert!(decoded.status.success());
+            assert_eq!(output.stdout, decoded.stdout);
+            assert_eq!(output.stdout.len(), 64 * 32 * 3);
+            let pixel = |x: usize, y: usize| &output.stdout[(y * 64 + x) * 3..(y * 64 + x) * 3 + 3];
+            let red = pixel(if mirror { 52 } else { 12 }, 8);
+            assert!(red[0] > 240 && red[1] < 15 && red[2] < 15);
+            assert!(
+                pixel(if mirror { 12 } else { 52 }, 8)
+                    .iter()
+                    .all(|v| *v < 15)
+            );
+            let blue = pixel(12, 24);
+            let yellow = pixel(52, 24);
+            assert!(blue[0] < 15 && blue[1] < 15 && blue[2] > 240);
+            assert!(yellow[0] > 240 && yellow[1] > 240 && yellow[2] < 15);
+        }
     }
 
     #[test]

@@ -174,7 +174,9 @@ impl Effects {
 
     pub fn filters(&self) -> Vec<String> {
         let mut filters = Vec::new();
-        if self.mirror {
+        // With AI, capture is mirrored before segmentation/composition so the
+        // replacement image or video keeps its original orientation.
+        if self.mirror && !self.ai_enabled() {
             filters.push("hflip".into());
         }
         if self.denoise > 0.0 {

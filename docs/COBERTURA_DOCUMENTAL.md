@@ -73,6 +73,10 @@ Instalador, atualização pela produção e ícones são descritos em
 [Distribuição](DISTRIBUICAO.md), com comandos em [Protocolo](PROTOCOLO_DE_CONTROLE.md)
 e checks isolados em [Testes](TESTES.md). Não alteram as 152 fontes históricas.
 
+O espelhamento exclusivo da câmera, com fundo preservado e composição comum ao
+preview e à saída virtual, está em [Efeitos](EFEITOS.md), [Arquitetura](ARQUITETURA.md)
+e [Testes](TESTES.md). Não altera o inventário histórico.
+
 A continuidade da saída virtual ao alternar preview está em [Arquitetura](ARQUITETURA.md)
 e [Uso](USO.md), com regressões e ensaio físico em [Testes](TESTES.md) e
 [Validação local](VALIDACAO_LOCAL.md). O nome atual é **Elgato Facecam Virtual**.

@@ -719,7 +719,7 @@ impl App {
             effect_card(ui, "Processing", true, |ui| {
                 effect_slider(ui, "Denoise", &mut effects.denoise, 0.0..=10.0, 0.1);
                 effect_row(ui, "Espelhar vídeo", |ui| {
-                    ui.checkbox(&mut effects.mirror, "").on_hover_text(t("Espelha o preview e a saída virtual."));
+                    ui.checkbox(&mut effects.mirror, "").on_hover_text(t("Espelha a câmera no preview e na saída virtual, sem espelhar o fundo."));
                 });
             });
             effect_card(ui, "Correção de olhar", true, |ui| {
@@ -1047,7 +1047,7 @@ impl App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .selectable_label(state.config.effects.mirror, t("Mirror"))
-                            .on_hover_text(t("Espelhar preview e câmera virtual"))
+                            .on_hover_text(t("Espelha a câmera no preview e na saída virtual, sem espelhar o fundo."))
                             .clicked()
                         {
                             let mut effects = state.config.effects.clone();

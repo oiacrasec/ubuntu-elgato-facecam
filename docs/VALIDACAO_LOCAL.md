@@ -1363,3 +1363,18 @@ A janela real, com configuração temporária isolada e captura parada, publicou
 original. Evidências locais: `target/windows-backgrounds/`. Os anexos de referência
 fornecidos em `/tmp` não estavam mais disponíveis nesta retomada; sua comparação
 visual depende do reenvio dos arquivos.
+
+## Espelho exclusivo da câmera — 27/10/2026
+
+O espelho passou para a captura RGB anterior à IA; o grafo final não espelha
+novamente o quadro composto. O teste `ffmpeg_mirror_` passou ligado e desligado:
+a faixa vermelha da câmera sintética troca de lado, enquanto o fundo azul à
+esquerda e amarelo à direita conserva a orientação. O preview RGB e a saída
+virtual sintética YUV420 decodificada são idênticos byte a byte. A máscara desse
+teste é determinística; ele verifica a ordem da composição, sem testar inferência
+ou qualidade de recorte de uma pessoa real.
+
+`./test-desktop-app.sh` passou novamente com e sem recursos padrão, incluindo
+Clippy, testes comuns e checks FFmpeg. Evidência local:
+`target/windows-backgrounds/mirror-full-checks.log`. A mudança não altera o
+espelho independente do texto do Prompter.

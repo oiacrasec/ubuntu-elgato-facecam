@@ -82,6 +82,12 @@ somente filhos criados pelo aplicativo, sem procurar processos por nome.
 
 ## Captura e efeitos
 
+O espelhamento da câmera é compartilhado pelas duas saídas. Com IA, `stream`
+aplica `hflip` na captura RGB antes de enviar ao worker: segmentação e correção
+de olhar recebem a câmera já espelhada. Imagens e vídeos substitutos entram depois,
+na composição, mantendo a orientação original. O FFmpeg final não repete `hflip`.
+Sem IA, o espelho permanece no grafo comum anterior ao split.
+
 Sem IA, um processo FFmpeg captura o modo V4L2 negociado, aplica os efeitos e
 divide o resultado entre a saída virtual e o preview opcional. LUT e ajustes
 são calculados uma vez antes dessa divisão. Sem efeitos, o filtro é neutro.

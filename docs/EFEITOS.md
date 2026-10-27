@@ -17,7 +17,7 @@ recolhido. O botão **Aplicar e salvar** permanece no rodapé durante a rolagem.
 
 | Campo JSON | Padrão | Valores |
 | --- | --- | --- |
-| `mirror` | false | Espelha as duas saídas |
+| `mirror` | false | Espelha a câmera nas duas saídas; preserva a orientação da imagem/vídeo de fundo |
 | `brightness` | 0 | -1 a 1 |
 | `contrast` | 1 | 0 a 2 |
 | `saturation` | 1 | 0 a 3; zero remove cor |

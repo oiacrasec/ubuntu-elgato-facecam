@@ -205,7 +205,9 @@ encerra a captura. Após trocar o nome do dispositivo, atualize a lista de câme
 do consumidor e escolha **Elgato Facecam Virtual**.
 
 **Espelhar**, abaixo do preview, espelha preview e câmera virtual imediatamente,
-usando o mesmo efeito de **Efeitos**. **Grade** desenha apenas uma guia de
+usando o mesmo efeito de **Efeitos**. O espelho atua só na câmera: imagens e vídeos
+de fundo mantêm a orientação original. A composição final é compartilhada entre
+preview e câmera virtual. **Grade** desenha apenas uma guia de
 enquadramento; desligue-a para ver a imagem sem sobreposição. O preview usa a
 resolução e a taxa da saída, com os mesmos efeitos e conversão de cor yuv420p.
 O tamanho da imagem na janela depende do espaço disponível; ampliar ou reduzir
