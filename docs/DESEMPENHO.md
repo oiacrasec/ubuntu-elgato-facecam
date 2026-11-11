@@ -47,6 +47,10 @@ Tempo menor em um caso não comprova complexidade melhor ou ganho em todos os ca
 
 ## Evitar trabalho repetido
 
+A saída virtual acrescenta um intervalo de quadro de latência (16,7 ms a 60 FPS,
+33 ms a 30 FPS) para entregar quadros em ritmo fixo; veja a
+[arquitetura](ARQUITETURA.md#saída-virtual-persistente).
+
 Em 1080p60 com IA, a captura NV12 usou 24% de um núcleo e a MJPEG 54%; sem IA,
 o FFmpeg de captura isolado usou 52% e 122%. O formato automático prefere NV12.
 

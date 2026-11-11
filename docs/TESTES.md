@@ -73,8 +73,10 @@ teste usa arquivos temporários sintéticos e roda no filtro `ffmpeg_`, sem câm
 display ou GPU.
 
 Os testes comuns de `virtual_sink` cobrem tamanho I420 com dimensões ímpares,
-preto em faixa limitada, descarte de quadros antigos, reutilização de buffers,
-repetição do último quadro, troca para preto ao parar e recusa de geometria e
+preto em faixa limitada, o relógio fixo de saída com um quadro de reserva,
+rajadas distribuídas em ordem pelos ticks seguintes, repetição no tempo certo
+quando a captura atrasa, descarte do excedente além da reserva, reutilização de
+buffers, volta ao modo ocioso, troca para preto ao parar e recusa de geometria e
 FPS inválidos (zero, negativos, não finitos e extremos) antes de tocar em
 dispositivos. `ai::tests::worker_input_*` verifica que o worker processa o quadro
 mais recente, conta os descartados e reporta quadro incompleto. O controlador

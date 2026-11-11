@@ -189,13 +189,22 @@ O FFmpeg não define o intervalo de quadros do loopback, que ficava no padrão d
 abrem a câmera com a taxa real. Uma falha nesse ajuste fica no log
 `virtual-output.err.log` e não impede a câmera.
 
-O ajuste não regulariza o espaçamento entre quadros. Medido em 11/11/2026 a
-1080p60, a câmera entrega quadros a cada 16–20 ms nos timestamps do kernel, em
-USB 2.0 e 3.0, mas a saída virtual alterna ~20, ~20 e ~9 ms. O FFmpeg 6.1 do
-Ubuntu 24.04 dorme 10 ms quando a entrada ainda não tem quadro
-(`fftools/ffmpeg.c`, `av_usleep(10000)`; removido no 7.0), e cada FFmpeg da
-cadeia processa nesses intervalos. O loopback marca cada quadro no instante da
-escrita, e um consumidor que reduz para 30 FPS herda essa irregularidade.
+Medido em 11/11/2026 a 1080p60, a câmera entrega quadros a cada 16–20 ms nos
+timestamps do kernel, mas o FFmpeg de captura os libera a ~20, ~20 e ~9 ms. O
+FFmpeg 6.1 do Ubuntu 24.04 dorme 10 ms quando a entrada da câmera ainda não tem
+quadro (`fftools/ffmpeg.c`, `av_usleep(10000)`; removido no 7.0). Entradas por
+pipe bloqueiam na leitura e não sofrem esse efeito. O loopback marca cada quadro
+no instante da escrita, e um consumidor que reduz para 30 FPS transformava isso
+em intervalos de 16, 33 e 50 ms.
+
+Por isso o gravador escreve num relógio fixo de 1/FPS de saída, mantendo um
+quadro de reserva. A cada tick sai o quadro mais antigo da fila; se acumularem
+mais de dois, os excedentes mais antigos são descartados; sem quadro novo, o
+último é repetido no tempo certo. Sem quadros por 200 ms, o relógio para e o
+gravador volta a repetir a 5 FPS. O custo é um intervalo de latência (16,7 ms a
+60 FPS). Com o FFmpeg de gravação alimentado em ritmo constante, os timestamps
+do loopback passaram de mediana 19,6 ms e desvio 5,5 ms para 16,6 ms e 1,2 ms,
+e o p95 dos intervalos da câmera no Meet a 30 FPS caiu de 49 ms para 35 ms.
 
 Aplicar efeitos verifica parâmetros, arquivos e inferência, interrompe brevemente
 a captura, retoma as saídas anteriores e salva o JSON. Falhas síncronas restauram
