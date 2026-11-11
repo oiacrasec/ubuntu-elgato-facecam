@@ -161,6 +161,10 @@ pub struct Engine {
     pub frames: LatestFrame,
     path: PathBuf,
     stream: Option<Stream>,
+    // Owns the loopback for the controller's lifetime, so restarting capture
+    // never makes the virtual camera disappear from browsers.
+    sink: Option<crate::virtual_sink::Sink>,
+    idle_sink_retry: Option<Instant>,
     last_refresh: Instant,
     last_prompter_tick: Instant,
     last_prompter_wall: SystemTime,
@@ -236,6 +240,8 @@ impl Engine {
             frames: Arc::default(),
             path,
             stream: None,
+            sink: None,
+            idle_sink_retry: None,
             last_refresh: Instant::now(),
             last_prompter_tick: Instant::now(),
             last_prompter_wall: SystemTime::now(),
@@ -258,6 +264,7 @@ impl Engine {
         if let Err(e) = engine.refresh() {
             engine.state.error = Some(format!("{e:#}"));
         }
+        engine.reconcile_sink();
         engine.publish();
         Ok(engine)
     }
@@ -470,49 +477,155 @@ impl Engine {
         if self.removing_video_tools {
             bail!("Aguarde a desinstalação das ferramentas de vídeo terminar");
         }
-        if self.state.streaming == virtual_output
-            && let Some(stream) = &mut self.stream
-            && stream.set_preview(preview)
+        // Preview and virtual output switch on the running capture; only
+        // dropping the virtual output from an active stream rebuilds it.
+        if (virtual_output || !self.state.streaming)
+            && let Some((size, fps)) = self.stream.as_ref().map(|s| (s.size, s.fps))
         {
-            self.state.preview = preview;
-            self.state.preview_frames = stream
-                .frames_received
-                .load(std::sync::atomic::Ordering::Relaxed);
-            return Ok(());
+            if virtual_output && !self.state.streaming {
+                let input = self.ensure_sink(size, fps)?;
+                if let Some(stream) = &mut self.stream {
+                    stream.set_virtual(Some(input));
+                }
+                self.state.streaming = true;
+            }
+            if let Some(stream) = &mut self.stream
+                && stream.set_preview(preview)
+            {
+                self.state.preview = preview;
+                self.state.preview_frames = stream
+                    .frames_received
+                    .load(std::sync::atomic::Ordering::Relaxed);
+                return Ok(());
+            }
         }
         if virtual_output {
             crate::stream::verify_virtual_device(&self.state.config.virtual_device)?;
         }
         self.stop()?;
+        // The writer repeats the last frame across a restart; if capture
+        // cannot resume, consumers get black instead of a frozen image.
+        let result = self.start_capture(virtual_output, preview);
+        if result.is_err() || !virtual_output {
+            self.blank_virtual_output();
+        }
+        result
+    }
+
+    fn start_capture(&mut self, virtual_output: bool, preview: bool) -> Result<()> {
         self.refresh()?;
         let camera = self
             .state
             .camera
-            .as_ref()
+            .clone()
             .context("Facecam não encontrada. Conecte a câmera e atualize os dispositivos.")?;
         let mode = self
             .state
             .mode
-            .as_ref()
+            .clone()
             .context("Nenhum formato compatível")?;
-        let parent = self.path.parent().context("Configuração sem diretório")?;
-        std::fs::create_dir_all(parent)?;
+        let log = self
+            .path
+            .parent()
+            .context("Configuração sem diretório")?
+            .join("virtualcam.err.log");
+        std::fs::create_dir_all(log.parent().context("Configuração sem diretório")?)?;
+        let sink = if virtual_output {
+            let size = [usize::try_from(mode.width)?, usize::try_from(mode.height)?];
+            let fps = crate::stream::output_fps(&mode, &self.state.config.effects);
+            Some(self.ensure_sink(size, fps)?)
+        } else {
+            None
+        };
         self.stream = Some(Stream::start(
             &camera.path,
-            mode,
+            &mode,
             &self.state.config,
             crate::stream::Outputs {
                 virtual_output,
                 preview,
-                keep_preview: self.state.gui,
             },
+            sink,
             self.frames.clone(),
-            &parent.join("virtualcam.err.log"),
+            &log,
         )?);
         self.state.streaming = virtual_output;
         self.state.preview = preview;
         self.state.ai_backend = self.stream.as_ref().and_then(|s| s.ai_backend.clone());
         Ok(())
+    }
+
+    fn sink_log(&self) -> Result<PathBuf> {
+        let parent = self.path.parent().context("Configuração sem diretório")?;
+        std::fs::create_dir_all(parent)?;
+        Ok(parent.join("virtual-output.err.log"))
+    }
+
+    /// Returns the persistent writer for the configured loopback, reopening it
+    /// only when the device or resolution changes, or after it died.
+    fn ensure_sink(
+        &mut self,
+        size: [usize; 2],
+        fps: f64,
+    ) -> Result<std::sync::Arc<crate::virtual_sink::Input>> {
+        let device = self.state.config.virtual_device.clone();
+        if let Some(sink) = &mut self.sink
+            && sink.device == device
+            && sink.size == size
+            && sink.poll().is_ok()
+        {
+            sink.set_fps(fps);
+            return Ok(sink.input());
+        }
+        // A loopback accepts one writer: release the old one first.
+        self.sink = None;
+        let sink = crate::virtual_sink::Sink::open(&device, size, fps, &self.sink_log()?)?;
+        let input = sink.input();
+        self.sink = Some(sink);
+        self.idle_sink_retry = None;
+        Ok(input)
+    }
+
+    /// Drops a writer that no longer matches the configuration and, in desktop
+    /// sessions, publishes the virtual camera before capture starts. Browsers
+    /// only enumerate cameras when the system reports a change, which a
+    /// loopback never does; a camera already listed stays selectable.
+    fn reconcile_sink(&mut self) {
+        if self.stream.is_some() {
+            return;
+        }
+        let output = self.state.mode.as_ref().and_then(|mode| {
+            Some((
+                [
+                    usize::try_from(mode.width).ok()?,
+                    usize::try_from(mode.height).ok()?,
+                ],
+                crate::stream::output_fps(mode, &self.state.config.effects),
+            ))
+        });
+        if self.sink.as_ref().is_some_and(|sink| {
+            sink.device != self.state.config.virtual_device
+                || output.is_none_or(|(size, _)| sink.size != size)
+        }) {
+            self.sink = None;
+        }
+        let busy = self.preparing_virtual_camera || self.removing_video_tools;
+        if !self.state.gui || busy || self.idle_sink_retry.is_some_and(|at| Instant::now() < at) {
+            return;
+        }
+        if let Some((size, fps)) = output
+            && self.ensure_sink(size, fps).is_err()
+        {
+            // Unprepared module, another writer or missing FFmpeg: retry later
+            // without reporting, since nothing was requested yet.
+            self.idle_sink_retry = Some(Instant::now() + Duration::from_secs(30));
+        }
+    }
+
+    fn blank_virtual_output(&self) {
+        if let Some(sink) = &self.sink {
+            sink.blank();
+        }
     }
 
     fn update_image_effects(
@@ -632,6 +745,7 @@ impl Engine {
                 if let Some(catalog) = catalog {
                     crate::i18n::activate(catalog);
                 }
+                self.reconcile_sink();
                 return Ok("Configurações atualizadas".into());
             }
             Request::ReportPrompterDisplays { displays } => {
@@ -884,6 +998,10 @@ impl Engine {
                 if plan.virtual_camera.is_some() && self.stream.is_some() {
                     bail!("Pare a captura antes de confirmar a preparação da câmera virtual");
                 }
+                if removing_video_tools || plan.virtual_camera.is_some() {
+                    // Reloading the module or removing FFmpeg needs the device free.
+                    self.sink = None;
+                }
                 let installation = crate::dependencies::Installation::start(plan.clone())?;
                 self.removing_video_tools = removing_video_tools;
                 self.preparing_virtual_camera = plan.virtual_camera.is_some();
@@ -937,6 +1055,9 @@ impl Engine {
             }
             Request::Stop => {
                 self.stop()?;
+                // The virtual camera stays listed, showing black, so open
+                // conferencing apps keep it selected for the next start.
+                self.blank_virtual_output();
                 return Ok("Captura encerrada".into());
             }
             Request::Configure { mut config, save } => {
@@ -948,6 +1069,7 @@ impl Engine {
                 self.state.config = *config;
                 self.write_failures.clear();
                 self.refresh()?;
+                self.reconcile_sink();
                 if save {
                     self.state.config.save(&self.path)?;
                 }
@@ -1105,6 +1227,7 @@ impl Engine {
                     bail!("Aguarde a operação APT terminar antes de encerrar o aplicativo");
                 }
                 self.stop()?;
+                self.sink = None;
                 self.state.quit = true;
             }
         }
@@ -1271,6 +1394,7 @@ impl Engine {
             if let Err(e) = stream.poll() {
                 let message = format!("{e:#}");
                 let _ = self.stop();
+                self.blank_virtual_output();
                 self.state.error = Some(message);
                 changed = true;
             }
@@ -1279,6 +1403,17 @@ impl Engine {
             if let Err(e) = self.refresh() {
                 self.state.error = Some(format!("{e:#}"));
             }
+            self.reconcile_sink();
+        }
+        if let Some(sink) = &mut self.sink
+            && let Err(e) = sink.poll()
+        {
+            self.sink = None;
+            if self.state.streaming {
+                let _ = self.stop();
+                self.state.error = Some(format!("{e:#}"));
+            }
+            changed = true;
         }
         self.publish();
         changed
@@ -1330,6 +1465,44 @@ mod tests {
         }
         assert!(engine.handle(Request::Stop).ok);
         assert!(engine.stream.is_none());
+    }
+
+    #[test]
+    fn virtual_output_joins_a_running_preview_and_survives_stop() {
+        let (dir, mut engine) = engine();
+        engine.state.config.ui.show_notifications = false;
+        let stream = Stream::synthetic(&dir.path().join("stream.log"), engine.frames.clone());
+        let pid = stream.pid();
+        engine.stream = Some(stream);
+        engine.state.preview = true;
+        let device = engine.state.config.virtual_device.clone();
+        engine.sink = Some(crate::virtual_sink::Sink::synthetic(
+            &device,
+            [2, 2],
+            &dir.path().join("sink.log"),
+        ));
+        let input = engine.sink.as_ref().unwrap().input();
+        let reply = engine.handle(Request::Start { preview: true });
+        assert!(reply.ok, "{}", reply.message);
+        assert!(reply.state.streaming && reply.state.preview);
+        assert_eq!(
+            engine.stream.as_ref().unwrap().pid(),
+            pid,
+            "capture was restarted"
+        );
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while input.submitted() < 2 {
+            assert!(
+                Instant::now() < deadline,
+                "virtual output received no frames"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(engine.handle(Request::Stop).ok);
+        assert!(engine.stream.is_none() && !engine.state.streaming);
+        // The writer stays, so the loopback remains a listed camera.
+        assert!(engine.sink.as_mut().unwrap().poll().is_ok());
+        assert!(Arc::ptr_eq(&engine.sink.as_ref().unwrap().input(), &input));
     }
 
     fn library_image(engine: &Engine) -> PathBuf {

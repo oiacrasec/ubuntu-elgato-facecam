@@ -88,15 +88,23 @@ de olhar recebem a câmera já espelhada. Imagens e vídeos substitutos entram d
 na composição, mantendo a orientação original. O FFmpeg final não repete `hflip`.
 Sem IA, o espelho permanece no grafo comum anterior ao split.
 
+No formato automático, a escolha de modo prefere NV12 quando a câmera o oferece
+na resolução e FPS pedidos, como a Facecam MK.2 em USB 3.0; caso contrário usa
+MJPEG. NV12 dispensa a decodificação JPEG. Com IA, a captura NV12 passa por
+yuv420p antes de RGB, pois a conversão direta do FFmpeg 6.1 não é vetorizada.
+Um formato escolhido explicitamente em **Formato** é mantido.
+
 Sem IA, um processo FFmpeg captura o modo V4L2 negociado, aplica os efeitos e
-divide o resultado entre a saída virtual e o preview opcional. LUT e ajustes
-são calculados uma vez antes dessa divisão. Sem efeitos, o filtro é neutro.
+entrega yuv420p ao controlador por um único pipe. LUT e ajustes são calculados
+uma vez nesse grafo. Sem efeitos, o filtro é neutro.
 
 Com IA, a captura produz RGB para um processo Rust de inferência; outro FFmpeg
-recebe o RGB processado e executa os efeitos comuns e a divisão. Os pipes têm
-capacidade limitada pelo sistema: não existe uma fila crescente de frames em
-Rust. O worker mantém uma sessão ONNX e é encerrado junto com a captura.
-A inferência CUDA não falha silenciosamente para CPU.
+recebe o RGB processado, executa os efeitos comuns e entrega yuv420p pelo mesmo
+pipe único. Uma thread do worker lê a captura continuamente e guarda só o
+quadro mais recente. Um quadro mais lento que o intervalo da câmera descarta os
+antigos, em vez de bloquear o FFmpeg e acumular quadros na fila V4L2. Não existe
+fila crescente em Rust. O worker mantém uma sessão ONNX e é encerrado junto com
+a captura. A inferência CUDA não falha silenciosamente para CPU.
 
 Antes do worker, preview e saída virtual mantêm a resolução original e usam
 a mesma taxa, limitada por `ai_fps`
@@ -131,9 +139,11 @@ a morte por encerramento do pai antes de executar FFmpeg, com APIs seguras de
 `nix`. O encerramento normal mata e recolhe o decoder; morte abrupta do worker
 também encerra o processo. O controlador mantém a posse da captura e do worker.
 
-Os filtros convertem para yuv420p antes do split. O preview converte uma cópia
-desses mesmos quadros para RGB24, em resolução nativa e sem limitador próprio.
-`PreviewFrame` carrega dimensão e pixels; a GUI preserva a proporção e recebe
+Os filtros terminam em yuv420p. O leitor do controlador entrega cada quadro I420
+à saída virtual e, apenas com o preview publicado, à caixa de entrega da GUI.
+`PreviewFrame` carrega dimensão e o mesmo I420 enviado aos consumidores. A GUI
+converte para RGB (BT.601, faixa limitada, como o FFmpeg) somente os quadros que
+exibe; preview oculto não converte nada. A GUI preserva a proporção e recebe
 uma notificação a cada quadro. Somente o último quadro completo fica na caixa
 de entrega; uma janela lenta não acumula histórico para exibir depois. O monitor
 e o compositor ainda limitam a apresentação, e consumidores externos podem
@@ -142,14 +152,50 @@ Sem IA, a taxa negociada é preservada. Com IA, vale o limite de FPS explícito
 para ambas as saídas, inclusive em preview sem saída virtual. Fechar a janela com
 bandeja disponível desliga o preview e mantém a saída virtual.
 
-Em sessões com GUI, o ramo RGB de preview é reservado ao iniciar a captura.
-`Stream::set_preview` alterna somente a publicação dos quadros; o leitor continua
-escoando o pipe com buffer reutilizado quando oculto. A troca preserva processos,
-uptime, worker de IA e saída virtual. `Preview` conserva uma saída virtual já
-ativa. Um controlador headless iniciado sem preview conserva a variante sem RGB;
-ativar preview pela primeira vez nesse caso ainda requer reconstruir o grafo.
-As próximas alternâncias usam o pipe já aberto. Erros incluem somente o trecho
-do log da captura atual, sem misturar avisos de encerramentos anteriores.
+`Stream::set_preview` alterna somente a publicação dos quadros, e
+`Stream::set_virtual` liga o encaminhamento à saída virtual. Ativar a câmera
+virtual sobre um preview em andamento, ou o preview sobre uma câmera virtual,
+preserva processos, uptime e worker de IA. `Preview` conserva uma saída virtual
+já ativa. Erros incluem somente o trecho do log da captura atual, sem misturar
+avisos de encerramentos anteriores.
+
+## Saída virtual persistente
+
+Com `exclusive_caps=1`, o v4l2loopback anuncia captura somente enquanto um
+gravador transmite, e não emite evento udev ao mudar. Navegadores só
+reenumeram câmeras após um evento do sistema. Se o gravador fechava ao parar,
+reiniciar ou trocar efeitos, o Meet escolhia a Facecam física, ocupada pela
+própria captura, e mostrava "câmera indisponível" até ser reiniciado.
+
+`virtual_sink` mantém um único FFmpeg gravando no loopback durante a vida do
+controlador. A captura submete quadros I420; somente o mais recente é escrito.
+Sem quadro novo por 200 ms, o gravador repete o último, preservando a imagem
+durante reinícios. Parar a captura ou uma falha de FFmpeg trocam para preto.
+O gravador aguarda o estado `capture` no sysfs antes de servir a captura e
+recusa abrir se outro processo já transmite no dispositivo.
+
+Em sessões com GUI, o gravador é aberto na inicialização, com a resolução do
+modo atual, para que navegadores abertos antes da câmera virtual já a listem.
+Falhas nessa abertura antecipada não geram erro e são tentadas de novo a cada
+30 s. O controlador headless abre o gravador na primeira saída virtual. A
+mudança de resolução, de dispositivo ou a morte do processo recriam o gravador;
+preparar a câmera virtual ou remover as ferramentas de vídeo o libera antes de
+começar. Sair do aplicativo encerra o gravador e o dispositivo volta a anunciar
+somente saída.
+
+O FFmpeg não define o intervalo de quadros do loopback, que ficava no padrão de
+30 FPS mesmo com 60 FPS gravados. Com o gravador transmitindo, `v4l2-ctl
+--set-parm` anuncia os FPS de saída, inclusive o limite de IA, e os consumidores
+abrem a câmera com a taxa real. Uma falha nesse ajuste fica no log
+`virtual-output.err.log` e não impede a câmera.
+
+O ajuste não regulariza o espaçamento entre quadros. Medido em 11/11/2026 a
+1080p60, a câmera entrega quadros a cada 16–20 ms nos timestamps do kernel, em
+USB 2.0 e 3.0, mas a saída virtual alterna ~20, ~20 e ~9 ms. O FFmpeg 6.1 do
+Ubuntu 24.04 dorme 10 ms quando a entrada ainda não tem quadro
+(`fftools/ffmpeg.c`, `av_usleep(10000)`; removido no 7.0), e cada FFmpeg da
+cadeia processa nesses intervalos. O loopback marca cada quadro no instante da
+escrita, e um consumidor que reduz para 30 FPS herda essa irregularidade.
 
 Aplicar efeitos verifica parâmetros, arquivos e inferência, interrompe brevemente
 a captura, retoma as saídas anteriores e salva o JSON. Falhas síncronas restauram

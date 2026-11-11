@@ -193,7 +193,15 @@ pub fn choose_mode(modes: &[Mode], config: &Config) -> Result<Mode> {
         .min_by_key(|m| {
             let exact_size = m.width == w && m.height == h;
             let size_diff = u64::from(m.width.abs_diff(w)) + u64::from(m.height.abs_diff(h));
-            let format = if m.format == config.ffmpeg_params.input_format {
+            // Automatic choice prefers NV12, offered by the Facecam MK.2 on
+            // USB 3: 4:2:0 without MJPEG decoding. At 1080p60 it measured
+            // 52% of a core against 122% for MJPEG without AI, and 37%
+            // against 55% with AI (see `stream::ai_capture_filter`).
+            let preferred = match config.ffmpeg_params.input_format.as_str() {
+                "auto" => "nv12",
+                format => format,
+            };
+            let format = if m.format == preferred {
                 0
             } else if m.format == "mjpeg" {
                 1
@@ -398,6 +406,39 @@ mod tests {
         assert_eq!(selected.format, "mjpeg");
         assert_eq!(selected.width, 1280);
         assert_eq!(selected.fps, 30.0);
+    }
+    #[test]
+    fn automatic_format_prefers_nv12_only_at_the_requested_size_and_rate() {
+        // `v4l2-ctl --list-formats-ext` of a Facecam MK.2 on USB 3, trimmed.
+        let usb3 = "[0]: 'YUYV' (YUYV 4:2:2)\nSize: Discrete 1920x1080\nInterval: Discrete 0.017s (60.000 fps)\nInterval: Discrete 0.033s (30.000 fps)\n[1]: 'MJPG' (Motion-JPEG, compressed)\nSize: Discrete 1920x1080\nInterval: Discrete 0.008s (120.000 fps)\nInterval: Discrete 0.017s (60.000 fps)\nInterval: Discrete 0.033s (30.000 fps)\n[2]: 'NV12' (Y/UV 4:2:0)\nSize: Discrete 1920x1080\nInterval: Discrete 0.017s (60.000 fps)\nInterval: Discrete 0.033s (30.000 fps)";
+        let modes = parse_modes(usb3);
+        let mut config = Config::default();
+        config.ffmpeg_params.video_size = "1920x1080".into();
+        assert_eq!(config.ffmpeg_params.input_format, "auto");
+        for fps in [60, 30] {
+            config.ffmpeg_params.framerate = fps;
+            let selected = choose_mode(&modes, &config).unwrap();
+            assert_eq!(
+                (selected.format.as_str(), selected.fps),
+                ("nv12", f64::from(fps))
+            );
+        }
+        // NV12 never wins by giving up the requested rate.
+        config.ffmpeg_params.framerate = 120;
+        assert_eq!(choose_mode(&modes, &config).unwrap().format, "mjpeg");
+        // An explicit format is still honored.
+        config.ffmpeg_params.framerate = 60;
+        for format in ["mjpeg", "yuyv422"] {
+            config.ffmpeg_params.input_format = format.into();
+            assert_eq!(choose_mode(&modes, &config).unwrap().format, format);
+        }
+        // On USB 2 the camera offers only MJPEG at 1080p60.
+        config.ffmpeg_params.input_format = "auto".into();
+        let usb2 = parse_modes(
+            "[0]: 'MJPG'\nSize: Discrete 1920x1080\nInterval: Discrete 0.017s (60.000 fps)\n[1]: 'NV12'\nSize: Discrete 1920x1080\nInterval: Discrete 0.200s (5.000 fps)",
+        );
+        let selected = choose_mode(&usb2, &config).unwrap();
+        assert_eq!((selected.format.as_str(), selected.fps), ("mjpeg", 60.0));
     }
     #[test]
     fn keeps_inactive_flags_and_sparse_menu_options() {

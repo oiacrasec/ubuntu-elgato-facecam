@@ -169,6 +169,7 @@ struct App {
     config: Config,
     applied_effects: crate::effects::Effects,
     texture: Option<egui::TextureHandle>,
+    preview_rgb: Vec<u8>,
     pending: HashMap<String, i64>,
     grid: bool,
     tab: u8,
@@ -256,6 +257,7 @@ impl App {
             controller,
             applied_effects: config.effects.clone(),
             texture: None,
+            preview_rgb: Vec::new(),
             pending: HashMap::new(),
             grid: false,
             tab: 0,
@@ -1222,15 +1224,19 @@ impl eframe::App for App {
                 .unwrap_or_else(|e| e.into_inner())
                 .take()
             {
-                let image = egui::ColorImage::from_rgb(frame.size, &frame.rgb);
-                if let Some(texture) = &mut self.texture {
-                    texture.set(image, egui::TextureOptions::LINEAR);
-                } else {
-                    self.texture = Some(ctx.load_texture(
-                        "camera-preview",
-                        image,
-                        egui::TextureOptions::LINEAR,
-                    ));
+                // Only displayed frames are converted; hidden previews cost nothing.
+                if crate::stream::i420_to_rgb(frame.size, &frame.yuv, &mut self.preview_rgb).is_ok()
+                {
+                    let image = egui::ColorImage::from_rgb(frame.size, &self.preview_rgb);
+                    if let Some(texture) = &mut self.texture {
+                        texture.set(image, egui::TextureOptions::LINEAR);
+                    } else {
+                        self.texture = Some(ctx.load_texture(
+                            "camera-preview",
+                            image,
+                            egui::TextureOptions::LINEAR,
+                        ));
+                    }
                 }
             }
             if !state.preview {

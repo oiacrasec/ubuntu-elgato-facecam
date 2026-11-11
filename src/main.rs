@@ -49,6 +49,7 @@ mod updater;
 #[cfg(feature = "ai")]
 mod video_background;
 mod virtual_camera;
+mod virtual_sink;
 
 use anyhow::{Context, Result, bail};
 use clap::{Arg, ArgAction, CommandFactory, FromArgMatches, Parser};

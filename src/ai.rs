@@ -293,7 +293,7 @@ impl OnnxSegmentation {
 #[cfg(feature = "ai")]
 pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Result<()> {
     use anyhow::Context;
-    use std::io::{Read, Write};
+    use std::io::Write;
     effects.preflight()?;
     let mut model = if effects.background_blur {
         Some(if effects.eye_contact {
@@ -337,18 +337,12 @@ pub fn worker(effects: &Effects, size: Option<&str>, rate: Option<f64>) -> Resul
         crate::background::Background::open(effects, w, h, fps)?.frame()?;
         return Ok(());
     }
-    let mut input = std::io::stdin().lock();
+    let input = LatestFrames::spawn(std::io::stdin(), w * h * 3);
     let mut output = std::io::stdout().lock();
     let mut frame = vec![0; w * h * 3];
     let mut background = crate::background::Background::open(effects, w, h, fps)?;
     let mut compositor = Compositor::for_mask(w, h, mask_width, mask_height);
-    loop {
-        if input.read(&mut frame[..1])? == 0 {
-            break;
-        }
-        input
-            .read_exact(&mut frame[1..])
-            .context("Frame RGB incompleto")?;
+    while input.next(&mut frame)? {
         let small = resize_rgb_to(&frame, w, h, mask_width, mask_height);
         let mask = model.infer(&small)?;
         let background = background.frame()?;
@@ -376,8 +370,7 @@ fn gpu_worker(
     fps: f64,
     checking: bool,
 ) -> Result<()> {
-    use anyhow::Context;
-    use std::io::{Read, Write};
+    use std::io::Write;
     let mut background = if effects.background_blur {
         Some(crate::background::Background::open(effects, w, h, fps)?)
     } else {
@@ -420,15 +413,9 @@ fn gpu_worker(
         }
         return Ok(());
     }
-    let mut input = std::io::stdin().lock();
+    let input = LatestFrames::spawn(std::io::stdin(), frame.len());
     let mut output = std::io::stdout().lock();
-    loop {
-        if input.read(&mut frame[..1])? == 0 {
-            break;
-        }
-        input
-            .read_exact(&mut frame[1..])
-            .context("Frame RGB incompleto")?;
+    while input.next(&mut frame)? {
         let bg = background
             .as_mut()
             .map(|b| b.frame())
@@ -442,6 +429,102 @@ fn gpu_worker(
         output.write_all(rgb)?;
     }
     Ok(())
+}
+
+#[cfg(feature = "ai")]
+#[derive(Default)]
+struct Latest {
+    frame: Option<Vec<u8>>,
+    spare: Option<Vec<u8>>,
+    end: Option<std::result::Result<(), String>>,
+    dropped: u64,
+}
+
+/// Reads capture frames on its own thread and keeps only the newest one.
+/// Without it, a frame slower than the camera interval made FFmpeg block on
+/// the pipe while V4L2 queued older frames, adding latency that never
+/// drained. Now the worker always processes the most recent frame.
+#[cfg(feature = "ai")]
+struct LatestFrames {
+    shared: std::sync::Arc<(std::sync::Mutex<Latest>, std::sync::Condvar)>,
+}
+
+#[cfg(feature = "ai")]
+impl LatestFrames {
+    fn spawn(mut source: impl std::io::Read + Send + 'static, len: usize) -> Self {
+        let shared = std::sync::Arc::new((
+            std::sync::Mutex::new(Latest::default()),
+            std::sync::Condvar::new(),
+        ));
+        let reader = shared.clone();
+        std::thread::spawn(move || {
+            let mut buffer = vec![0; len];
+            let end = loop {
+                match read_frame(&mut source, &mut buffer) {
+                    Ok(true) => {
+                        let (lock, ready) = &*reader;
+                        let mut latest = lock.lock().unwrap_or_else(|e| e.into_inner());
+                        let replaced = latest.frame.replace(buffer);
+                        if replaced.is_some() {
+                            latest.dropped += 1;
+                        }
+                        buffer = replaced
+                            .or_else(|| latest.spare.take())
+                            .unwrap_or_else(|| vec![0; len]);
+                        drop(latest);
+                        ready.notify_one();
+                    }
+                    Ok(false) => break Ok(()),
+                    Err(e) => break Err(e),
+                }
+            };
+            let (lock, ready) = &*reader;
+            lock.lock().unwrap_or_else(|e| e.into_inner()).end = Some(end);
+            ready.notify_one();
+        });
+        Self { shared }
+    }
+
+    /// Swaps the newest frame into `frame`. Returns false at the end of input.
+    fn next(&self, frame: &mut Vec<u8>) -> Result<bool> {
+        let (lock, ready) = &*self.shared;
+        let mut latest = lock.lock().unwrap_or_else(|e| e.into_inner());
+        while latest.frame.is_none() && latest.end.is_none() {
+            latest = ready.wait(latest).unwrap_or_else(|e| e.into_inner());
+        }
+        if let Some(newest) = latest.frame.take() {
+            latest.spare = Some(std::mem::replace(frame, newest));
+            return Ok(true);
+        }
+        match latest.end.clone() {
+            Some(Err(e)) => bail!(e),
+            _ => Ok(false),
+        }
+    }
+
+    #[cfg(test)]
+    fn dropped(&self) -> u64 {
+        self.shared.0.lock().unwrap().dropped
+    }
+}
+
+/// Fills `buffer` with one frame; a clean end before any byte returns false.
+#[cfg(feature = "ai")]
+fn read_frame(
+    source: &mut impl std::io::Read,
+    buffer: &mut [u8],
+) -> std::result::Result<bool, String> {
+    let mut filled = 0;
+    while filled < buffer.len() {
+        match source.read(&mut buffer[filled..]) {
+            Ok(0) if filled == 0 => return Ok(false),
+            Ok(0) => return Err("Frame RGB incompleto".into()),
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(format!("Falha ao ler frame RGB: {e}")),
+        }
+    }
+    Ok(true)
 }
 
 #[cfg(feature = "ai")]
@@ -696,6 +779,62 @@ fn composite(
 #[cfg(all(test, feature = "ai"))]
 mod tests {
     use super::*;
+
+    /// Delivers bytes in small pieces, like a pipe, and blocks until released.
+    struct Chunked {
+        data: std::io::Cursor<Vec<u8>>,
+        gate: std::sync::mpsc::Receiver<()>,
+        piece: usize,
+    }
+    impl std::io::Read for Chunked {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.data.position() == 0 {
+                let _ = self.gate.recv();
+            }
+            let n = buf.len().min(self.piece);
+            std::io::Read::read(&mut self.data, &mut buf[..n])
+        }
+    }
+
+    #[test]
+    fn worker_input_skips_stale_frames_and_ends_cleanly() {
+        let bytes: Vec<u8> = (1..=4).flat_map(|v| [v; 6]).collect();
+        let (release, gate) = std::sync::mpsc::channel();
+        let input = LatestFrames::spawn(
+            Chunked {
+                data: std::io::Cursor::new(bytes),
+                gate,
+                piece: 4,
+            },
+            6,
+        );
+        release.send(()).unwrap();
+        // Let the reader consume every frame before the slow worker asks.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while input.shared.0.lock().unwrap().end.is_none() {
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let mut frame = vec![0; 6];
+        assert!(input.next(&mut frame).unwrap());
+        assert_eq!(frame, [4; 6], "the newest frame wins");
+        assert_eq!(input.dropped(), 3);
+        assert!(!input.next(&mut frame).unwrap());
+        assert!(!input.next(&mut frame).unwrap());
+    }
+
+    #[test]
+    fn worker_input_reports_truncated_frames_and_accepts_empty_input() {
+        let input = LatestFrames::spawn(std::io::Cursor::new(vec![1; 9]), 6);
+        let mut frame = vec![0; 6];
+        assert!(input.next(&mut frame).unwrap());
+        assert_eq!(frame, [1; 6]);
+        let error = input.next(&mut frame).unwrap_err().to_string();
+        assert!(error.contains("incompleto"), "{error}");
+        let empty = LatestFrames::spawn(std::io::Cursor::new(Vec::new()), 6);
+        assert!(!empty.next(&mut frame).unwrap());
+        assert_eq!(frame, [1; 6], "no frame leaves the buffer untouched");
+    }
     #[test]
     fn alpha_endpoints_preserve_foreground_and_replace_background() {
         let original = vec![250, 30, 20, 10, 240, 50];

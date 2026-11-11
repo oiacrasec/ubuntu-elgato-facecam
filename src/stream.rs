@@ -1,3 +1,4 @@
+use crate::virtual_sink::{self, i420_len};
 use crate::{camera::Mode, config::Config};
 use anyhow::{Context, Result, bail};
 use nix::{
@@ -17,11 +18,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// One I420 (yuv420p) frame, exactly as delivered to the virtual camera.
 pub struct PreviewFrame {
     // Headless controllers can receive/count frames without a display consumer.
     #[cfg_attr(not(feature = "gui"), allow(dead_code))]
     pub size: [usize; 2],
-    pub rgb: Vec<u8>,
+    #[cfg_attr(not(feature = "gui"), allow(dead_code))]
+    pub yuv: Vec<u8>,
 }
 pub type Wake = Arc<Mutex<Option<Box<dyn Fn() + Send>>>>;
 #[derive(Default)]
@@ -30,6 +33,38 @@ pub struct PreviewFrames {
     pub wake: Wake,
 }
 pub type LatestFrame = Arc<PreviewFrames>;
+
+/// Converts an I420 frame to RGB24 with the BT.601 limited-range matrix that
+/// FFmpeg applies to untagged yuv420p, sharing each chroma sample with its
+/// 2×2 block. The GUI converts only frames it actually displays, instead of
+/// FFmpeg converting every frame while the preview is hidden.
+#[cfg_attr(not(any(feature = "gui", test)), allow(dead_code))]
+pub fn i420_to_rgb([width, height]: [usize; 2], yuv: &[u8], rgb: &mut Vec<u8>) -> Result<()> {
+    if yuv.len() != i420_len([width, height]) {
+        bail!("Quadro I420 com tamanho inesperado");
+    }
+    let chroma_width = width.div_ceil(2);
+    let (luma, chroma) = yuv.split_at(width * height);
+    let (u_plane, v_plane) = chroma.split_at(chroma.len() / 2);
+    rgb.clear();
+    rgb.reserve(width * height * 3);
+    for y in 0..height {
+        let row = &luma[y * width..(y + 1) * width];
+        let chroma_row = (y / 2) * chroma_width;
+        for (x, &luma) in row.iter().enumerate() {
+            let c = 298 * (i32::from(luma) - 16) + 128;
+            let u = i32::from(u_plane[chroma_row + x / 2]) - 128;
+            let v = i32::from(v_plane[chroma_row + x / 2]) - 128;
+            let clamp = |value: i32| (value >> 8).clamp(0, 255) as u8;
+            rgb.extend_from_slice(&[
+                clamp(c + 409 * v),
+                clamp(c - 100 * u - 208 * v),
+                clamp(c + 516 * u),
+            ]);
+        }
+    }
+    Ok(())
+}
 
 pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
     if effects.ai_enabled() {
@@ -41,28 +76,39 @@ pub fn output_fps(mode: &Mode, effects: &crate::effects::Effects) -> f64 {
 
 fn ai_capture_filter(mode: &Mode, effects: &crate::effects::Effects) -> String {
     let fps = output_fps(mode, effects);
-    if effects.mirror {
+    let mut filter = if effects.mirror {
         format!("fps={fps},hflip")
     } else {
         format!("fps={fps}")
+    };
+    // FFmpeg 6.1 converts NV12 to RGB without its vectorized path; going
+    // through planar 4:2:0 first measured 37% of a core instead of 71% at
+    // 1080p60.
+    if mode.format == "nv12" {
+        filter.push_str(",format=yuv420p");
     }
+    filter
 }
 
 pub struct Outputs {
     pub virtual_output: bool,
     pub preview: bool,
-    // A GUI keeps the pipe drained while hidden, so showing it never closes
-    // the producer or makes conferencing consumers lose the virtual camera.
-    pub keep_preview: bool,
 }
+
+/// Destination of processed frames for the persistent virtual camera writer;
+/// `None` while only the preview is active.
+type SinkTarget = Arc<Mutex<Option<Arc<virtual_sink::Input>>>>;
 
 pub struct Stream {
     child: Child,
     upstream: Children,
     reader: Option<JoinHandle<()>>,
     preview_enabled: Arc<AtomicBool>,
+    sink: SinkTarget,
     frames: LatestFrame,
     log_start: u64,
+    pub size: [usize; 2],
+    pub fps: f64,
     pub started: Instant,
     pub log: PathBuf,
     pub frames_received: Arc<AtomicU64>,
@@ -81,13 +127,11 @@ impl Drop for Children {
     }
 }
 
-pub fn ffmpeg_args(
-    device: &str,
-    mode: &Mode,
-    config: &Config,
-    virtual_output: bool,
-    preview: bool,
-) -> Vec<String> {
+/// Final FFmpeg stage: common effects, then yuv420p on stdout. The controller
+/// forwards these frames to the persistent virtual camera writer and, only
+/// when visible, to the preview. One branch serves both outputs, so the
+/// preview always shows the exact pixels virtual camera consumers receive.
+pub fn ffmpeg_args(device: &str, mode: &Mode, config: &Config) -> Vec<String> {
     let mut args: Vec<String> = [
         "-hide_banner",
         "-loglevel",
@@ -119,50 +163,19 @@ pub fn ffmpeg_args(
     if filters.is_empty() {
         filters.push("null".into());
     }
-    // Share the actual output format too: previewing RGB before YUV420 conversion
-    // would hide chroma loss and rounding that virtual-camera consumers receive.
     filters.push("format=yuv420p".into());
-    let base = filters.join(",");
-    let graph = match (virtual_output, preview) {
-        (true, true) => format!("[0:v]{base},split=2[vout][p];[p]format=rgb24[preview]"),
-        (true, false) => format!("[0:v]{base}[vout]"),
-        _ => format!("[0:v]{base},format=rgb24[preview]"),
-    };
-    args.extend(["-filter_complex".into(), graph]);
-    if virtual_output {
-        args.extend(
-            [
-                "-map",
-                "[vout]",
-                "-an",
-                "-pix_fmt",
-                "yuv420p",
-                "-f",
-                "v4l2",
-                &config.virtual_device,
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
-    }
-    if preview {
-        args.extend(
-            [
-                "-map",
-                "[preview]",
-                "-an",
-                "-pix_fmt",
-                "rgb24",
-                "-threads",
-                "1",
-                "-f",
-                "rawvideo",
-                "pipe:1",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
-    }
+    args.extend([
+        "-filter_complex".into(),
+        format!("[0:v]{}[out]", filters.join(",")),
+    ]);
+    args.extend(
+        [
+            "-map", "[out]", "-an", "-pix_fmt", "yuv420p", "-threads", "1", "-f", "rawvideo",
+            "pipe:1",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
     args
 }
 
@@ -189,29 +202,24 @@ impl Stream {
         mode: &Mode,
         config: &Config,
         outputs: Outputs,
+        sink: Option<Arc<virtual_sink::Input>>,
         frames: LatestFrame,
         log: &Path,
     ) -> Result<Self> {
         let Outputs {
             virtual_output,
             preview,
-            keep_preview,
         } = outputs;
-        let preview_pipe = preview || keep_preview;
+        if virtual_output && sink.is_none() {
+            bail!("Saída da câmera virtual indisponível");
+        }
         config.effects.preflight()?;
         let size = [usize::try_from(mode.width)?, usize::try_from(mode.height)?];
         if size[0] == 0 || size[1] == 0 || size[0] > 7680 || size[1] > 4320 {
             bail!("Resolução de vídeo fora dos limites");
         }
-        let frame_bytes = size[0]
-            .checked_mul(size[1])
-            .and_then(|n| n.checked_mul(3))
-            .context("Tamanho de quadro inválido")?;
         // SetEffects validates inference before stopping an active capture.
         // Automatic backend selection probes RTX in an isolated child.
-        if virtual_output {
-            verify_virtual_device(&config.virtual_device)?;
-        }
         if fs::metadata(log).is_ok_and(|m| m.len() > 2 * 1024 * 1024) {
             File::create(log)?;
         }
@@ -219,10 +227,10 @@ impl Stream {
         let log_start = err.metadata()?.len();
         let mut upstream = Children::default();
         let mut ai_backend = None;
-        let mut args = ffmpeg_args(device, mode, config, virtual_output, preview_pipe);
+        let mut args = ffmpeg_args(device, mode, config);
+        let fps = output_fps(mode, &config.effects);
         let stdin = if config.effects.ai_enabled() {
             let (ai_width, ai_height) = (mode.width, mode.height);
-            let ai_fps = output_fps(mode, &config.effects);
             let end = args.iter().position(|a| a == "-i").unwrap() + 2;
             let mut capture = args[..end].to_vec();
             capture.extend(["-vf".into(), ai_capture_filter(mode, &config.effects)]);
@@ -247,7 +255,7 @@ impl Stream {
             ai_backend = Some(status);
             let mut worker = worker_command
                 .args(["--ai-size", &format!("{ai_width}x{ai_height}")])
-                .args(["--ai-rate", &ai_fps.to_string()])
+                .args(["--ai-rate", &fps.to_string()])
                 .stdin(Stdio::from(source))
                 .stdout(Stdio::piped())
                 .stderr(err.try_clone()?)
@@ -258,9 +266,9 @@ impl Stream {
                 format: "rgb24".into(),
                 width: ai_width,
                 height: ai_height,
-                fps: ai_fps,
+                fps,
             };
-            args = ffmpeg_args("pipe:0", &raw_mode, config, virtual_output, preview_pipe);
+            args = ffmpeg_args("pipe:0", &raw_mode, config);
             let format = args.iter().position(|a| a == "-f").unwrap();
             args[format + 1] = "rawvideo".into();
             let input_format = args.iter().position(|a| a == "-input_format").unwrap();
@@ -282,25 +290,21 @@ impl Stream {
         let mut child = Command::new("ffmpeg")
             .args(args)
             .stdin(stdin)
-            .stdout(if preview_pipe {
-                Stdio::piped()
-            } else {
-                Stdio::null()
-            })
+            .stdout(Stdio::piped())
             .stderr(err)
             .spawn()
             .context("Não foi possível iniciar FFmpeg; instale o pacote ffmpeg")?;
         let frames_received = Arc::new(AtomicU64::new(0));
-        let counter = frames_received.clone();
         let preview_enabled = Arc::new(AtomicBool::new(preview));
+        let sink: SinkTarget = Arc::new(Mutex::new(sink.filter(|_| virtual_output)));
         let reader = child.stdout.take().map(|stdout| {
-            preview_reader(
+            frame_reader(
                 stdout,
                 size,
-                frame_bytes,
                 frames.clone(),
                 preview_enabled.clone(),
-                counter,
+                sink.clone(),
+                frames_received.clone(),
             )
         });
         Ok(Self {
@@ -308,8 +312,11 @@ impl Stream {
             upstream,
             reader,
             preview_enabled,
+            sink,
             frames,
             log_start,
+            size,
+            fps,
             started: Instant::now(),
             log: log.into(),
             frames_received,
@@ -317,6 +324,8 @@ impl Stream {
         })
     }
 
+    /// Switches the preview without touching processes, so virtual camera
+    /// consumers never notice.
     pub fn set_preview(&mut self, enabled: bool) -> bool {
         if enabled && self.reader.is_none() {
             return false;
@@ -327,6 +336,12 @@ impl Stream {
             *frame = None;
         }
         true
+    }
+
+    /// Starts or stops forwarding frames to the virtual camera writer without
+    /// restarting capture.
+    pub fn set_virtual(&mut self, sink: Option<Arc<virtual_sink::Input>>) {
+        *self.sink.lock().unwrap_or_else(|e| e.into_inner()) = sink;
     }
 
     pub fn poll(&mut self) -> Result<bool> {
@@ -358,6 +373,7 @@ impl Stream {
     }
 
     pub fn stop(&mut self) -> Result<()> {
+        self.set_virtual(None);
         if self.child.try_wait()?.is_none() {
             kill(Pid::from_raw(self.child.id() as i32), Signal::SIGTERM).ok();
             let deadline = Instant::now() + Duration::from_secs(2);
@@ -377,29 +393,37 @@ impl Stream {
     }
 }
 
-fn preview_reader(
+/// Reads complete I420 frames from the final FFmpeg stage. Each frame goes to
+/// the virtual camera writer when enabled, and to the preview slot only while
+/// the preview is published. Neither consumer can stall capture: both keep
+/// just the newest frame.
+fn frame_reader(
     mut stdout: impl Read + Send + 'static,
     size: [usize; 2],
-    frame_bytes: usize,
     delivery: LatestFrame,
     publishing: Arc<AtomicBool>,
+    sink: SinkTarget,
     counter: Arc<AtomicU64>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
-        let mut rgb = vec![0; frame_bytes];
-        while stdout.read_exact(&mut rgb).is_ok() {
+        let frame_bytes = i420_len(size);
+        let mut yuv = vec![0; frame_bytes];
+        while stdout.read_exact(&mut yuv).is_ok() {
+            if let Some(input) = &*sink.lock().unwrap_or_else(|e| e.into_inner()) {
+                input.submit(&yuv);
+            }
             let mut slot = delivery.frame.lock().unwrap_or_else(|e| e.into_inner());
             if !publishing.load(Ordering::Relaxed) {
                 continue;
             }
             let next = slot
                 .take()
-                .filter(|frame| frame.rgb.len() == frame_bytes)
-                .map(|frame| frame.rgb)
+                .filter(|frame| frame.yuv.len() == frame_bytes)
+                .map(|frame| frame.yuv)
                 .unwrap_or_else(|| vec![0; frame_bytes]);
             *slot = Some(PreviewFrame {
                 size,
-                rgb: std::mem::replace(&mut rgb, next),
+                yuv: std::mem::replace(&mut yuv, next),
             });
             counter.fetch_add(1, Ordering::Relaxed);
             drop(slot);
@@ -412,9 +436,10 @@ fn preview_reader(
 
 #[cfg(test)]
 impl Stream {
+    /// A fake capture producing 2×2 I420 frames (6 bytes) every 20 ms.
     pub(crate) fn synthetic(log: &Path, frames: LatestFrame) -> Self {
         let mut child = Command::new("sh")
-            .args(["-c", "while :; do printf 0123456789ab; sleep 0.02; done"])
+            .args(["-c", "while :; do printf 012345; sleep 0.02; done"])
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -422,12 +447,13 @@ impl Stream {
             .unwrap();
         let frames_received = Arc::new(AtomicU64::new(0));
         let preview_enabled = Arc::new(AtomicBool::new(false));
-        let reader = Some(preview_reader(
+        let sink: SinkTarget = Arc::default();
+        let reader = Some(frame_reader(
             child.stdout.take().unwrap(),
             [2, 2],
-            12,
             frames.clone(),
             preview_enabled.clone(),
+            sink.clone(),
             frames_received.clone(),
         ));
         Self {
@@ -435,9 +461,12 @@ impl Stream {
             upstream: Children::default(),
             reader,
             preview_enabled,
+            sink,
             frames,
             log: log.into(),
             log_start: 0,
+            size: [2, 2],
+            fps: 50.0,
             started: Instant::now(),
             frames_received,
             ai_backend: None,
@@ -511,16 +540,101 @@ mod tests {
         assert_eq!(output_fps(&mode, &effects), mode.fps);
     }
     #[test]
-    fn headless_stream_does_not_decode_preview_frames() {
+    fn final_stage_emits_one_yuv_branch_and_never_opens_the_virtual_device() {
         let mode = Mode {
             format: "mjpeg".into(),
             width: 1280,
             height: 720,
             fps: 30.0,
         };
-        let args = ffmpeg_args("/dev/video0", &mode, &Config::default(), true, false);
-        assert!(!args.iter().any(|a| a == "rawvideo" || a == "pipe:1"));
-        assert_eq!(args.last().unwrap(), "/dev/video10");
+        let args = ffmpeg_args("/dev/video0", &mode, &Config::default());
+        // The persistent writer owns the loopback; the capture pipeline must not
+        // open it, or restarting capture would make consumers lose the camera.
+        assert!(!args.iter().any(|a| a == "/dev/video10"));
+        assert_eq!(
+            args.iter().filter(|a| *a == "v4l2").count(),
+            1,
+            "only the camera input"
+        );
+        assert!(
+            !args
+                .iter()
+                .any(|a| a.contains("rgb24") || a.contains("split"))
+        );
+        assert_eq!(
+            &args[args.len() - 5..],
+            ["-threads", "1", "-f", "rawvideo", "pipe:1"]
+        );
+        assert_eq!(args.iter().filter(|a| *a == "-map").count(), 1);
+        assert_eq!(args.iter().filter(|a| *a == "yuv420p").count(), 1);
+    }
+
+    #[test]
+    fn i420_conversion_matches_bt601_limited_range_and_rejects_bad_frames() {
+        let mut rgb = Vec::new();
+        // Black, white and the limited-range primaries.
+        for (yuv, expected) in [
+            ([16, 128, 128], [0, 0, 0]),
+            ([235, 128, 128], [255, 255, 255]),
+            ([81, 90, 240], [255, 0, 0]),
+            ([145, 54, 34], [0, 255, 1]),
+            ([41, 240, 110], [0, 0, 255]),
+            // Out-of-range codes clamp instead of wrapping.
+            ([0, 0, 0], [0, 135, 0]),
+            ([255, 255, 255], [255, 125, 255]),
+        ] {
+            let frame = [yuv[0], yuv[1], yuv[2]];
+            i420_to_rgb([1, 1], &frame, &mut rgb).unwrap();
+            for (actual, wanted) in rgb.iter().zip(expected) {
+                assert!(actual.abs_diff(wanted) <= 1, "{yuv:?} -> {rgb:?}");
+            }
+        }
+        // Odd sizes share the last chroma column/row.
+        let size = [3, 3];
+        let mut frame = vec![128; i420_len(size)];
+        frame[..9].fill(126);
+        frame[9..13].copy_from_slice(&[128, 128, 128, 240]);
+        i420_to_rgb(size, &frame, &mut rgb).unwrap();
+        assert_eq!(rgb.len(), 27);
+        assert_eq!(&rgb[..3], [128, 128, 128]);
+        assert!(rgb[(2 * 3 + 2) * 3] < rgb[(2 * 3 + 2) * 3 + 2]);
+        for bad in [0, 1, i420_len(size) - 1, i420_len(size) + 1] {
+            assert!(i420_to_rgb(size, &vec![0; bad], &mut rgb).is_err());
+        }
+    }
+
+    #[test]
+    fn reader_forwards_to_the_virtual_writer_without_publishing_hidden_previews() {
+        let dir = tempfile::tempdir().unwrap();
+        let frames: LatestFrame = Arc::default();
+        let mut stream = Stream::synthetic(&dir.path().join("log"), frames.clone());
+        let sink = virtual_sink::Sink::synthetic("/dev/video10", [2, 2], &dir.path().join("sink"));
+        stream.set_virtual(Some(sink.input()));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while sink.input().submitted() < 3 {
+            assert!(
+                Instant::now() < deadline,
+                "virtual output received no frames"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(frames.frame.lock().unwrap().is_none());
+        assert_eq!(stream.frames_received.load(Ordering::Relaxed), 0);
+        assert!(stream.set_preview(true));
+        while stream.frames_received.load(Ordering::Relaxed) == 0 {
+            assert!(Instant::now() < deadline, "preview received no frames");
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(
+            frames.frame.lock().unwrap().as_ref().unwrap().yuv,
+            b"012345"
+        );
+        stream.set_virtual(None);
+        thread::sleep(Duration::from_millis(30));
+        let forwarded = sink.input().submitted();
+        thread::sleep(Duration::from_millis(80));
+        assert_eq!(sink.input().submitted(), forwarded);
+        stream.stop().unwrap();
     }
 
     #[test]
@@ -540,6 +654,14 @@ mod tests {
                 ..Default::default()
             };
             assert_eq!(ai_capture_filter(&mode, &effects), "fps=24,hflip");
+            let nv12 = Mode {
+                format: "nv12".into(),
+                ..mode.clone()
+            };
+            assert_eq!(
+                ai_capture_filter(&nv12, &effects),
+                "fps=24,hflip,format=yuv420p"
+            );
             assert!(!effects.filters().iter().any(|f| f == "hflip"));
         }
         let effects = crate::effects::Effects {
@@ -628,16 +750,9 @@ mod tests {
             }
             let input = dir.path().join("composed.rgb");
             fs::write(&input, composed).unwrap();
-            let virtual_file = dir.path().join(format!("virtual-{mirror}.yuv"));
-            let mut args = ffmpeg_args("unused", &mode, &config, true, true);
+            let mut args = ffmpeg_args("unused", &mode, &config);
             let filter = args.iter().position(|a| a == "-filter_complex").unwrap();
             args.drain(..filter);
-            let sink = args
-                .iter()
-                .position(|a| a == &config.virtual_device)
-                .unwrap();
-            args[sink - 1] = "rawvideo".into();
-            args[sink] = virtual_file.to_str().unwrap().into();
             let output = Command::new("ffmpeg")
                 .args([
                     "-v",
@@ -663,28 +778,11 @@ mod tests {
                 "{}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            let decoded = Command::new("ffmpeg")
-                .args([
-                    "-v",
-                    "error",
-                    "-f",
-                    "rawvideo",
-                    "-pixel_format",
-                    "yuv420p",
-                    "-video_size",
-                    "64x32",
-                    "-i",
-                ])
-                .arg(&virtual_file)
-                .args([
-                    "-pix_fmt", "rgb24", "-threads", "1", "-f", "rawvideo", "pipe:1",
-                ])
-                .output()
-                .unwrap();
-            assert!(decoded.status.success());
-            assert_eq!(output.stdout, decoded.stdout);
-            assert_eq!(output.stdout.len(), 64 * 32 * 3);
-            let pixel = |x: usize, y: usize| &output.stdout[(y * 64 + x) * 3..(y * 64 + x) * 3 + 3];
+            // Preview and virtual camera now share this exact I420 frame.
+            assert_eq!(output.stdout.len(), i420_len([64, 32]));
+            let mut rgb = Vec::new();
+            i420_to_rgb([64, 32], &output.stdout, &mut rgb).unwrap();
+            let pixel = |x: usize, y: usize| &rgb[(y * 64 + x) * 3..(y * 64 + x) * 3 + 3];
             let red = pixel(if mirror { 52 } else { 12 }, 8);
             assert!(red[0] > 240 && red[1] < 15 && red[2] < 15);
             assert!(
@@ -719,52 +817,40 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let virtual_file = dir.path().join(format!("{width}.yuv"));
-            let render = |virtual_output| {
-                let original = ffmpeg_args("unused", &mode, &config, virtual_output, true);
-                let filter = original
-                    .iter()
-                    .position(|a| a == "-filter_complex")
-                    .unwrap();
-                let mut args: Vec<String> = [
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-filter_complex_threads",
-                    "1",
-                    "-f",
-                    "lavfi",
-                    "-i",
-                ]
-                .map(str::to_owned)
-                .into();
-                args.push(format!(
-                    "testsrc2=size={width}x{height}:rate={fps}:duration=0.2"
-                ));
-                args.extend_from_slice(&original[filter..]);
-                if virtual_output {
-                    let sink = args
-                        .iter()
-                        .position(|a| a == &config.virtual_device)
-                        .unwrap();
-                    args[sink - 1] = "rawvideo".into();
-                    args[sink] = virtual_file.to_str().unwrap().into();
-                }
-                let output = Command::new("ffmpeg").args(args).output().unwrap();
-                assert!(
-                    output.status.success(),
-                    "{}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                output.stdout
-            };
-            let preview = render(true);
-            let plane = width as usize * height as usize;
-            let virtual_bytes = fs::metadata(&virtual_file).unwrap().len() as usize;
-            let count = preview.len() / (plane * 3);
+            let original = ffmpeg_args("unused", &mode, &config);
+            let filter = original
+                .iter()
+                .position(|a| a == "-filter_complex")
+                .unwrap();
+            let mut args: Vec<String> = [
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-filter_complex_threads",
+                "1",
+                "-f",
+                "lavfi",
+                "-i",
+            ]
+            .map(str::to_owned)
+            .into();
+            args.push(format!(
+                "testsrc2=size={width}x{height}:rate={fps}:duration=0.2"
+            ));
+            args.extend_from_slice(&original[filter..]);
+            let output = Command::new("ffmpeg").args(args).output().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let size = [width as usize, height as usize];
+            let frame = i420_len(size);
+            let count = output.stdout.len() / frame;
             assert_eq!(count, if fps == 60.0 { 12 } else { 6 });
-            assert_eq!(preview.len(), count * plane * 3);
-            assert_eq!(virtual_bytes, count * plane * 3 / 2);
+            assert_eq!(output.stdout.len(), count * frame);
+            let virtual_file = dir.path().join(format!("{width}.yuv"));
+            fs::write(&virtual_file, &output.stdout).unwrap();
             let decoded = Command::new("ffmpeg")
                 .args([
                     "-hide_banner",
@@ -791,14 +877,23 @@ mod tests {
                 "{}",
                 String::from_utf8_lossy(&decoded.stderr)
             );
-            assert_eq!(
-                preview, decoded.stdout,
-                "preview must match the decoded virtual frames byte for byte"
-            );
-            assert_eq!(
-                render(false),
-                preview,
-                "starting virtual output must not change the preview"
+            // The GUI converts the same I420 frames the virtual camera receives;
+            // integer rounding may differ slightly from FFmpeg's converter.
+            let mut preview = Vec::new();
+            let mut worst = 0;
+            for (yuv, reference) in output
+                .stdout
+                .chunks_exact(frame)
+                .zip(decoded.stdout.chunks_exact(size[0] * size[1] * 3))
+            {
+                i420_to_rgb(size, yuv, &mut preview).unwrap();
+                for (a, b) in preview.iter().zip(reference) {
+                    worst = worst.max(a.abs_diff(*b));
+                }
+            }
+            assert!(
+                worst <= 3,
+                "preview differs from FFmpeg by {worst} code values"
             );
         }
     }
@@ -806,14 +901,14 @@ mod tests {
     #[test]
     #[ignore = "requires ffmpeg; uses synthetic frames, no camera or display"]
     fn ffmpeg_effects_render() {
-        fn render(config: &Config) -> Vec<u8> {
+        fn render_yuv(config: &Config) -> Vec<u8> {
             let mode = Mode {
                 format: "mjpeg".into(),
                 width: 640,
                 height: 360,
                 fps: 30.0,
             };
-            let original = ffmpeg_args("unused", &mode, config, false, true);
+            let original = ffmpeg_args("unused", &mode, config);
             let end = original
                 .iter()
                 .position(|a| a == "-filter_complex")
@@ -838,8 +933,20 @@ mod tests {
                 "{}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            assert!(output.stdout.len() >= PREVIEW_WIDTH * PREVIEW_HEIGHT * 3);
-            output.stdout[..PREVIEW_WIDTH * PREVIEW_HEIGHT * 3].to_vec()
+            let frame = i420_len([PREVIEW_WIDTH, PREVIEW_HEIGHT]);
+            assert!(output.stdout.len() >= frame);
+            output.stdout[..frame].to_vec()
+        }
+        // The preview shows the GUI conversion of the exact virtual frame.
+        fn render(config: &Config) -> Vec<u8> {
+            let mut rgb = Vec::new();
+            i420_to_rgb(
+                [PREVIEW_WIDTH, PREVIEW_HEIGHT],
+                &render_yuv(config),
+                &mut rgb,
+            )
+            .unwrap();
+            rgb
         }
         let baseline = render(&Config::default());
         let mut config = Config::default();
@@ -889,53 +996,9 @@ mod tests {
                 assert!((*actual as i16 - expected).abs() <= 2);
             }
         }
-        // Exercise both mapped outputs with a raw-file substitute for the V4L2
-        // sink, so this test also verifies delivery without loading a kernel module.
-        let mode = Mode {
-            format: "mjpeg".into(),
-            width: 640,
-            height: 360,
-            fps: 30.0,
-        };
-        let original = ffmpeg_args("unused", &mode, &config, true, true);
-        let end = original
-            .iter()
-            .position(|a| a == "-filter_complex")
-            .unwrap();
-        let mut args: Vec<String> = [
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-filter_complex_threads",
-            "1",
-            "-f",
-            "lavfi",
-            "-i",
-            "testsrc=size=640x360:rate=30:duration=0.2",
-        ]
-        .map(str::to_owned)
-        .into();
-        args.extend_from_slice(&original[end..]);
-        let sink = args
-            .iter()
-            .position(|a| a == &config.virtual_device)
-            .unwrap();
-        let output_file = dir.path().join("virtual.yuv");
-        args[sink - 1] = "rawvideo".into();
-        args[sink] = output_file.to_str().unwrap().into();
-        let both = Command::new("ffmpeg").args(args).output().unwrap();
-        assert!(
-            both.status.success(),
-            "{}",
-            String::from_utf8_lossy(&both.stderr)
-        );
-        assert!(both.stdout.len() >= lut_frame.len());
-        for (actual, expected) in both.stdout[..lut_frame.len()].iter().zip(&lut_frame) {
-            assert!((*actual as i16 - *expected as i16).abs() <= 2);
-        }
-        let virtual_frames = std::fs::read(output_file).unwrap();
+        // The single I420 branch is what the virtual camera writer receives.
+        let virtual_frames = render_yuv(&config);
         let plane = PREVIEW_WIDTH * PREVIEW_HEIGHT;
-        assert!(virtual_frames.len() >= plane * 3 / 2);
         let y = virtual_frames[0];
         assert!((110..=121).contains(&y));
         assert!(virtual_frames[..plane].iter().all(|&v| v.abs_diff(y) <= 1));
@@ -958,10 +1021,10 @@ mod tests {
             height: 360,
             fps: 30.0,
         };
-        let args = ffmpeg_args("unused", &mode, &config, true, true);
+        let args = ffmpeg_args("unused", &mode, &config);
         let graph = &args[args.iter().position(|a| a == "-filter_complex").unwrap() + 1];
         assert_eq!(graph.matches("hqdn3d").count(), 1);
-        assert!(graph.find("hqdn3d").unwrap() < graph.find("split=2").unwrap());
+        assert!(graph.find("hqdn3d").unwrap() < graph.find("format=yuv420p").unwrap());
     }
 
     #[test]
@@ -983,8 +1046,8 @@ mod tests {
             Outputs {
                 virtual_output: false,
                 preview: true,
-                keep_preview: false,
             },
+            None,
             frames.clone(),
             &dir.path().join("ffmpeg.log"),
         )
@@ -996,8 +1059,8 @@ mod tests {
             thread::sleep(Duration::from_millis(50));
         }
         assert_eq!(
-            frames.frame.lock().unwrap().as_ref().unwrap().rgb.len(),
-            mode.width as usize * mode.height as usize * 3
+            frames.frame.lock().unwrap().as_ref().unwrap().yuv.len(),
+            i420_len([mode.width as usize, mode.height as usize])
         );
         assert_eq!(
             frames.frame.lock().unwrap().as_ref().unwrap().size,

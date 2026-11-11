@@ -70,7 +70,10 @@ indicados pela Elgato e os limites da migração para Ubuntu.
 
 Resoluções e taxas dependem do modo e da conexão. Um nome de câmera igual não
 assegura formatos iguais em USB2 e USB3. Não force uma combinação que não aparece
-na lista. [Solução de problemas](SOLUCAO_DE_PROBLEMAS.md) ajuda quando a câmera não aparece.
+na lista. Em USB 3.0 a Facecam MK.2 oferece NV12 sem compressão; o formato
+automático o usa e reduz a CPU da captura em 1080p60 (medido: 24% de um núcleo
+contra 54% em MJPEG, com IA). Escolher um modo em **Formato** torna aquele formato
+o preferido; sem ele na resolução e FPS pedidos, a escolha volta para MJPEG. [Solução de problemas](SOLUCAO_DE_PROBLEMAS.md) ajuda quando a câmera não aparece.
 
 ## Ajustar imagem e enquadramento
 
@@ -201,7 +204,14 @@ Com a câmera virtual ativa, **Visualizar** mostra ou pausa somente a imagem na
 janela. A saída para o Meet/OBS continua ativa; fechar a janela para a bandeja
 também preserva essa saída. **Iniciar preview**, quando disponível no painel,
 preserva uma câmera virtual que já esteja transmitindo. **Parar câmera virtual**
-encerra a captura. Após trocar o nome do dispositivo, atualize a lista de câmeras
+encerra a captura e libera a Facecam física.
+
+Enquanto o aplicativo estiver aberto, **Elgato Facecam Virtual** permanece na
+lista de câmeras do navegador, mesmo com a câmera virtual parada, quando mostra
+uma imagem preta. Assim, Meet e Zoom abertos antes de iniciar a câmera virtual
+já a encontram, e sair ou voltar a uma chamada não exige reiniciar o navegador.
+Trocar efeitos mantém a última imagem por um instante, sem desconectar a chamada.
+Após trocar o nome do dispositivo ou a resolução, atualize a lista de câmeras
 do consumidor e escolha **Elgato Facecam Virtual**.
 
 **Espelhar**, abaixo do preview, espelha preview e câmera virtual imediatamente,

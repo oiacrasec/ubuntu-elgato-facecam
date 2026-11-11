@@ -82,6 +82,12 @@ Sem saída, pare a captura e abra **Configurações** › **Câmera virtual** �
 [o guia de uso](USO.md#preparar-a-câmera-virtual). Inicie a saída antes de atualizar
 a lista do consumidor. Não descarregue um módulo usado por outro aplicativo.
 
+Se o Meet mostrar "A câmera está indisponível — feche outros apps", confira no
+menu de câmeras se **Elgato Facecam MK.2** está selecionada. A câmera física fica
+em uso pelo Facecam Hub durante a captura; escolha **Elgato Facecam Virtual**.
+Isso acontece quando o navegador foi aberto antes do aplicativo; com o app
+aberto, a câmera virtual permanece listada.
+
 A saída atual é yuv420p. Validar imagem e taxa no consumidor é uma etapa separada
 do preview. Uma falha de assinatura com Secure Boot exige um módulo aceito pelo
 Ubuntu; o app não desativa a proteção. Sem pacote pré-compilado para o kernel,

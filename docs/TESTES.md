@@ -65,11 +65,27 @@ A CI instala FFmpeg e executa essa verificação. O script local também a execu
 quando o executável está disponível.
 
 `ffmpeg_preview_matches_decoded_virtual_pixels_resolution_and_frame_count`
-compara todos os pixels do preview com uma decodificação independente dos mesmos
-quadros yuv420p da saída virtual. Verifica dimensões, número de quadros, 4:3,
-16:9, 60 fps e 30000/1001 fps, com efeitos e espelhamento. Iniciar a saída virtual
-não pode alterar o preview. Esse teste usa arquivos temporários sintéticos e
-roda no filtro `ffmpeg_`, sem câmera, display ou GPU.
+compara todos os pixels da conversão I420→RGB do preview com uma decodificação
+independente, pelo FFmpeg, dos mesmos quadros yuv420p da saída virtual, com
+tolerância de 3 códigos para arredondamento. Verifica dimensões, número de
+quadros, 4:3, 16:9, 60 fps e 30000/1001 fps, com efeitos e espelhamento. Esse
+teste usa arquivos temporários sintéticos e roda no filtro `ffmpeg_`, sem câmera,
+display ou GPU.
+
+Os testes comuns de `virtual_sink` cobrem tamanho I420 com dimensões ímpares,
+preto em faixa limitada, descarte de quadros antigos, reutilização de buffers,
+repetição do último quadro, troca para preto ao parar e recusa de geometria e
+FPS inválidos (zero, negativos, não finitos e extremos) antes de tocar em
+dispositivos. `ai::tests::worker_input_*` verifica que o worker processa o quadro
+mais recente, conta os descartados e reporta quadro incompleto. O controlador
+verifica que ligar a câmera virtual sobre um preview não reinicia a captura e
+que parar mantém o gravador. O teste ignorado
+`loopback_stays_capture_capable_and_announces_the_output_rate` exige um
+`/dev/video10` livre e grava apenas no loopback:
+
+```bash
+cargo test loopback_stays_capture_capable -- --ignored
+```
 
 Fundos animados usam uma mídia sintética de dois frames. O teste verifica loop,
 conversão de FPS, caminhos com caracteres especiais, rejeição de mídia inválida
@@ -452,6 +468,6 @@ Os hashes, dimensões e durações de referência ficam no
 verifica o estágio do espelho com fundo, correção de olhar e ambos. O check
 optativo `ffmpeg_mirror_`, incluído por `./test-desktop-app.sh` quando há FFmpeg,
 usa câmera sintética assimétrica e máscara determinística. Confirma o deslocamento
-da câmera, a orientação preservada do fundo e igualdade byte a byte entre preview
-RGB e saída virtual sintética YUV420 decodificada, com espelho ligado e desligado.
+da câmera e a orientação preservada do fundo no quadro YUV420 único entregue à
+saída virtual e ao preview, convertido como na GUI, com espelho ligado e desligado.
 Não depende de hardware ou inferência; os testes de modelo continuam separados.

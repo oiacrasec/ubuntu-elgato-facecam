@@ -47,8 +47,14 @@ Tempo menor em um caso não comprova complexidade melhor ou ganho em todos os ca
 
 ## Evitar trabalho repetido
 
-A implementação atual conserva somente o último quadro do preview. A captura
-sem preview não produz RGB para a GUI. O modelo ONNX permanece carregado no
+Em 1080p60 com IA, a captura NV12 usou 24% de um núcleo e a MJPEG 54%; sem IA,
+o FFmpeg de captura isolado usou 52% e 122%. O formato automático prefere NV12.
+
+A implementação atual conserva somente o último quadro do preview. O FFmpeg
+final produz apenas yuv420p; a GUI converte para RGB só os quadros que exibe,
+então preview oculto ou janela na bandeja não custam conversão. A saída virtual
+e o worker de IA também guardam só o quadro mais recente: um atraso descarta
+quadros antigos em vez de acumular latência. O modelo ONNX permanece carregado no
 worker durante a captura; não é criado para cada frame. Na alternativa CPU,
 desfoque usa duas passagens de janela deslizante em imagem reduzida.
 
