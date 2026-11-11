@@ -1315,10 +1315,20 @@ impl eframe::App for App {
             .resizable(false)
             .show(&ctx, |ui| {
                 let mut language = state.config.ui.language.clone();
+                use crate::updater::Phase;
+                let (update_label, update_request) = match state.update.phase {
+                    Phase::Available if state.update.installed => ("Atualizar agora", Request::InstallUpdate),
+                    Phase::RestartRequired => ("Reiniciar agora", Request::RestartApp),
+                    _ => ("Verificar atualizações", Request::CheckUpdates),
+                };
+                let idle = !state.streaming && !state.preview && !state.preparing_nvidia && !state.installation_running && !state.importing;
+                let update_enabled = !state.update.busy() && (matches!(update_request, Request::CheckUpdates) || idle);
+                // Same geometry as the virtual camera row: selector, then a 152 px action.
                 ui.horizontal(|ui| {
                     ui.label(t("Idioma"));
+                    let selector_width = (ui.available_width() - 152.0 - ui.spacing().item_spacing.x).max(120.0);
                     egui::ComboBox::from_id_salt("interface-language")
-                        .width(320.0)
+                        .width(selector_width)
                         .truncate()
                         .selected_text(state.languages.iter().find(|l| l.language == language).map_or(language.as_str(), |l| l.name.as_str()))
                         .show_ui(ui, |ui| {
@@ -1326,26 +1336,22 @@ impl eframe::App for App {
                                 ui.selectable_value(&mut language, entry.language.clone(), &entry.name);
                             }
                         });
+                    if ui
+                        .add_enabled_ui(update_enabled, |ui| ui.add_sized([152.0, 28.0], egui::Button::new(t(update_label))))
+                        .inner
+                        .clicked()
+                    {
+                        self.dispatch(update_request);
+                    }
                 });
                 if language != state.config.ui.language {
                     self.dispatch(Request::UpdateSettings { virtual_device: None, start_minimized: None, language: Some(language) });
                 }
-                ui.add_space(8.0);
+                ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(format!("{} {}", t("Versão"), state.update.build.version)).color(MUTED))
                         .on_hover_text(format!("{}{}", state.update.build.revision, if state.update.build.dirty { " (dev)" } else { "" }));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        use crate::updater::Phase;
-                        let (label, request) = match state.update.phase {
-                            Phase::Available if state.update.installed => ("Atualizar agora", Request::InstallUpdate),
-                            Phase::RestartRequired => ("Reiniciar agora", Request::RestartApp),
-                            _ => ("Verificar atualizações", Request::CheckUpdates),
-                        };
-                        let idle = !state.streaming && !state.preview && !state.preparing_nvidia && !state.installation_running && !state.importing;
-                        let enabled = !state.update.busy() && (matches!(request, Request::CheckUpdates) || idle);
-                        if ui.add_enabled(enabled, egui::Button::new(t(label))).clicked() { self.dispatch(request); }
-                        if state.update.busy() { ui.spinner(); }
-                    });
+                    if state.update.busy() { ui.spinner(); }
                 });
                 if !state.update.message.is_empty() {
                     ui.label(RichText::new(t(&state.update.message)).size(12.0).color(if state.update.phase == crate::updater::Phase::Failed { Color32::from_rgb(245, 140, 130) } else { MUTED }));
